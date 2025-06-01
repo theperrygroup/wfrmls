@@ -1,112 +1,230 @@
-# WFRMLS Python API Wrapper
+# WFRMLS Python Client
 
-A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to MLS data including properties, agents, offices, media, and more.
+A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to all RESO-certified endpoints for real estate data integration.
 
-## Features
+---
 
-- **Complete API Coverage**: Access to all WFRMLS endpoints including properties, agents, offices, analytics, and more
-- **Type Safety**: Comprehensive type hints throughout the codebase
-- **Easy Authentication**: Simple API key-based authentication with environment variable support
-- **Robust Error Handling**: Custom exceptions with meaningful error messages
-- **Full Test Coverage**: 100% test coverage with comprehensive unit and integration tests
-- **Modern Python**: Supports Python 3.8+ with modern async/await patterns where applicable
+## 🚀 Quick Navigation
 
-## Quick Start
+<div class="grid cards" markdown>
+
+-   :material-rocket-launch:{ .lg .middle } **Getting Started**
+
+    ---
+
+    Install the client and make your first API call in under 5 minutes
+
+    [:octicons-arrow-right-24: Quick Start](getting-started/quickstart.md)
+
+-   :material-api:{ .lg .middle } **API Reference**
+
+    ---
+
+    Complete method documentation with examples and parameters
+
+    [:octicons-arrow-right-24: View API Docs](api/index.md)
+
+-   :material-code-braces:{ .lg .middle } **Code Examples**
+
+    ---
+
+    Real-world usage examples for common real estate applications
+
+    [:octicons-arrow-right-24: Browse Examples](examples/index.md)
+
+-   :material-book-open-page-variant:{ .lg .middle } **User Guides**
+
+    ---
+
+    Comprehensive guides for advanced features and best practices
+
+    [:octicons-arrow-right-24: Read Guides](guides/index.md)
+
+</div>
+
+---
+
+## 📋 Quick Reference
+
+### Core Components
+
+!!! abstract "Main Client"
+    The **`WFRMLSClient`** serves as the main entry point, providing access to all API modules through a unified interface.
+
+!!! abstract "Service Modules"
+    - **Property**: Real estate listings and property data
+    - **Member**: Real estate agent information
+    - **Office**: Brokerage and office details
+    - **OpenHouse**: Open house schedules and events
+    - **Analytics**: Data insights and market analytics
+    - **Lookup**: Reference data and code tables
+
+### Common Patterns
+
+=== ":material-rocket-launch: Basic Operation"
+
+    ```python
+    from wfrmls import WFRMLSClient
+
+    # Initialize client
+    client = WFRMLSClient(bearer_token="your_token")
+
+    # Get active properties
+    properties = client.property.get_properties(
+        top=10,
+        filter_query="StandardStatus eq 'Active'"
+    )
+    ```
+
+=== ":material-shield-check: Error Handling"
+
+    ```python
+    from wfrmls.exceptions import WFRMLSError, NotFoundError
+
+    try:
+        property_data = client.property.get_property("12345678")
+    except NotFoundError:
+        print("Property not found")
+    except WFRMLSError as e:
+        print(f"API error: {e}")
+    ```
+
+=== ":material-cog: Advanced Configuration"
+
+    ```python
+    # Complex queries with filtering and sorting
+    properties = client.property.get_properties(
+        select=["ListingId", "ListPrice", "StandardStatus"],
+        filter_query="ListPrice ge 200000 and ListPrice le 500000",
+        orderby="ListPrice desc",
+        top=50
+    )
+    ```
+
+---
+
+## 🔧 Installation
+
+!!! info "Prerequisites"
+    - Python 3.8 or higher
+    - Valid WFRMLS API bearer token
+
+### Quick Setup
+
+```bash
+# Install via pip
+pip install wfrmls
+
+# Set up environment variable
+export WFRMLS_BEARER_TOKEN="your_bearer_token_here"
+```
+
+### First API Call
 
 ```python
 from wfrmls import WFRMLSClient
 
-# Initialize client (uses WFRMLS_BEARER_TOKEN environment variable)
-client = WFRMLSClient()
-
-# Or provide API key directly
-client = WFRMLSClient(api_key="your_api_key_here")
-
-# Search properties
-properties = client.properties.search_properties(
-    city="Salt Lake City",
-    property_type="Residential",
-    max_list_price=500000
-)
-
-# Get property details
-property_details = client.properties.get_property("12345")
-
-# Search agents
-agents = client.member.search_members(
-    first_name="John",
-    last_name="Smith"
-)
+client = WFRMLSClient()  # Uses environment variable
+data = client.property.get_properties(top=5)
+print(f"Retrieved {len(data)} properties")
 ```
 
-## Installation
+---
 
-```bash
-pip install wfrmls
-```
+## 🎯 Key Features
 
-For development installation:
+### **🏗️ Core Resources**
+Complete access to primary MLS data:
 
-```bash
-git clone https://github.com/theperrygroup/wfrmls.git
-cd wfrmls
-pip install -e ".[dev]"
-```
+- **[Properties](api/properties.md)** - Residential and commercial listings with full details
+- **[Members](api/members.md)** - Real estate agent profiles and contact information
+- **[Offices](api/offices.md)** - Brokerage data and office locations
+- **[Open Houses](api/openhouses.md)** - Scheduled showings and events
 
-## Documentation Structure
+### **🔍 Advanced Queries**
+Powerful search and filtering capabilities:
 
-- **[Installation Guide](installation.md)** - Setup and configuration
-- **[Quick Start Guide](quickstart.md)** - Get up and running in 5 minutes
-- **[API Reference](api-reference.md)** - Complete endpoint documentation
-- **[Examples](examples.md)** - Comprehensive usage examples
-- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
-- **[Contributing](contributing.md)** - Development guidelines
-- **[Changelog](changelog.md)** - Version history and changes
-- **[Deployment](deployment.md)** - Production deployment guidance
+- **[Geolocation Search](guides/geolocation.md)** - Radius and polygon-based property searches
+- **[OData Queries](guides/odata-queries.md)** - Complex filtering, sorting, and field selection
+- **[Data Synchronization](guides/data-sync.md)** - Incremental updates and change tracking
 
-## Available Endpoints
+### **⚡ Developer Experience**
+Built for production use:
 
-The WFRMLS Python wrapper provides access to the following endpoint categories:
+- **Type Safety**: Full type hints and modern Python practices
+- **Error Handling**: Comprehensive exception handling with clear messages
+- **Rate Limiting**: Built-in handling for API rate limits and quotas
+- **Testing**: 100% test coverage with comprehensive test suite
 
-### Core Data Access
-- **Properties**: Search, retrieve, and analyze property listings
-- **Members**: Access agent and member information
-- **Office**: Office and brokerage data
-- **Media**: Property photos, documents, and media files
+---
 
-### Specialized Features
-- **Analytics**: Market analytics and reporting data
-- **Lookup**: Reference data and lookup tables  
-- **History**: Property and listing history
-- **Open House**: Open house event information
-- **ADU**: Accessory Dwelling Unit data
-- **Green Verification**: Green building certifications
+## 🌟 Real-World Applications
 
-### System Information
-- **Resource**: API metadata and available resources
-- **Data System**: System information and capabilities
-- **Property Unit Types**: Property classification data
+### **Property Search Portals**
+- Build consumer-facing property search websites
+- Implement map-based property discovery
+- Create advanced filtering and sorting interfaces
 
-## Authentication
+### **Market Analytics Dashboards**
+- Track market trends and pricing patterns
+- Generate automated market reports
+- Monitor inventory levels and days on market
 
-The WFRMLS API uses Bearer token authentication. Set your API key as an environment variable:
+### **CRM Integration**
+- Sync agent and office data with customer management systems
+- Track open house attendance and lead generation
+- Automate client communication workflows
 
-```bash
-export WFRMLS_BEARER_TOKEN="your_api_key_here"
-```
+### **Data Warehousing**
+- Extract property data for business intelligence
+- Maintain synchronized local databases
+- Generate custom reports and analytics
 
-Or pass it directly when initializing the client:
+---
 
-```python
-client = WFRMLSClient(api_key="your_api_key_here")
-```
+## 📚 Related Documentation
 
-## Support
+!!! tip "Additional Resources"
 
-- **Documentation**: [https://wfrmls.readthedocs.io](https://wfrmls.readthedocs.io)
-- **Issues**: [GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)
-- **API Documentation**: Available in the `api_docs/` directory
+    - **[RESO Standards](reference/reso-standards.md)** - Industry standards compliance
+    - **[Utah Grid System](reference/utah-grid.md)** - Local address conventions
+    - **[Field Reference](reference/fields.md)** - Complete data dictionary
+    - **[Status Codes](reference/status-codes.md)** - API response reference
 
-## License
+---
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+## 🚀 Quick Start
+
+New to the WFRMLS API? Start here:
+
+1. **[Install the client](getting-started/installation.md)** - Get up and running in minutes
+2. **[Configure authentication](getting-started/authentication.md)** - Set up your API credentials
+3. **[Try the quick start](getting-started/quickstart.md)** - Make your first API call
+4. **[Explore examples](examples/index.md)** - See real-world use cases
+
+---
+
+## 🆘 Support & Community
+
+### Getting Help
+
+- **API Issues**: Contact [UtahRealEstate.com Support](https://vendor.utahrealestate.com)
+- **Library Issues**: [GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/theperrygroup/wfrmls/discussions)
+
+### Contributing
+
+We welcome contributions! See our **[Contributing Guide](development/contributing.md)** for details on:
+
+- Setting up the development environment
+- Running tests and quality checks
+- Submitting pull requests
+- Following coding standards
+
+### License
+
+This project is licensed under the **MIT License** - see the [license details](legal/license.md) for more information.
+
+---
+
+*Ready to get started? Jump to the [Quick Start Guide](getting-started/quickstart.md) or explore the [API Reference](api/index.md).* 

@@ -1,0 +1,100 @@
+# Git
+.git
+.gitignore
+# README.md  # Commented out to allow README.md for Docker builds
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Development
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.log
+logs/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation
+docs/_build/
+docs/build/
+site/
+
+# Package files
+*.egg-info/
+dist/
+build/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Testing
+tests/
+test_*.py
+*_test.py
+conftest.py
+
+# Tasks and development files
+tasks/
+api_docs/
+# Allow README.md and LICENSE for production builds
+# *.md
+# LICENSE
+
+# Exclude other markdown files
+DOCKER_README.md
+
+# Development dependencies (keeping requirements-dev.txt for development builds)
+requirements-docs.txt
+mkdocs.yml 
