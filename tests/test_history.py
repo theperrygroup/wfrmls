@@ -1,16 +1,17 @@
 """Tests for WFRMLS History module."""
 
-import pytest
-from datetime import datetime, date
-from typing import Dict, Any
+from datetime import date, datetime
+from typing import Any, Dict
 from unittest.mock import Mock, patch
 
+import pytest
+
+from wfrmls.exceptions import WFRMLSError
 from wfrmls.history import (
+    HistoryStatus,
     HistoryTransactionalClient,
     HistoryTransactionType,
-    HistoryStatus,
 )
-from wfrmls.exceptions import WFRMLSError
 
 
 class TestHistoryTransactionType:
