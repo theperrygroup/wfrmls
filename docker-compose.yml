@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  wfrmls-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: wfrmls-background-agent
+    restart: unless-stopped
+    environment:
+      # WFRMLS API Configuration
+      - WFRMLS_BEARER_TOKEN=${WFRMLS_BEARER_TOKEN:-9d0243d7632d115b002acf3547d2d7ee}
+      
+      # Agent Configuration
+      - WFRMLS_SYNC_INTERVAL=${WFRMLS_SYNC_INTERVAL:-900}  # 15 minutes
+      - WFRMLS_MONITOR_INTERVAL=${WFRMLS_MONITOR_INTERVAL:-300}  # 5 minutes
+      - WFRMLS_HEALTH_CHECK_INTERVAL=${WFRMLS_HEALTH_CHECK_INTERVAL:-600}  # 10 minutes
+      - WFRMLS_LOG_LEVEL=${WFRMLS_LOG_LEVEL:-INFO}
+      - WFRMLS_LOG_TO_FILE=${WFRMLS_LOG_TO_FILE:-true}
+      - WFRMLS_MAX_RETRIES=${WFRMLS_MAX_RETRIES:-3}
+      - WFRMLS_BATCH_SIZE=${WFRMLS_BATCH_SIZE:-200}
+      - WFRMLS_ENABLE_ALERTS=${WFRMLS_ENABLE_ALERTS:-true}
+      
+      # Optional webhook for notifications
+      - WFRMLS_WEBHOOK_URL=${WFRMLS_WEBHOOK_URL:-}
+      
+      # Python settings
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    volumes:
+      # Persist logs
+      - ./logs:/app/logs
+      
+      # Optional: Mount custom config
+      - ./agent-config:/app/config:ro
+    
+    ports:
+      # Optional: Expose health check endpoint (if implemented)
+      - "8080:8080"
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import wfrmls; print('Health check passed')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Add a web dashboard for monitoring
+  wfrmls-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+      target: dashboard
+    container_name: wfrmls-dashboard
+    restart: unless-stopped
+    depends_on:
+      - wfrmls-agent
+    environment:
+      - AGENT_API_URL=http://wfrmls-agent:8080
+    ports:
+      - "3000:3000"
+    profiles:
+      - dashboard
+
+volumes:
+  # Named volume for logs if you prefer
+  wfrmls-logs:
+    driver: local
+
+networks:
+  default:
+    name: wfrmls-network 
