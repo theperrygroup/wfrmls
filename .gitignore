@@ -170,3 +170,6 @@ config.json
 
 # Todo docs
 PROJECT_STATUS.md
+
+# Task tracking and development artifacts
+tasks/

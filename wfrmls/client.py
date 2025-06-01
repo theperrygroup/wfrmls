@@ -10,10 +10,7 @@ if TYPE_CHECKING:
     from .adu import AduClient
     from .data_system import DataSystemClient
     from .deleted import DeletedClient
-    from .green_verification import GreenVerificationClient
-    from .history import HistoryTransactionalClient
     from .lookup import LookupClient
-    from .media import MediaClient
     from .member import MemberClient
     from .office import OfficeClient
     from .openhouse import OpenHouseClient
@@ -28,6 +25,9 @@ class WFRMLSClient:
     This is the primary entry point for accessing the WFRMLS API. It provides
     access to all available resources through service-specific client properties.
     The client uses lazy initialization to create service clients only when accessed.
+
+    Note: Media, History, and Green Verification endpoints are currently unavailable
+    due to server-side issues (504 Gateway Timeouts and missing entity types).
 
     Example:
         ```python
@@ -55,11 +55,11 @@ class WFRMLSClient:
         # Get open houses
         open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
 
-        # Get property photos
-        photos = client.media.get_photos_for_property("1611952")
+        # Get member information
+        members = client.member.get_active_members(top=50)
 
-        # Get transaction history
-        sales = client.history.get_recent_sales(days_back=30)
+        # Get office information
+        offices = client.office.get_active_offices(top=50)
         ```
     """
 
@@ -84,9 +84,6 @@ class WFRMLSClient:
         self._member: Optional["MemberClient"] = None
         self._office: Optional["OfficeClient"] = None
         self._openhouse: Optional["OpenHouseClient"] = None
-        self._media: Optional["MediaClient"] = None
-        self._history: Optional["HistoryTransactionalClient"] = None
-        self._green_verification: Optional["GreenVerificationClient"] = None
         self._data_system: Optional["DataSystemClient"] = None
         self._resource: Optional["ResourceClient"] = None
         self._property_unit_types: Optional["PropertyUnitTypesClient"] = None
@@ -293,93 +290,6 @@ class WFRMLSClient:
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
         return self._openhouse
-
-    @property_decorator
-    def media(self) -> "MediaClient":
-        """Access to media (photos/videos) endpoints.
-
-        Provides access to property photos, videos, and other media files.
-        Essential for displaying property images and multimedia content.
-
-        Returns:
-            MediaClient instance for media operations
-
-        Example:
-            ```python
-            # Get photos for a property
-            photos = client.media.get_photos_for_property("1611952")
-
-            # Get primary photo for a property
-            primary_photo = client.media.get_primary_photo("1611952")
-
-            # Get photo URLs only
-            photo_urls = client.media.get_media_urls_for_property("1611952", "Photo")
-            ```
-        """
-        if self._media is None:
-            from .media import MediaClient
-
-            self._media = MediaClient(
-                bearer_token=self._bearer_token, base_url=self._base_url
-            )
-        return self._media
-
-    @property_decorator
-    def history(self) -> "HistoryTransactionalClient":
-        """Access to historical transaction data endpoints.
-
-        Provides access to historical property transactions, sales data, and market analysis.
-        Valuable for comparable sales research and market trend analysis.
-
-        Returns:
-            HistoryTransactionalClient instance for transaction history operations
-
-        Example:
-            ```python
-            # Get recent sales
-            recent_sales = client.history.get_recent_sales(days_back=30)
-
-            # Get transaction history for a property
-            property_history = client.history.get_transactions_for_property("1611952")
-
-            # Get sales in a price range
-            mid_range_sales = client.history.get_sales_by_price_range(400000, 600000)
-            ```
-        """
-        if self._history is None:
-            from .history import HistoryTransactionalClient
-
-            self._history = HistoryTransactionalClient(
-                bearer_token=self._bearer_token, base_url=self._base_url
-            )
-        return self._history
-
-    @property_decorator
-    def green_verification(self) -> "GreenVerificationClient":
-        """Access to green verification endpoints.
-
-        Provides access to property green certifications, energy efficiency ratings,
-        and environmental sustainability information.
-
-        Returns:
-            GreenVerificationClient instance for green verification operations
-
-        Example:
-            ```python
-            # Get green verifications for a property
-            green_certs = client.green_verification.get_verifications_for_property("1611952")
-
-            # Get all LEED certified properties
-            leed_properties = client.green_verification.get_verifications_by_type("LEED")
-            ```
-        """
-        if self._green_verification is None:
-            from .green_verification import GreenVerificationClient
-
-            self._green_verification = GreenVerificationClient(
-                bearer_token=self._bearer_token, base_url=self._base_url
-            )
-        return self._green_verification
 
     @property_decorator
     def data_system(self) -> "DataSystemClient":

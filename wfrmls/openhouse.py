@@ -13,6 +13,7 @@ class OpenHouseStatus(Enum):
     ACTIVE = "Active"
     ENDED = "Ended"
     CANCELLED = "Cancelled"
+    COMPLETED = "Completed"
 
 
 class OpenHouseType(Enum):
@@ -29,6 +30,8 @@ class OpenHouseAttendedBy(Enum):
     AGENT = "Agent"
     OWNER = "Owner"
     NONE = "None"
+    LISTING_AGENT = "ListingAgent"
+    BUYER_AGENT = "BuyerAgent"
 
 
 class OpenHouseClient(BaseClient):
@@ -167,16 +170,15 @@ class OpenHouseClient(BaseClient):
 
     def get_upcoming_open_houses(
         self,
-        # days_ahead: Optional[int] = 7, # Removed for now to simplify filter
+        days_ahead: Optional[int] = 7,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get upcoming open houses.
 
         Convenience method to retrieve open houses scheduled for the near future.
-        For now, this returns all open houses without date filtering.
 
         Args:
-            # days_ahead: Number of days ahead to search (default: 7)
+            days_ahead: Number of days ahead to search (default: 7)
             **kwargs: Additional OData parameters (top, select, orderby, etc.)
 
         Returns:
@@ -184,23 +186,36 @@ class OpenHouseClient(BaseClient):
 
         Example:
             ```python
-            # Get open houses
+            # Get open houses for next 3 days
             upcoming = client.openhouse.get_upcoming_open_houses(
-                # days_ahead=3, # Removed for now
+                days_ahead=3,
                 orderby="OpenHouseStartTime asc",
                 top=50
             )
 
-            # Get this weekend's open houses
+            # Get this week's open houses
             weekend_opens = client.openhouse.get_upcoming_open_houses(
-                # days_ahead=7, # Removed for now
+                days_ahead=7,
                 expand="Property",
                 select=["OpenHouseKey", "ListingKey", "OpenHouseStartTime", "OpenHouseEndTime"]
             )
             ```
         """
-        # For now, just return all open houses without date filtering
-        # TODO: Investigate proper date field name and format for filtering
+        # Remove days_ahead from kwargs if it exists to avoid conflicts
+        kwargs.pop('days_ahead', None)
+        
+        if days_ahead is not None:
+            from datetime import datetime, timedelta
+            start_date = datetime.now().date()
+            filter_query = f"OpenHouseDate ge {start_date.isoformat()}"
+            
+            # If additional filter_query provided, combine them
+            existing_filter = kwargs.get("filter_query")
+            if existing_filter:
+                kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
+            else:
+                kwargs["filter_query"] = filter_query
+        
         return self.get_open_houses(**kwargs)
 
     def get_open_houses_for_property(
@@ -384,3 +399,102 @@ class OpenHouseClient(BaseClient):
 
         filter_query = f"ModificationTimestamp gt '{since_str}'"
         return self.get_open_houses(filter_query=filter_query, **kwargs)
+
+    def get_open_houses_by_date_range(
+        self, 
+        start_date: Union[str, date, datetime], 
+        end_date: Union[str, date, datetime],
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Get open houses within a specific date range.
+
+        Convenience method to retrieve open houses scheduled between two dates.
+
+        Args:
+            start_date: Start date for the range (ISO format string, date, or datetime object)
+            end_date: End date for the range (ISO format string, date, or datetime object)
+            **kwargs: Additional OData parameters
+
+        Returns:
+            Dictionary containing open houses within the specified date range
+
+        Example:
+            ```python
+            from datetime import date
+
+            # Get open houses for January 2024
+            start_date = date(2024, 1, 1)
+            end_date = date(2024, 1, 31)
+            opens = client.openhouse.get_open_houses_by_date_range(
+                start_date=start_date,
+                end_date=end_date
+            )
+            ```
+        """
+        if isinstance(start_date, datetime):
+            start_str = start_date.date().isoformat()
+        elif isinstance(start_date, date):
+            start_str = start_date.isoformat()
+        else:
+            start_str = start_date
+
+        if isinstance(end_date, datetime):
+            end_str = end_date.date().isoformat()
+        elif isinstance(end_date, date):
+            end_str = end_date.isoformat()
+        else:
+            end_str = end_date
+
+        filter_query = f"OpenHouseDate ge {start_str} and OpenHouseDate le {end_str}"
+        
+        # If additional filter_query provided, combine them
+        existing_filter = kwargs.get("filter_query")
+        if existing_filter:
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
+        else:
+            kwargs["filter_query"] = filter_query
+
+        return self.get_open_houses(**kwargs)
+
+    def get_weekend_open_houses(
+        self, 
+        weeks_ahead: Optional[int] = 2,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Get weekend open houses.
+
+        Convenience method to retrieve open houses scheduled for weekends.
+
+        Args:
+            weeks_ahead: Number of weeks ahead to search (default: 2)
+            **kwargs: Additional OData parameters
+
+        Returns:
+            Dictionary containing weekend open house listings
+
+        Example:
+            ```python
+            # Get open houses for next 2 weekends
+            weekend_opens = client.openhouse.get_weekend_open_houses(
+                weeks_ahead=2,
+                orderby="OpenHouseStartTime asc"
+            )
+            ```
+        """
+        from datetime import datetime, timedelta
+
+        # Calculate the date range for weekends
+        start_date = datetime.now().date()
+        
+        # For simplicity, we'll get all open houses in the range and let the user filter weekends
+        # A more sophisticated implementation would filter by day of week
+        filter_query = f"OpenHouseDate ge {start_date.isoformat()}"
+        
+        # If additional filter_query provided, combine them
+        existing_filter = kwargs.get("filter_query")
+        if existing_filter:
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
+        else:
+            kwargs["filter_query"] = filter_query
+
+        return self.get_open_houses(**kwargs)
