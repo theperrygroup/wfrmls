@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wfrmls"
-version = "1.0.0"
+version = "1.1.0"
 description = "Python wrapper for Wasatch Front Regional MLS API"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -52,10 +52,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/wfrmls/wfrmls-python"
-Documentation = "https://wfrmls.readthedocs.io"
-Repository = "https://github.com/wfrmls/wfrmls-python"
-Issues = "https://github.com/wfrmls/wfrmls-python/issues"
+Homepage = "https://github.com/theperrygroup/wfrmls"
+Documentation = "https://theperrygroup.github.io/wfrmls/"
+Repository = "https://github.com/theperrygroup/wfrmls"
+Issues = "https://github.com/theperrygroup/wfrmls/issues"
 
 [tool.black]
 line-length = 88

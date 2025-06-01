@@ -215,8 +215,8 @@ properties = client.property.get_properties(
 
 ```bash
 # Clone repository
-git clone https://github.com/wfrmls/wfrmls-python.git
-cd wfrmls-python
+git clone https://github.com/theperrygroup/wfrmls.git
+cd wfrmls
 
 # Create virtual environment
 python -m venv venv
