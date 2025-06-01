@@ -24,7 +24,7 @@ class TestDataSystemClient:
                 {
                     "DataSystemKey": "WFRMLS",
                     "DataSystemName": "WFRMLS",
-                    "DataSystemStatus": "Active"
+                    "DataSystemStatus": "Active",
                 }
             ]
         }
@@ -48,7 +48,7 @@ class TestDataSystemClient:
             select=["DataSystemKey", "DataSystemName"],
             orderby="DataSystemName asc",
             expand=["Resources"],
-            count=True
+            count=True,
         )
 
         expected_params = {
@@ -58,7 +58,7 @@ class TestDataSystemClient:
             "$select": "DataSystemKey,DataSystemName",
             "$orderby": "DataSystemName asc",
             "$expand": "Resources",
-            "$count": "true"
+            "$count": "true",
         }
 
         mock_get.assert_called_once_with("DataSystem", params=expected_params)
@@ -110,7 +110,7 @@ class TestDataSystemClient:
         mock_response: Dict[str, Any] = {
             "DataSystemKey": data_system_key,
             "DataSystemName": "WFRMLS",
-            "DataSystemStatus": "Active"
+            "DataSystemStatus": "Active",
         }
         mock_get.return_value = mock_response
 
@@ -130,21 +130,21 @@ class TestDataSystemClient:
         mock_get_data_systems.assert_called_once_with(top=10)
 
     @patch("wfrmls.data_system.DataSystemClient.get_data_systems")
-    def test_get_modified_data_systems_datetime(self, mock_get_data_systems: Mock) -> None:
+    def test_get_modified_data_systems_datetime(
+        self, mock_get_data_systems: Mock
+    ) -> None:
         """Test get_modified_data_systems with datetime object."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_data_systems.return_value = mock_response
 
         since_datetime = datetime(2024, 1, 1, 12, 0, 0)
         result = self.client.get_modified_data_systems(
-            since=since_datetime,
-            orderby="ModificationTimestamp desc"
+            since=since_datetime, orderby="ModificationTimestamp desc"
         )
 
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_data_systems.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="ModificationTimestamp desc"
+            filter_query=expected_filter, orderby="ModificationTimestamp desc"
         )
 
     @patch("wfrmls.data_system.DataSystemClient.get_data_systems")
@@ -160,7 +160,9 @@ class TestDataSystemClient:
         mock_get_data_systems.assert_called_once_with(filter_query=expected_filter)
 
     @patch("wfrmls.data_system.DataSystemClient.get_data_systems")
-    def test_get_modified_data_systems_string(self, mock_get_data_systems: Mock) -> None:
+    def test_get_modified_data_systems_string(
+        self, mock_get_data_systems: Mock
+    ) -> None:
         """Test get_modified_data_systems with string."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_data_systems.return_value = mock_response
@@ -175,14 +177,13 @@ class TestDataSystemClient:
         """Test DataSystemClient initialization with default parameters."""
         client = DataSystemClient()
         # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url')
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")
 
     def test_init_with_params(self) -> None:
         """Test DataSystemClient initialization with custom parameters."""
         client = DataSystemClient(
-            bearer_token="custom_token",
-            base_url="https://custom.api.com"
+            bearer_token="custom_token", base_url="https://custom.api.com"
         )
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url') 
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")

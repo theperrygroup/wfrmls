@@ -29,13 +29,13 @@ class TestWFRMLSAnalytics:
                 {
                     "ListPrice": 500000,
                     "ListingContractDate": "2024-01-01T00:00:00Z",
-                    "PropertyType": "Residential"
+                    "PropertyType": "Residential",
                 },
                 {
                     "ListPrice": 600000,
                     "ListingContractDate": "2024-01-02T00:00:00Z",
-                    "PropertyType": "Residential"
-                }
+                    "PropertyType": "Residential",
+                },
             ]
         }
 
@@ -44,20 +44,18 @@ class TestWFRMLSAnalytics:
                 {
                     "ListPrice": 550000,
                     "ListingContractDate": "2024-01-15T00:00:00Z",
-                    "PropertyType": "Residential"
+                    "PropertyType": "Residential",
                 }
             ]
         }
 
         self.mock_client.property.get_properties.side_effect = [
             mock_active_response,
-            mock_new_response
+            mock_new_response,
         ]
 
         result = self.analytics.get_market_summary(
-            city="Salt Lake City",
-            days_back=30,
-            property_type="Residential"
+            city="Salt Lake City", days_back=30, property_type="Residential"
         )
 
         assert result["market_area"] == "Salt Lake City"
@@ -71,16 +69,13 @@ class TestWFRMLSAnalytics:
         """Test market summary without city or property type filters."""
         mock_response = {
             "value": [
-                {
-                    "ListPrice": 300000,
-                    "ListingContractDate": "2024-01-01T00:00:00Z"
-                }
+                {"ListPrice": 300000, "ListingContractDate": "2024-01-01T00:00:00Z"}
             ]
         }
 
         self.mock_client.property.get_properties.side_effect = [
             mock_response,
-            {"value": []}
+            {"value": []},
         ]
 
         result = self.analytics.get_market_summary(days_back=30)
@@ -93,7 +88,7 @@ class TestWFRMLSAnalytics:
         """Test market summary with no properties."""
         self.mock_client.property.get_properties.side_effect = [
             {"value": []},
-            {"value": []}
+            {"value": []},
         ]
 
         result = self.analytics.get_market_summary()
@@ -106,20 +101,14 @@ class TestWFRMLSAnalytics:
         """Test market summary with invalid date formats."""
         mock_response = {
             "value": [
-                {
-                    "ListPrice": 400000,
-                    "ListingContractDate": "invalid-date"
-                },
-                {
-                    "ListPrice": 500000,
-                    "ListingContractDate": None
-                }
+                {"ListPrice": 400000, "ListingContractDate": "invalid-date"},
+                {"ListPrice": 500000, "ListingContractDate": None},
             ]
         }
 
         self.mock_client.property.get_properties.side_effect = [
             mock_response,
-            {"value": []}
+            {"value": []},
         ]
 
         result = self.analytics.get_market_summary()
@@ -145,38 +134,38 @@ class TestWFRMLSAnalytics:
                     "BedroomsTotal": 3,
                     "BathroomsTotalInteger": 2,
                     "LivingArea": 1500,
-                    "ListingContractDate": "2024-01-01T00:00:00Z"
+                    "ListingContractDate": "2024-01-01T00:00:00Z",
                 },
                 {
                     "ListPrice": 500000,
                     "BedroomsTotal": 4,
                     "BathroomsTotalInteger": 3,
                     "LivingArea": 2000,
-                    "ListingContractDate": "2024-01-02T00:00:00Z"
+                    "ListingContractDate": "2024-01-02T00:00:00Z",
                 },
                 {
                     "ListPrice": 700000,
                     "BedroomsTotal": 5,
                     "BathroomsTotalInteger": 4,
                     "LivingArea": 2500,
-                    "ListingContractDate": "2024-01-03T00:00:00Z"
-                }
+                    "ListingContractDate": "2024-01-03T00:00:00Z",
+                },
             ]
         }
 
         self.mock_client.property.get_properties.return_value = mock_response
 
         result = self.analytics.analyze_price_trends(
-            city="Park City",
-            property_type="Residential",
-            price_segments=3
+            city="Park City", property_type="Residential", price_segments=3
         )
 
         assert result["market_area"] == "Park City"
         assert result["properties_analyzed"] == 3
         assert len(result["price_segments"]) == 3
         assert result["overall_pricing"]["average_price"] == 500000
-        assert abs(result["overall_pricing"]["avg_price_per_sqft"] - 243.33) < 0.1  # Average of price/sqft
+        assert (
+            abs(result["overall_pricing"]["avg_price_per_sqft"] - 243.33) < 0.1
+        )  # Average of price/sqft
 
         # Check segment names for 3 segments
         segment_names = [seg["name"] for seg in result["price_segments"]]
@@ -208,7 +197,7 @@ class TestWFRMLSAnalytics:
             "value": [
                 {"ListPrice": 0},  # Invalid price
                 {"ListPrice": None},  # No price
-                {}  # No price field
+                {},  # No price field
             ]
         }
 
@@ -237,22 +226,22 @@ class TestWFRMLSAnalytics:
                     "ListPrice": 500000,
                     "StandardStatus": "Active",
                     "ListingContractDate": "2024-01-01T00:00:00Z",
-                    "Member": {"MemberKey": "AGENT1"}
+                    "Member": {"MemberKey": "AGENT1"},
                 },
                 {
                     "ListingId": "2",
                     "ListPrice": 600000,
                     "StandardStatus": "Pending",
                     "ListingContractDate": "2024-01-02T00:00:00Z",
-                    "Member": {"MemberKey": "AGENT1"}
+                    "Member": {"MemberKey": "AGENT1"},
                 },
                 {
                     "ListingId": "3",
                     "ListPrice": 700000,
                     "StandardStatus": "Active",
                     "ListingContractDate": "2024-01-03T00:00:00Z",
-                    "Member": {"MemberKey": "AGENT2"}
-                }
+                    "Member": {"MemberKey": "AGENT2"},
+                },
             ]
         }
 
@@ -262,14 +251,14 @@ class TestWFRMLSAnalytics:
                     "MemberKey": "AGENT1",
                     "MemberFullName": "John Smith",
                     "MemberEmail": "john@example.com",
-                    "OfficeKey": "OFF1"
+                    "OfficeKey": "OFF1",
                 },
                 {
                     "MemberKey": "AGENT2",
                     "MemberFullName": "Jane Doe",
                     "MemberEmail": "jane@example.com",
-                    "OfficeKey": "OFF2"
-                }
+                    "OfficeKey": "OFF2",
+                },
             ]
         }
 
@@ -277,8 +266,7 @@ class TestWFRMLSAnalytics:
         self.mock_client.member.get_members.return_value = mock_members
 
         result = self.analytics.generate_agent_performance_report(
-            days_back=90,
-            min_listings=1
+            days_back=90, min_listings=1
         )
 
         assert result["total_agents_analyzed"] == 2
@@ -299,35 +287,27 @@ class TestWFRMLSAnalytics:
                 {
                     "ListingId": "1",
                     "ListPrice": 500000,
-                    "Member": {"MemberKey": "AGENT1"}
+                    "Member": {"MemberKey": "AGENT1"},
                 },
                 {
                     "ListingId": "2",
                     "ListPrice": 600000,
-                    "Member": {"MemberKey": "AGENT2"}
-                }
+                    "Member": {"MemberKey": "AGENT2"},
+                },
             ]
         }
 
         mock_members = {
             "value": [
-                {
-                    "MemberKey": "AGENT1",
-                    "MemberFullName": "John Smith"
-                },
-                {
-                    "MemberKey": "AGENT2",
-                    "MemberFullName": "Jane Doe"
-                }
+                {"MemberKey": "AGENT1", "MemberFullName": "John Smith"},
+                {"MemberKey": "AGENT2", "MemberFullName": "Jane Doe"},
             ]
         }
 
         self.mock_client.property.get_properties.return_value = mock_listings
         self.mock_client.member.get_members.return_value = mock_members
 
-        result = self.analytics.generate_agent_performance_report(
-            min_listings=5
-        )
+        result = self.analytics.generate_agent_performance_report(min_listings=5)
 
         # No agents should qualify with min_listings=5
         assert result["total_agents_analyzed"] == 0
@@ -339,18 +319,18 @@ class TestWFRMLSAnalytics:
                 {
                     "ListingId": "1",
                     "ListPrice": 500000,
-                    "Member": None  # Invalid member
+                    "Member": None,  # Invalid member
                 },
                 {
                     "ListingId": "2",
                     "ListPrice": 600000,
-                    "Member": {"MemberKey": "NONEXISTENT"}  # Member not in lookup
+                    "Member": {"MemberKey": "NONEXISTENT"},  # Member not in lookup
                 },
                 {
                     "ListingId": "3",
                     "ListPrice": 700000,
-                    "Member": "invalid_format"  # Wrong format
-                }
+                    "Member": "invalid_format",  # Wrong format
+                },
             ]
         }
 
@@ -380,7 +360,7 @@ class TestWFRMLSAnalytics:
                     "UnparsedAddress": "123 Main St",
                     "City": "Salt Lake City",
                     "BedroomsTotal": 3,
-                    "LivingArea": 1500
+                    "LivingArea": 1500,
                 },
                 {
                     "ListingId": "2",
@@ -388,8 +368,8 @@ class TestWFRMLSAnalytics:
                     "UnparsedAddress": "",  # Empty address
                     "City": "Park City",
                     "BedroomsTotal": None,  # Missing bedrooms
-                    "LivingArea": 2000
-                }
+                    "LivingArea": 2000,
+                },
             ]
         }
 
@@ -430,4 +410,4 @@ class TestWFRMLSAnalytics:
         result = self.analytics.get_data_quality_report()
 
         # When data is empty, check that we get a reasonable response
-        assert "timestamp" in result 
+        assert "timestamp" in result

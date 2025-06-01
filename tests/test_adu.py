@@ -22,9 +22,19 @@ class TestAduClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#Adu",
             "value": [
-                {"AduKey": "12345", "ListingKey": "67890", "AduType": "Apartment", "AduStatus": "Active"},
-                {"AduKey": "23456", "ListingKey": "78901", "AduType": "Cottage", "AduStatus": "Active"}
-            ]
+                {
+                    "AduKey": "12345",
+                    "ListingKey": "67890",
+                    "AduType": "Apartment",
+                    "AduStatus": "Active",
+                },
+                {
+                    "AduKey": "23456",
+                    "ListingKey": "78901",
+                    "AduType": "Cottage",
+                    "AduStatus": "Active",
+                },
+            ],
         }
 
         responses.add(
@@ -55,7 +65,7 @@ class TestAduClient:
             skip=20,
             filter_query="AduStatus eq 'Active'",
             select=["AduKey", "ListingKey", "AduType"],
-            orderby="AduType desc"
+            orderby="AduType desc",
         )
 
         assert result == mock_response
@@ -101,7 +111,10 @@ class TestAduClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "%24filter=AduStatus+eq+%27Existing%27" in request.url or "AduStatus+eq+%27Existing%27" in request.url
+        assert (
+            "%24filter=AduStatus+eq+%27Existing%27" in request.url
+            or "AduStatus+eq+%27Existing%27" in request.url
+        )
         assert "%24top=50" in request.url
 
     @responses.activate
@@ -171,7 +184,7 @@ class TestAduClient:
         assert AduStatus.PERMITTED.value == "Permitted"
         assert AduStatus.PLANNED.value == "Planned"
         assert AduStatus.UNDER_CONSTRUCTION.value == "Under Construction"
-        
+
         assert AduType.DETACHED.value == "Detached"
         assert AduType.ATTACHED.value == "Attached"
         assert AduType.GARAGE_CONVERSION.value == "Garage Conversion"
@@ -211,9 +224,7 @@ class TestAduClient:
             status=200,
         )
 
-        result = self.client.get_adus(
-            select=["AduKey", "ListingKey", "AduType"]
-        )
+        result = self.client.get_adus(select=["AduKey", "ListingKey", "AduType"])
 
         assert result == mock_response
         request = responses.calls[0].request
@@ -254,8 +265,7 @@ class TestAduClient:
         )
 
         result = self.client.get_adus_for_property(
-            listing_key="12345",
-            filter_query="AduStatus eq 'Existing'"
+            listing_key="12345", filter_query="AduStatus eq 'Existing'"
         )
 
         assert result == mock_response
@@ -265,4 +275,4 @@ class TestAduClient:
         assert "ListingKey" in request.url
         assert "12345" in request.url
         assert "AduStatus" in request.url
-        assert "Existing" in request.url 
+        assert "Existing" in request.url
