@@ -248,14 +248,14 @@ class OfficeClient(BaseClient):
             ```
         """
         name_filter = f"contains(OfficeName, '{name}')"
-        
+
         # If additional filter_query provided, combine them
         existing_filter = kwargs.get("filter_query")
         if existing_filter:
             kwargs["filter_query"] = f"{name_filter} and {existing_filter}"
         else:
             kwargs["filter_query"] = name_filter
-            
+
         return self.get_offices(**kwargs)
 
     def get_offices_with_members(self, **kwargs: Any) -> Dict[str, Any]:

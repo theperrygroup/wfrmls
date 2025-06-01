@@ -290,8 +290,8 @@ class LookupClient(BaseClient):
     def get_lookup_names(self) -> Dict[str, Any]:
         """Get lookup data for extracting unique lookup names.
 
-        Convenience method to get lookup data that can be used to discover 
-        what lookup types are available. Returns the full response for 
+        Convenience method to get lookup data that can be used to discover
+        what lookup types are available. Returns the full response for
         compatibility with test expectations.
 
         Returns:
@@ -301,7 +301,7 @@ class LookupClient(BaseClient):
             ```python
             # Get all available lookups
             lookups_response = client.lookup.get_lookup_names()
-            
+
             # Extract unique names from the response
             names = set()
             for item in lookups_response.get("value", []):
