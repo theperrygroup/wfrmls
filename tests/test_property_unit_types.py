@@ -1,12 +1,13 @@
 """Tests for WFRMLS Property Unit Types module."""
 
-import pytest
-from datetime import datetime, date
-from typing import Dict, Any
+from datetime import date, datetime
+from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-from wfrmls.property_unit_types import PropertyUnitTypesClient
+import pytest
+
 from wfrmls.exceptions import WFRMLSError
+from wfrmls.property_unit_types import PropertyUnitTypesClient
 
 
 class TestPropertyUnitTypesClient:
