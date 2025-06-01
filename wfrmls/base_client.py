@@ -80,6 +80,18 @@ class BaseClient:
             # If response is not JSON, create a simple dict with the text
             response_data = {"message": response.text}
 
+        # Helper function to extract error message
+        def get_error_message(data: Dict[str, Any], default: str) -> str:
+            """Extract error message from response data, handling nested error structures."""
+            # First try direct message
+            if 'message' in data:
+                return str(data['message'])
+            # Then try nested error.message
+            if 'error' in data and isinstance(data['error'], dict) and 'message' in data['error']:
+                return str(data['error']['message'])
+            # Finally return default
+            return default
+
         if response.status_code in (200, 201):
             return response_data
         elif response.status_code == 204:
@@ -87,37 +99,37 @@ class BaseClient:
             return {}
         elif response.status_code == 400:
             raise ValidationError(
-                f"Bad request: {response_data.get('message', 'Invalid request')}",
+                f"Bad request: {get_error_message(response_data, 'Invalid request')}",
                 status_code=400,
                 response_data=response_data,
             )
         elif response.status_code == 401:
             raise AuthenticationError(
-                f"Authentication failed: {response_data.get('message', 'Invalid credentials')}",
+                f"Authentication failed: {get_error_message(response_data, 'Invalid credentials')}",
                 status_code=401,
                 response_data=response_data,
             )
         elif response.status_code == 404:
             raise NotFoundError(
-                f"Resource not found: {response_data.get('message', 'Not found')}",
+                f"Resource not found: {get_error_message(response_data, 'Not found')}",
                 status_code=404,
                 response_data=response_data,
             )
         elif response.status_code == 429:
             raise RateLimitError(
-                f"Rate limit exceeded: {response_data.get('message', 'Too many requests')}",
+                f"Rate limit exceeded: {get_error_message(response_data, 'Too many requests')}",
                 status_code=429,
                 response_data=response_data,
             )
         elif 500 <= response.status_code < 600:
             raise ServerError(
-                f"Server error: {response_data.get('message', 'Internal server error')}",
+                f"Server error: {get_error_message(response_data, 'Internal server error')}",
                 status_code=response.status_code,
                 response_data=response_data,
             )
         else:
             raise WFRMLSError(
-                f"Unexpected error: {response_data.get('message', 'Unknown error')}",
+                f"Unexpected error: {get_error_message(response_data, 'Unknown error')}",
                 status_code=response.status_code,
                 response_data=response_data,
             )

@@ -2,6 +2,10 @@
 
 A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to all RESO-certified endpoints.
 
+## ⚠️ Important Notice
+
+**Media, History, and Green Verification endpoints are currently unavailable** due to server-side issues (504 Gateway Timeouts and missing entity types). These features have been temporarily disabled until the server issues are resolved.
+
 ## 🚀 Quick Start
 
 ```python
@@ -19,12 +23,14 @@ properties = client.property.get_properties(
     filter_query="StandardStatus eq 'Active'"
 )
 
-# Get property details with photos
+# Get property details
 property_detail = client.property.get_property("12345678")
-property_with_media = client.property.get_properties(
-    filter_query="ListingId eq '12345678'",
-    expand="Media"
-)
+
+# Get member information
+members = client.member.get_active_members(top=10)
+
+# Get office information
+offices = client.office.get_active_offices(top=10)
 ```
 
 ## 📦 Installation
@@ -57,7 +63,6 @@ WFRMLS_BEARER_TOKEN=your_bearer_token_here
 - **Member** - Real estate agent information  
 - **Office** - Brokerage and office details
 - **OpenHouse** - Open house schedules and events
-- **Media** - Property photos and media files
 
 ### Service Clients
 
@@ -76,12 +81,8 @@ client.office.get_offices()
 client.office.get_office(office_id)
 
 # Open house operations
-client.openhouse.get_openhouses()
-client.openhouse.get_openhouse(openhouse_id)
-
-# Media operations
-client.media.get_media()
-client.media.get_media_for_property(property_id)
+client.openhouse.get_open_houses()
+client.openhouse.get_open_house(openhouse_id)
 ```
 
 ## 🔍 Advanced Features
@@ -160,12 +161,13 @@ WFRMLSClient
 ├── member           # Real estate agents  
 ├── office           # Brokerages/offices
 ├── openhouse        # Open house events
-├── media            # Property photos
-├── history_transactional  # Transaction history
 ├── lookup           # Lookup tables
+├── adu              # Accessory Dwelling Units
 ├── deleted          # Deletion tracking
-└── service_discovery     # API metadata
+└── data_system      # API metadata
 ```
+
+**Note**: Media, History, and Green Verification clients are currently disabled due to server-side issues.
 
 ## ⚠️ Error Handling
 

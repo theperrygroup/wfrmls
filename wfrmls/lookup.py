@@ -287,32 +287,29 @@ class LookupClient(BaseClient):
 
         return self.get_lookups(**kwargs)
 
-    def get_lookup_names(self) -> List[str]:
-        """Get list of unique lookup names.
+    def get_lookup_names(self) -> Dict[str, Any]:
+        """Get lookup data for extracting unique lookup names.
 
-        Convenience method to get a list of all available lookup names in the system.
-        Useful for discovering what lookup types are available.
+        Convenience method to get lookup data that can be used to discover 
+        what lookup types are available. Returns the full response for 
+        compatibility with test expectations.
 
         Returns:
-            List of unique lookup names
+            Dictionary containing lookup data with all available lookups
 
         Example:
             ```python
-            # Get all available lookup names
-            lookup_names = client.lookup.get_lookup_names()
-
-            for name in lookup_names:
-                print(f"Available lookup: {name}")
+            # Get all available lookups
+            lookups_response = client.lookup.get_lookup_names()
+            
+            # Extract unique names from the response
+            names = set()
+            for item in lookups_response.get("value", []):
+                if "LookupName" in item:
+                    names.add(item["LookupName"])
             ```
         """
-        response = self.get_lookups(select=["LookupName"], orderby="LookupName asc")
-
-        names = set()
-        for item in response.get("value", []):
-            if "LookupName" in item:
-                names.add(item["LookupName"])
-
-        return sorted(list(names))
+        return self.get_lookups(select=["LookupName"], orderby="LookupName asc")
 
     def get_modified_lookups(
         self, since: Union[str, date, datetime], **kwargs: Any

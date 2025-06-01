@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Repository URL updates and documentation improvements
 
+### Removed
+- **TEMPORARY**: Disabled Media, History, and Green Verification endpoints due to server-side issues
+  - Media endpoints: 504 Gateway Timeout errors
+  - History endpoints: Missing entity type `HistoryTransactional` 
+  - Green Verification endpoints: Missing entity type `PropertyGreenVerification`
+  - These endpoints will be restored once server issues are resolved
+
+### Fixed
+- All unit tests now pass after removing problematic server-side endpoints
+- Updated documentation to reflect current endpoint availability
+
 ## [1.2.1] - 2024-12-21
 
 ### Fixed

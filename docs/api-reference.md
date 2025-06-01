@@ -2,6 +2,9 @@
 
 This section will contain the complete API reference for the WFRMLS Python wrapper.
 
+!!! warning "Service Availability"
+    **Media, History, and Green Verification endpoints are currently unavailable** due to server-side issues (504 Gateway Timeouts and missing entity types). These endpoints have been temporarily disabled until the server issues are resolved.
+
 !!! info "Under Development"
     The API reference documentation will be automatically generated from code docstrings when the API implementation is complete. This ensures the documentation stays current with the actual code.
 
@@ -13,20 +16,23 @@ The WFRMLS Python wrapper provides access to the following endpoint categories:
 - **Properties**: Search, retrieve, and analyze property listings
 - **Members**: Access agent and member information
 - **Office**: Office and brokerage data
-- **Media**: Property photos, documents, and media files
+- **Open House**: Open house event information
 
 ### Specialized Features
-- **Analytics**: Market analytics and reporting data
+- **Analytics**: Market analytics and reporting data (if available)
 - **Lookup**: Reference data and lookup tables  
-- **History**: Property and listing history
-- **Open House**: Open house event information
 - **ADU**: Accessory Dwelling Unit data
-- **Green Verification**: Green building certifications
 
 ### System Information
 - **Resource**: API metadata and available resources
 - **Data System**: System information and capabilities
 - **Property Unit Types**: Property classification data
+- **Deleted**: Deleted record tracking for data synchronization
+
+### Currently Unavailable
+- ~~**Media**: Property photos, documents, and media files~~ (Server issues)
+- ~~**History**: Property and listing history~~ (Missing entity type)
+- ~~**Green Verification**: Green building certifications~~ (Missing entity type)
 
 ## Quick Reference
 
@@ -48,9 +54,9 @@ member_detail = client.member.get_member("member_id")
 offices = client.office.get_offices(top=10)
 office_detail = client.office.get_office("office_id")
 
-# Media
-media = client.media.get_media(top=10)
-property_photos = client.media.get_media_for_property("property_id")
+# Open Houses
+open_houses = client.openhouse.get_open_houses(top=10)
+upcoming = client.openhouse.get_upcoming_open_houses(days_ahead=7)
 ```
 
 ## Detailed Documentation
