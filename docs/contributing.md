@@ -177,7 +177,7 @@ def example_method(self, param: str) -> Dict[str, Any]:
 
 ### Automatic Documentation Updates
 
-**CRITICAL**: When making any code changes, you MUST update documentation following our [Documentation Maintenance Rules](../WFRMLS_DOCUMENTATION_RULES.md).
+**CRITICAL**: When making any code changes, you MUST update documentation following our [Documentation Maintenance Rules](WFRMLS_DOCUMENTATION_RULES.md).
 
 ### Documentation Checklist
 
@@ -531,7 +531,7 @@ When preparing a release:
 ### Development Questions
 
 - Check existing GitHub Issues
-- Review the [Style Guide](../STYLE_GUIDE.md)
+- Review the [Style Guide](STYLE_GUIDE.md)
 - Look at existing code patterns in the codebase
 
 ### Setting Up Development Environment

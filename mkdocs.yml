@@ -128,6 +128,9 @@ nav:
     - Contributing: contributing.md
     - Release Notes: changelog.md
     - Deployment Guide: deployment.md
+    - Documentation Rules: WFRMLS_DOCUMENTATION_RULES.md
+    - Style Guide: STYLE_GUIDE.md
+  - License: LICENSE
 
 # Extra
 extra:
