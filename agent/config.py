@@ -12,7 +12,7 @@ from typing import Optional
 @dataclass
 class AgentConfig:
     """Configuration class for WFRMLS Background Agent.
-    
+
     Attributes:
         bearer_token: WFRMLS API bearer token
         sync_interval: Interval between data sync operations (seconds)
@@ -25,7 +25,7 @@ class AgentConfig:
         webhook_url: Optional webhook URL for notifications
         enable_alerts: Whether to enable alert notifications
     """
-    
+
     bearer_token: str
     sync_interval: int = 900  # 15 minutes
     monitor_interval: int = 300  # 5 minutes
@@ -40,19 +40,17 @@ class AgentConfig:
     @classmethod
     def from_environment(cls) -> "AgentConfig":
         """Create configuration from environment variables.
-        
+
         Returns:
             AgentConfig instance loaded from environment variables.
-            
+
         Raises:
             ValueError: If required environment variables are missing.
         """
         bearer_token = os.getenv("WFRMLS_BEARER_TOKEN")
         if not bearer_token:
-            raise ValueError(
-                "WFRMLS_BEARER_TOKEN environment variable is required"
-            )
-        
+            raise ValueError("WFRMLS_BEARER_TOKEN environment variable is required")
+
         return cls(
             bearer_token=bearer_token,
             sync_interval=int(os.getenv("WFRMLS_SYNC_INTERVAL", "900")),
@@ -68,24 +66,24 @@ class AgentConfig:
 
     def validate(self) -> None:
         """Validate configuration values.
-        
+
         Raises:
             ValueError: If configuration values are invalid.
         """
         if self.sync_interval < 60:
             raise ValueError("sync_interval must be at least 60 seconds")
-        
+
         if self.monitor_interval < 30:
             raise ValueError("monitor_interval must be at least 30 seconds")
-        
+
         if self.health_check_interval < 60:
             raise ValueError("health_check_interval must be at least 60 seconds")
-        
+
         if self.log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
             raise ValueError("log_level must be one of DEBUG, INFO, WARNING, ERROR")
-        
+
         if self.max_retries < 0:
             raise ValueError("max_retries must be non-negative")
-        
+
         if self.batch_size < 1 or self.batch_size > 1000:
-            raise ValueError("batch_size must be between 1 and 1000") 
+            raise ValueError("batch_size must be between 1 and 1000")
