@@ -150,9 +150,7 @@ Thumbs.db
 temp/
 tmp/
 
-# Local test files
-test_*.py
-*_test.py
+# Local test data
 test_data/
 
 # API keys and secrets (just in case)
