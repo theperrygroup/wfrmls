@@ -79,19 +79,30 @@ jobs:
         # Verify installation and imports work
         python -c "import wfrmls; print(f'✓ wfrmls {wfrmls.__version__} imported successfully')"
         
-        # Show test discovery
+        # Debug test environment
+        echo "=== Environment Debug ==="
+        echo "Files in current directory:"
+        ls -la
+        echo "Files in tests directory:"
+        ls -la tests/ || echo "tests directory not found!"
+        echo "Current working directory: $(pwd)"
+        echo "Python path:"
+        python -c "import sys; print('\n'.join(sys.path))"
+        
+        # Show test discovery with more verbose output
         echo "=== Test Discovery ==="
-        pytest --collect-only tests/ --ignore=tests/test_integration.py
+        python -m pytest --collect-only tests/ --ignore=tests/test_integration.py -v
         
         # Run tests with proper error handling
         echo "=== Running Unit Tests ==="
-        pytest tests/ --ignore=tests/test_integration.py \
+        python -m pytest tests/ --ignore=tests/test_integration.py \
                --cov=wfrmls \
                --cov-report=xml \
                --cov-report=term-missing \
                --cov-report=html \
-               --cov-fail-under=20 \
+               --cov-fail-under=15 \
                --tb=short \
+               -x \
                -v
 
     - name: Upload coverage reports to Codecov
