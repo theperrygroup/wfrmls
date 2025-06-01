@@ -76,4 +76,8 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 addopts = "-ra -q --strict-markers --cov=wfrmls --cov-report=term-missing --cov-report=html"
-testpaths = ["tests"] 
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests that hit live APIs",
+    "unit: marks tests as unit tests (mocked/isolated)",
+] 
