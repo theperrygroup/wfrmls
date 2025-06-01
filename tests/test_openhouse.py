@@ -7,10 +7,10 @@ import responses
 
 from wfrmls.exceptions import NotFoundError, ValidationError
 from wfrmls.openhouse import (
+    OpenHouseAttendedBy,
     OpenHouseClient,
     OpenHouseStatus,
     OpenHouseType,
-    OpenHouseAttendedBy,
 )
 
 

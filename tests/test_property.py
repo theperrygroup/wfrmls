@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ValidationError, WFRMLSError, ServerError
+from wfrmls.exceptions import NotFoundError, ServerError, ValidationError, WFRMLSError
 from wfrmls.properties import PropertyClient, PropertyStatus, PropertyType
 
 
