@@ -202,20 +202,21 @@ class OpenHouseClient(BaseClient):
             ```
         """
         # Remove days_ahead from kwargs if it exists to avoid conflicts
-        kwargs.pop('days_ahead', None)
-        
+        kwargs.pop("days_ahead", None)
+
         if days_ahead is not None:
             from datetime import datetime, timedelta
+
             start_date = datetime.now().date()
             filter_query = f"OpenHouseDate ge {start_date.isoformat()}"
-            
+
             # If additional filter_query provided, combine them
             existing_filter = kwargs.get("filter_query")
             if existing_filter:
                 kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
             else:
                 kwargs["filter_query"] = filter_query
-        
+
         return self.get_open_houses(**kwargs)
 
     def get_open_houses_for_property(
@@ -401,10 +402,10 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(filter_query=filter_query, **kwargs)
 
     def get_open_houses_by_date_range(
-        self, 
-        start_date: Union[str, date, datetime], 
+        self,
+        start_date: Union[str, date, datetime],
         end_date: Union[str, date, datetime],
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get open houses within a specific date range.
 
@@ -446,7 +447,7 @@ class OpenHouseClient(BaseClient):
             end_str = end_date
 
         filter_query = f"OpenHouseDate ge {start_str} and OpenHouseDate le {end_str}"
-        
+
         # If additional filter_query provided, combine them
         existing_filter = kwargs.get("filter_query")
         if existing_filter:
@@ -457,9 +458,7 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(**kwargs)
 
     def get_weekend_open_houses(
-        self, 
-        weeks_ahead: Optional[int] = 2,
-        **kwargs: Any
+        self, weeks_ahead: Optional[int] = 2, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get weekend open houses.
 
@@ -485,11 +484,11 @@ class OpenHouseClient(BaseClient):
 
         # Calculate the date range for weekends
         start_date = datetime.now().date()
-        
+
         # For simplicity, we'll get all open houses in the range and let the user filter weekends
         # A more sophisticated implementation would filter by day of week
         filter_query = f"OpenHouseDate ge {start_date.isoformat()}"
-        
+
         # If additional filter_query provided, combine them
         existing_filter = kwargs.get("filter_query")
         if existing_filter:

@@ -84,11 +84,15 @@ class BaseClient:
         def get_error_message(data: Dict[str, Any], default: str) -> str:
             """Extract error message from response data, handling nested error structures."""
             # First try direct message
-            if 'message' in data:
-                return str(data['message'])
+            if "message" in data:
+                return str(data["message"])
             # Then try nested error.message
-            if 'error' in data and isinstance(data['error'], dict) and 'message' in data['error']:
-                return str(data['error']['message'])
+            if (
+                "error" in data
+                and isinstance(data["error"], dict)
+                and "message" in data["error"]
+            ):
+                return str(data["error"]["message"])
             # Finally return default
             return default
 
