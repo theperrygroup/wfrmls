@@ -159,4 +159,4 @@ extra:
 # Watch extra directories
 watch:
   - wfrmls/
-  - WFRMLS_DOCUMENTATION_RULES.md 
+  - docs/ 

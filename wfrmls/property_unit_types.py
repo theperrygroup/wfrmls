@@ -9,7 +9,7 @@ from .base_client import BaseClient
 
 class PropertyUnitTypesClient(BaseClient):
     """Client for property unit types API endpoints.
-    
+
     The PropertyUnitTypes resource contains information about different types
     of property units such as condos, townhomes, apartments, etc. This is useful
     for understanding property classification and unit-specific details.
@@ -66,7 +66,7 @@ class PropertyUnitTypesClient(BaseClient):
             ```python
             # Get all unit types
             unit_types = client.property_unit_types.get_property_unit_types()
-            
+
             # Get specific unit types
             unit_types = client.property_unit_types.get_property_unit_types(
                 filter_query="UnitType eq 'Condo'",
@@ -129,7 +129,7 @@ class PropertyUnitTypesClient(BaseClient):
             ```python
             # Get specific unit type by key
             unit_type = client.property_unit_types.get_property_unit_type("CONDO")
-            
+
             print(f"Unit Type: {unit_type['UnitType']}")
             print(f"Description: {unit_type.get('Description', 'No description')}")
             ```
@@ -137,9 +137,7 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get(f"PropertyUnitTypes('{unit_type_key}')")
 
     def get_unit_types_for_property(
-        self,
-        listing_key: str,
-        **kwargs: Any
+        self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get unit types for a specific property.
 
@@ -162,21 +160,17 @@ class PropertyUnitTypesClient(BaseClient):
             ```
         """
         property_filter = f"ListingKey eq '{listing_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
+            kwargs["filter_query"] = property_filter
+
         return self.get_property_unit_types(**kwargs)
 
-    def get_unit_types_by_type(
-        self,
-        unit_type: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_unit_types_by_type(self, unit_type: str, **kwargs: Any) -> Dict[str, Any]:
         """Get properties by unit type.
 
         Convenience method to filter unit types by type name.
@@ -196,20 +190,20 @@ class PropertyUnitTypesClient(BaseClient):
                 unit_type="Condo",
                 expand="Properties"
             )
-            
+
             # Get all townhome unit types
             townhomes = client.property_unit_types.get_unit_types_by_type("Townhome")
             ```
         """
         type_filter = f"UnitType eq '{unit_type}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{type_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{type_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = type_filter
-            
+            kwargs["filter_query"] = type_filter
+
         return self.get_property_unit_types(**kwargs)
 
     def get_residential_unit_types(self, **kwargs: Any) -> Dict[str, Any]:
@@ -228,7 +222,7 @@ class PropertyUnitTypesClient(BaseClient):
             ```python
             # Get all residential unit types
             residential_units = client.property_unit_types.get_residential_unit_types()
-            
+
             for unit in residential_units.get('value', []):
                 print(f"Residential Unit: {unit['UnitType']}")
             ```
@@ -236,24 +230,24 @@ class PropertyUnitTypesClient(BaseClient):
         # Common residential unit type filters
         residential_types = [
             "UnitType eq 'Condo'",
-            "UnitType eq 'Townhome'", 
+            "UnitType eq 'Townhome'",
             "UnitType eq 'Apartment'",
             "UnitType eq 'Single Family'",
             "UnitType eq 'Duplex'",
             "UnitType eq 'Triplex'",
-            "UnitType eq 'Fourplex'"
+            "UnitType eq 'Fourplex'",
         ]
-        
+
         residential_filter = " or ".join(residential_types)
         residential_filter = f"({residential_filter})"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{residential_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{residential_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = residential_filter
-            
+            kwargs["filter_query"] = residential_filter
+
         return self.get_property_unit_types(**kwargs)
 
     def get_unit_types_with_properties(self, **kwargs: Any) -> Dict[str, Any]:
@@ -275,7 +269,7 @@ class PropertyUnitTypesClient(BaseClient):
             units_with_props = client.property_unit_types.get_unit_types_with_properties(
                 top=10
             )
-            
+
             # Access property info for first unit type
             first_unit = units_with_props['value'][0]
             if 'Properties' in first_unit:
@@ -286,9 +280,7 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get_property_unit_types(expand="Properties", **kwargs)
 
     def get_modified_unit_types(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get unit types modified since a specific date/time.
 
@@ -306,7 +298,7 @@ class PropertyUnitTypesClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get unit types modified in last week
             cutoff_time = datetime.utcnow() - timedelta(days=7)
             updates = client.property_unit_types.get_modified_unit_types(
@@ -326,6 +318,6 @@ class PropertyUnitTypesClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_property_unit_types(filter_query=filter_query, **kwargs) 
+        return self.get_property_unit_types(filter_query=filter_query, **kwargs)

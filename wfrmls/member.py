@@ -25,7 +25,7 @@ class MemberType(Enum):
 
 class MemberClient(BaseClient):
     """Client for member (real estate agent) API endpoints.
-    
+
     The Member resource contains information about real estate agents,
     brokers, and other MLS participants. This includes contact information,
     license details, and office affiliations.
@@ -147,17 +147,14 @@ class MemberClient(BaseClient):
             ```python
             # Get specific member by key
             member = client.member.get_member("12345")
-            
+
             print(f"Agent: {member['MemberFirstName']} {member['MemberLastName']}")
             print(f"Email: {member['MemberEmail']}")
             ```
         """
         return self.get(f"Member('{member_key}')")
 
-    def get_active_members(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_active_members(self, **kwargs: Any) -> Dict[str, Any]:
         """Get members with Active status.
 
         Convenience method to retrieve only active members.
@@ -183,11 +180,7 @@ class MemberClient(BaseClient):
         """
         return self.get_members(filter_query="MemberStatus eq 'Active'", **kwargs)
 
-    def get_members_by_office(
-        self,
-        office_key: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_members_by_office(self, office_key: str, **kwargs: Any) -> Dict[str, Any]:
         """Get members affiliated with a specific office.
 
         Convenience method to filter members by their office affiliation.
@@ -207,7 +200,7 @@ class MemberClient(BaseClient):
                 office_key="12345",
                 top=100
             )
-            
+
             # Get active members in an office
             active_office_members = client.member.get_members_by_office(
                 office_key="12345",
@@ -217,21 +210,21 @@ class MemberClient(BaseClient):
             ```
         """
         office_filter = f"OfficeKey eq '{office_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{office_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{office_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = office_filter
-            
+            kwargs["filter_query"] = office_filter
+
         return self.get_members(**kwargs)
 
     def search_members_by_name(
         self,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Search members by first name and/or last name.
 
@@ -262,23 +255,20 @@ class MemberClient(BaseClient):
             ```
         """
         filters = []
-        
+
         if first_name is not None:
             filters.append(f"contains(MemberFirstName, '{first_name}')")
         if last_name is not None:
             filters.append(f"contains(MemberLastName, '{last_name}')")
-            
+
         if not filters:
             # No name filters, just get all members
             return self.get_members(**kwargs)
-            
+
         filter_query = " and ".join(filters)
         return self.get_members(filter_query=filter_query, **kwargs)
 
-    def get_members_with_office(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_members_with_office(self, **kwargs: Any) -> Dict[str, Any]:
         """Get members with their office information expanded.
 
         This is a convenience method that automatically expands the Office
@@ -298,7 +288,7 @@ class MemberClient(BaseClient):
                 filter_query="MemberStatus eq 'Active'",
                 top=25
             )
-            
+
             # Access office info for first member
             first_member = members['value'][0]
             if 'Office' in first_member:
@@ -309,9 +299,7 @@ class MemberClient(BaseClient):
         return self.get_members(expand="Office", **kwargs)
 
     def get_modified_members(
-        self,
-        since: Union[str, date],
-        **kwargs: Any
+        self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get members modified since a specific date/time.
 
@@ -329,7 +317,7 @@ class MemberClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get members modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.member.get_modified_members(
@@ -347,6 +335,6 @@ class MemberClient(BaseClient):
             since_str = since.isoformat() + "Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt {since_str}"
-        return self.get_members(filter_query=filter_query, **kwargs) 
+        return self.get_members(filter_query=filter_query, **kwargs)

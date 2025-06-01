@@ -21,7 +21,7 @@ load_dotenv()
 
 class BaseClient:
     """Base client with common functionality for all WFRMLS API endpoints.
-    
+
     This class provides the foundational HTTP client functionality that all
     service clients inherit from. It handles authentication, request/response
     processing, and error handling.
@@ -49,24 +49,26 @@ class BaseClient:
 
         self.base_url = base_url or "https://resoapi.utahrealestate.com/reso/odata"
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {self.bearer_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {self.bearer_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
 
     def _handle_response(self, response: requests.Response) -> Dict[str, Any]:
         """Handle HTTP response and raise appropriate exceptions.
-        
+
         Args:
             response: The HTTP response object to process
-            
+
         Returns:
             Parsed JSON response data
-            
+
         Raises:
             ValidationError: For 400 Bad Request responses
-            AuthenticationError: For 401 Unauthorized responses  
+            AuthenticationError: For 401 Unauthorized responses
             NotFoundError: For 404 Not Found responses
             RateLimitError: For 429 Too Many Requests responses
             ServerError: For 5xx server error responses
@@ -130,7 +132,7 @@ class BaseClient:
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Make HTTP request to API.
-        
+
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, etc.)
             endpoint: API endpoint path (relative to base_url)
@@ -138,10 +140,10 @@ class BaseClient:
             json_data: JSON data to send in request body
             files: Files to upload
             params: Query parameters
-            
+
         Returns:
             Parsed JSON response data
-            
+
         Raises:
             NetworkError: If network connection fails
             WFRMLSError: For various API error conditions
@@ -162,14 +164,16 @@ class BaseClient:
         except requests.exceptions.RequestException as e:
             raise NetworkError(f"Network error: {str(e)}")
 
-    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def get(
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Make GET request to API endpoint.
-        
+
         Args:
             endpoint: API endpoint path
             params: Query parameters to include in request
-            
+
         Returns:
             Parsed JSON response data
         """
-        return self._request("GET", endpoint, params=params) 
+        return self._request("GET", endpoint, params=params)

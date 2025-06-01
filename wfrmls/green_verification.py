@@ -19,7 +19,7 @@ class GreenVerificationType(Enum):
 
 class GreenVerificationClient(BaseClient):
     """Client for property green verification/certification API endpoints.
-    
+
     The PropertyGreenVerification resource contains information about
     environmental certifications and green building verifications for properties.
     """
@@ -107,9 +107,7 @@ class GreenVerificationClient(BaseClient):
         return self.get(f"PropertyGreenVerification('{verification_key}')")
 
     def get_verifications_for_property(
-        self,
-        listing_key: str,
-        **kwargs: Any
+        self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get green verifications for a specific property.
 
@@ -121,11 +119,11 @@ class GreenVerificationClient(BaseClient):
             Dictionary containing verifications for the property
         """
         property_filter = f"ListingKey eq '{listing_key}'"
-        
-        existing_filter = kwargs.get('filter_query')
+
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
-        return self.get_green_verifications(**kwargs) 
+            kwargs["filter_query"] = property_filter
+
+        return self.get_green_verifications(**kwargs)

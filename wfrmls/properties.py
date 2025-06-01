@@ -29,7 +29,7 @@ class PropertyType(Enum):
 
 class PropertyClient(BaseClient):
     """Client for property API endpoints.
-    
+
     The Property resource is the primary resource in the WFRMLS API, containing
     real estate listing data including property details, pricing, and location
     information. This client provides access to all property-related endpoints
@@ -161,7 +161,7 @@ class PropertyClient(BaseClient):
             ```python
             # Get specific property by listing ID
             property = client.property.get_property("12345678")
-            
+
             print(f"Property: {property['ListPrice']}")
             print(f"Address: {property['UnparsedAddress']}")
             ```
@@ -174,7 +174,7 @@ class PropertyClient(BaseClient):
         longitude: float,
         radius_miles: float,
         additional_filters: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Search properties within a radius of given coordinates.
 
@@ -217,19 +217,19 @@ class PropertyClient(BaseClient):
             ```
         """
         geo_filter = f"geo.distance(Latitude, Longitude, {latitude}, {longitude}) le {radius_miles}"
-        
+
         if additional_filters:
             filter_query = f"{geo_filter} and {additional_filters}"
         else:
             filter_query = geo_filter
-            
+
         return self.get_properties(filter_query=filter_query, **kwargs)
 
     def search_properties_by_polygon(
         self,
         polygon_coordinates: List[Dict[str, float]],
         additional_filters: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Search properties within a polygon area.
 
@@ -259,7 +259,7 @@ class PropertyClient(BaseClient):
                 {"lat": 40.7508, "lng": -111.8710},
                 {"lat": 40.7608, "lng": -111.8910}  # Close polygon
             ]
-            
+
             properties = client.property.search_properties_by_polygon(
                 polygon_coordinates=polygon,
                 additional_filters="PropertyType eq 'Residential'",
@@ -268,20 +268,21 @@ class PropertyClient(BaseClient):
             ```
         """
         # Build polygon string for geo.intersects function
-        coords_str = ",".join([f"{coord['lat']} {coord['lng']}" for coord in polygon_coordinates])
-        geo_filter = f"geo.intersects(Latitude, Longitude, geography'POLYGON(({coords_str}))')"
-        
+        coords_str = ",".join(
+            [f"{coord['lat']} {coord['lng']}" for coord in polygon_coordinates]
+        )
+        geo_filter = (
+            f"geo.intersects(Latitude, Longitude, geography'POLYGON(({coords_str}))')"
+        )
+
         if additional_filters:
             filter_query = f"{geo_filter} and {additional_filters}"
         else:
             filter_query = geo_filter
-            
+
         return self.get_properties(filter_query=filter_query, **kwargs)
 
-    def get_properties_with_media(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_properties_with_media(self, **kwargs: Any) -> Dict[str, Any]:
         """Get properties with their associated media/photos.
 
         This is a convenience method that automatically expands the Media
@@ -301,7 +302,7 @@ class PropertyClient(BaseClient):
                 filter_query="StandardStatus eq 'Active'",
                 top=25
             )
-            
+
             # Access photos for first property
             first_property = properties['value'][0]
             if 'Media' in first_property:
@@ -311,10 +312,7 @@ class PropertyClient(BaseClient):
         """
         return self.get_properties(expand="Media", **kwargs)
 
-    def get_active_properties(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_active_properties(self, **kwargs: Any) -> Dict[str, Any]:
         """Get properties with Active status.
 
         Convenience method to retrieve only active property listings.
@@ -344,7 +342,7 @@ class PropertyClient(BaseClient):
         self,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get properties within a price range.
 
@@ -380,24 +378,20 @@ class PropertyClient(BaseClient):
             ```
         """
         filters = []
-        
+
         if min_price is not None:
             filters.append(f"ListPrice ge {min_price}")
         if max_price is not None:
             filters.append(f"ListPrice le {max_price}")
-            
+
         if not filters:
             # No price filters, just get all properties
             return self.get_properties(**kwargs)
-            
+
         filter_query = " and ".join(filters)
         return self.get_properties(filter_query=filter_query, **kwargs)
 
-    def get_properties_by_city(
-        self,
-        city: str,
-        **kwargs
-    ) -> Dict[str, Any]:
+    def get_properties_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
         """Get properties in a specific city.
 
         Convenience method to filter properties by city name.
@@ -417,7 +411,7 @@ class PropertyClient(BaseClient):
                 city="Salt Lake City",
                 top=100
             )
-            
+
             # Get active properties in Provo
             properties = client.property.get_properties_by_city(
                 city="Provo",
@@ -427,20 +421,18 @@ class PropertyClient(BaseClient):
             ```
         """
         city_filter = f"City eq '{city}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{city_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{city_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = city_filter
-            
+            kwargs["filter_query"] = city_filter
+
         return self.get_properties(**kwargs)
 
     def get_modified_properties(
-        self,
-        since: Union[str, date],
-        **kwargs
+        self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get properties modified since a specific date/time.
 
@@ -458,7 +450,7 @@ class PropertyClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get properties modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.property.get_modified_properties(
@@ -476,15 +468,12 @@ class PropertyClient(BaseClient):
             since_str = since.isoformat() + "Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt {since_str}"
         return self.get_properties(filter_query=filter_query, **kwargs)
 
     def get_all_properties_paginated(
-        self,
-        page_size: int = 200,
-        max_pages: Optional[int] = None,
-        **kwargs: Any
+        self, page_size: int = 200, max_pages: Optional[int] = None, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get all properties using efficient pagination.
 
@@ -512,7 +501,7 @@ class PropertyClient(BaseClient):
                 page_size=200,
                 max_pages=10  # Limit to first 2000 records
             )
-            
+
             print(f"Retrieved {len(all_properties['value'])} properties")
             print(f"Pages fetched: {all_properties['pagination_info']['pages_fetched']}")
             ```
@@ -521,63 +510,63 @@ class PropertyClient(BaseClient):
         pages_fetched = 0
         current_skip = 0
         page_size = min(page_size, 200)  # Enforce API limit
-        
+
         # Store original top parameter
-        original_top = kwargs.get('top')
-        
+        original_top = kwargs.get("top")
+
         while True:
             # Set pagination parameters
-            kwargs['top'] = page_size
-            kwargs['skip'] = current_skip
-            
+            kwargs["top"] = page_size
+            kwargs["skip"] = current_skip
+
             # Fetch current page
             try:
                 response = self.get_properties(**kwargs)
                 pages_fetched += 1
-                
+
                 # Extract results
-                page_results = response.get('value', [])
+                page_results = response.get("value", [])
                 if not page_results:
                     break  # No more data
-                    
+
                 all_results.extend(page_results)
-                
+
                 # Check if we should continue
                 if max_pages and pages_fetched >= max_pages:
                     break
-                    
+
                 if len(page_results) < page_size:
                     break  # Last page (partial results)
-                    
+
                 # Prepare for next page
                 current_skip += page_size
-                
+
             except Exception:
                 # If pagination fails, return what we have so far
                 break
-        
+
         # Build combined response
         combined_response = {
-            "@odata.context": response.get("@odata.context", "") if 'response' in locals() else "",
+            "@odata.context": (
+                response.get("@odata.context", "") if "response" in locals() else ""
+            ),
             "value": all_results,
             "pagination_info": {
                 "pages_fetched": pages_fetched,
                 "total_records": len(all_results),
                 "page_size": page_size,
-                "last_skip": current_skip
-            }
+                "last_skip": current_skip,
+            },
         }
-        
+
         # Add count if it was in the last response
-        if 'response' in locals() and '@odata.count' in response:
-            combined_response['@odata.count'] = response['@odata.count']
-            
+        if "response" in locals() and "@odata.count" in response:
+            combined_response["@odata.count"] = response["@odata.count"]
+
         return combined_response
 
     def search_properties_by_multiple_criteria(
-        self,
-        criteria: Dict[str, Any],
-        **kwargs: Any
+        self, criteria: Dict[str, Any], **kwargs: Any
     ) -> Dict[str, Any]:
         """Search properties using multiple criteria with intelligent filtering.
 
@@ -617,7 +606,7 @@ class PropertyClient(BaseClient):
                 'min_bathrooms': 2,
                 'min_sqft': 1500
             }
-            
+
             properties = client.property.search_properties_by_multiple_criteria(
                 criteria=criteria,
                 top=50,
@@ -626,64 +615,61 @@ class PropertyClient(BaseClient):
             ```
         """
         filters = []
-        
+
         # Status filter
-        if 'status' in criteria and criteria['status']:
+        if "status" in criteria and criteria["status"]:
             filters.append(f"StandardStatus eq '{criteria['status']}'")
-            
+
         # Price range filters
-        if 'min_price' in criteria and criteria['min_price']:
+        if "min_price" in criteria and criteria["min_price"]:
             filters.append(f"ListPrice ge {criteria['min_price']}")
-        if 'max_price' in criteria and criteria['max_price']:
+        if "max_price" in criteria and criteria["max_price"]:
             filters.append(f"ListPrice le {criteria['max_price']}")
-            
+
         # Location filters
-        if 'city' in criteria and criteria['city']:
+        if "city" in criteria and criteria["city"]:
             filters.append(f"City eq '{criteria['city']}'")
-        if 'zip_code' in criteria and criteria['zip_code']:
+        if "zip_code" in criteria and criteria["zip_code"]:
             filters.append(f"PostalCode eq '{criteria['zip_code']}'")
-        if 'school_district' in criteria and criteria['school_district']:
+        if "school_district" in criteria and criteria["school_district"]:
             filters.append(f"SchoolDistrict eq '{criteria['school_district']}'")
-            
+
         # Property type filter
-        if 'property_type' in criteria and criteria['property_type']:
+        if "property_type" in criteria and criteria["property_type"]:
             filters.append(f"PropertyType eq '{criteria['property_type']}'")
-            
+
         # Bedroom filters
-        if 'min_bedrooms' in criteria and criteria['min_bedrooms']:
+        if "min_bedrooms" in criteria and criteria["min_bedrooms"]:
             filters.append(f"BedroomsTotal ge {criteria['min_bedrooms']}")
-        if 'max_bedrooms' in criteria and criteria['max_bedrooms']:
+        if "max_bedrooms" in criteria and criteria["max_bedrooms"]:
             filters.append(f"BedroomsTotal le {criteria['max_bedrooms']}")
-            
-        # Bathroom filters  
-        if 'min_bathrooms' in criteria and criteria['min_bathrooms']:
+
+        # Bathroom filters
+        if "min_bathrooms" in criteria and criteria["min_bathrooms"]:
             filters.append(f"BathroomsTotalInteger ge {criteria['min_bathrooms']}")
-        if 'max_bathrooms' in criteria and criteria['max_bathrooms']:
+        if "max_bathrooms" in criteria and criteria["max_bathrooms"]:
             filters.append(f"BathroomsTotalInteger le {criteria['max_bathrooms']}")
-            
+
         # Square footage filters
-        if 'min_sqft' in criteria and criteria['min_sqft']:
+        if "min_sqft" in criteria and criteria["min_sqft"]:
             filters.append(f"LivingArea ge {criteria['min_sqft']}")
-        if 'max_sqft' in criteria and criteria['max_sqft']:
+        if "max_sqft" in criteria and criteria["max_sqft"]:
             filters.append(f"LivingArea le {criteria['max_sqft']}")
-        
+
         # Combine all filters
         if filters:
             filter_query = " and ".join(filters)
             # If additional filter_query provided, combine them
-            existing_filter = kwargs.get('filter_query')
+            existing_filter = kwargs.get("filter_query")
             if existing_filter:
-                kwargs['filter_query'] = f"{filter_query} and {existing_filter}"
+                kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
             else:
-                kwargs['filter_query'] = filter_query
-                
+                kwargs["filter_query"] = filter_query
+
         return self.get_properties(**kwargs)
 
     def search_properties_near_address(
-        self,
-        address: str,
-        radius_miles: float = 5.0,
-        **kwargs: Any
+        self, address: str, radius_miles: float = 5.0, **kwargs: Any
     ) -> Dict[str, Any]:
         """Search properties near a specific address.
 
@@ -715,34 +701,32 @@ class PropertyClient(BaseClient):
         """
         # This is a framework method that would need geocoding integration
         # For now, we'll search by address components if the address is structured
-        
+
         # Basic implementation: try to extract city from address
-        address_parts = address.split(',')
+        address_parts = address.split(",")
         if len(address_parts) >= 2:
             potential_city = address_parts[-2].strip()  # City is usually second to last
-            
+
             # Search by city as a fallback
             city_filter = f"City eq '{potential_city}'"
-            
-            existing_filter = kwargs.get('filter_query')
+
+            existing_filter = kwargs.get("filter_query")
             if existing_filter:
-                kwargs['filter_query'] = f"{city_filter} and {existing_filter}"
+                kwargs["filter_query"] = f"{city_filter} and {existing_filter}"
             else:
-                kwargs['filter_query'] = city_filter
-                
+                kwargs["filter_query"] = city_filter
+
             return self.get_properties(**kwargs)
         else:
             # If address can't be parsed, return empty results
             return {
                 "@odata.context": "",
                 "value": [],
-                "error": "Address could not be parsed. Please provide city coordinates for radius search."
+                "error": "Address could not be parsed. Please provide city coordinates for radius search.",
             }
 
     def get_luxury_properties(
-        self,
-        min_price: float = 1000000,
-        **kwargs: Any
+        self, min_price: float = 1000000, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get luxury properties above a price threshold.
 
@@ -767,21 +751,17 @@ class PropertyClient(BaseClient):
             ```
         """
         filter_query = f"ListPrice ge {min_price} and StandardStatus eq 'Active'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{filter_query} and {existing_filter}"
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
         else:
-            kwargs['filter_query'] = filter_query
-            
+            kwargs["filter_query"] = filter_query
+
         return self.get_properties(**kwargs)
 
-    def get_new_listings(
-        self,
-        days_back: int = 7,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_new_listings(self, days_back: int = 7, **kwargs: Any) -> Dict[str, Any]:
         """Get properties listed within the last N days.
 
         Useful for finding fresh inventory and new market entries.
@@ -804,17 +784,17 @@ class PropertyClient(BaseClient):
             ```
         """
         from datetime import datetime, timedelta
-        
+
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
-        
+
         filter_query = f"ListingContractDate gt {cutoff_str}"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{filter_query} and {existing_filter}"
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
         else:
-            kwargs['filter_query'] = filter_query
-            
-        return self.get_properties(**kwargs) 
+            kwargs["filter_query"] = filter_query
+
+        return self.get_properties(**kwargs)

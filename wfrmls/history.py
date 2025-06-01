@@ -28,7 +28,7 @@ class HistoryStatus(Enum):
 
 class HistoryTransactionalClient(BaseClient):
     """Client for historical transaction data API endpoints.
-    
+
     The HistoryTransactional resource contains historical property transaction
     information including sale prices, dates, and other transaction details.
     This is valuable for market analysis, comparable sales, and pricing trends.
@@ -153,7 +153,7 @@ class HistoryTransactionalClient(BaseClient):
             ```python
             # Get specific transaction by key
             transaction = client.history.get_history_transaction("TXN123456")
-            
+
             print(f"Sale Price: ${transaction['ClosePrice']:,}")
             print(f"Close Date: {transaction['CloseDate']}")
             print(f"Property: {transaction['ListingKey']}")
@@ -162,9 +162,7 @@ class HistoryTransactionalClient(BaseClient):
         return self.get(f"HistoryTransactional('{transaction_key}')")
 
     def get_transactions_for_property(
-        self,
-        listing_key: str,
-        **kwargs: Any
+        self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get historical transactions for a specific property.
 
@@ -185,7 +183,7 @@ class HistoryTransactionalClient(BaseClient):
                 listing_key="1611952",
                 orderby="CloseDate desc"
             )
-            
+
             # Get sales only for a property
             property_sales = client.history.get_transactions_for_property(
                 listing_key="1611952",
@@ -195,21 +193,21 @@ class HistoryTransactionalClient(BaseClient):
             ```
         """
         property_filter = f"ListingKey eq '{listing_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
+            kwargs["filter_query"] = property_filter
+
         return self.get_history_transactions(**kwargs)
 
     def get_sales_by_price_range(
         self,
         min_price: Optional[int] = None,
         max_price: Optional[int] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get sales transactions within a price range.
 
@@ -233,7 +231,7 @@ class HistoryTransactionalClient(BaseClient):
                 orderby="CloseDate desc",
                 top=100
             )
-            
+
             # Get luxury sales above $1M
             luxury_sales = client.history.get_sales_by_price_range(
                 min_price=1000000,
@@ -242,28 +240,28 @@ class HistoryTransactionalClient(BaseClient):
             ```
         """
         filters = ["TransactionType eq 'Sale'"]
-        
+
         if min_price is not None:
             filters.append(f"ClosePrice ge {min_price}")
         if max_price is not None:
             filters.append(f"ClosePrice le {max_price}")
-            
+
         price_filter = " and ".join(filters)
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{price_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{price_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = price_filter
-            
+            kwargs["filter_query"] = price_filter
+
         return self.get_history_transactions(**kwargs)
 
     def get_sales_by_date_range(
         self,
         start_date: Union[str, date, datetime],
         end_date: Union[str, date, datetime],
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get sales transactions within a date range.
 
@@ -281,14 +279,14 @@ class HistoryTransactionalClient(BaseClient):
         Example:
             ```python
             from datetime import date
-            
+
             # Get sales from Q1 2023
             q1_sales = client.history.get_sales_by_date_range(
                 start_date=date(2023, 1, 1),
                 end_date=date(2023, 3, 31),
                 orderby="CloseDate desc"
             )
-            
+
             # Get sales from last 30 days
             from datetime import datetime, timedelta
             recent_sales = client.history.get_sales_by_date_range(
@@ -304,28 +302,24 @@ class HistoryTransactionalClient(BaseClient):
             start_str = start_date.isoformat()
         else:
             start_str = start_date
-            
+
         if isinstance(end_date, (date, datetime)):
             end_str = end_date.isoformat()
         else:
             end_str = end_date
-            
+
         date_filter = f"TransactionType eq 'Sale' and CloseDate ge '{start_str}' and CloseDate le '{end_str}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{date_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{date_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = date_filter
-            
+            kwargs["filter_query"] = date_filter
+
         return self.get_history_transactions(**kwargs)
 
-    def get_recent_sales(
-        self,
-        days_back: int = 30,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_recent_sales(self, days_back: int = 30, **kwargs: Any) -> Dict[str, Any]:
         """Get recent sales transactions.
 
         Convenience method to get sales from the last N days.
@@ -346,7 +340,7 @@ class HistoryTransactionalClient(BaseClient):
                 orderby="CloseDate desc",
                 top=50
             )
-            
+
             # Get recent luxury sales
             recent_luxury = client.history.get_recent_sales(
                 days_back=30,
@@ -356,26 +350,22 @@ class HistoryTransactionalClient(BaseClient):
             ```
         """
         from datetime import datetime, timedelta
-        
+
         cutoff_date = datetime.now() - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat()
-        
+
         recent_filter = f"TransactionType eq 'Sale' and CloseDate ge '{cutoff_str}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{recent_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{recent_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = recent_filter
-            
+            kwargs["filter_query"] = recent_filter
+
         return self.get_history_transactions(**kwargs)
 
-    def get_transactions_by_city(
-        self,
-        city: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_transactions_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
         """Get transactions in a specific city.
 
         Convenience method to filter transactions by city name.
@@ -400,20 +390,17 @@ class HistoryTransactionalClient(BaseClient):
             ```
         """
         city_filter = f"City eq '{city}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{city_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{city_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = city_filter
-            
+            kwargs["filter_query"] = city_filter
+
         return self.get_history_transactions(**kwargs)
 
-    def get_closed_transactions(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_closed_transactions(self, **kwargs: Any) -> Dict[str, Any]:
         """Get transactions with Closed status.
 
         Convenience method to retrieve only closed transactions.
@@ -441,12 +428,11 @@ class HistoryTransactionalClient(BaseClient):
             )
             ```
         """
-        return self.get_history_transactions(filter_query="Status eq 'Closed'", **kwargs)
+        return self.get_history_transactions(
+            filter_query="Status eq 'Closed'", **kwargs
+        )
 
-    def get_transactions_with_property(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_transactions_with_property(self, **kwargs: Any) -> Dict[str, Any]:
         """Get transactions with their property information expanded.
 
         This is a convenience method that automatically expands the Property
@@ -467,7 +453,7 @@ class HistoryTransactionalClient(BaseClient):
                 orderby="CloseDate desc",
                 top=25
             )
-            
+
             # Access property info for first transaction
             first_transaction = transactions_with_props['value'][0]
             if 'Property' in first_transaction:
@@ -478,9 +464,7 @@ class HistoryTransactionalClient(BaseClient):
         return self.get_history_transactions(expand="Property", **kwargs)
 
     def get_modified_transactions(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get transactions modified since a specific date/time.
 
@@ -498,7 +482,7 @@ class HistoryTransactionalClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get transactions modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.history.get_modified_transactions(
@@ -519,6 +503,6 @@ class HistoryTransactionalClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_history_transactions(filter_query=filter_query, **kwargs) 
+        return self.get_history_transactions(filter_query=filter_query, **kwargs)

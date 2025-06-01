@@ -33,7 +33,7 @@ class MediaCategory(Enum):
 
 class MediaClient(BaseClient):
     """Client for media (photos/videos) API endpoints.
-    
+
     The Media resource contains property photos, videos, and other media files.
     Each media record is related to a Property through ResourceRecordKeyNumeric.
     Media items include URLs, ordering information, and descriptive metadata.
@@ -158,7 +158,7 @@ class MediaClient(BaseClient):
             ```python
             # Get specific media item by key
             media_item = client.media.get_media_item("1611952_050774e9ef920b479d8e37ff459daf14_2880536.jpg")
-            
+
             print(f"Media URL: {media_item['MediaURL']}")
             print(f"Order: {media_item['Order']}")
             print(f"Description: {media_item.get('LongDescription', 'No description')}")
@@ -167,9 +167,7 @@ class MediaClient(BaseClient):
         return self.get(f"Media('{media_key}')")
 
     def get_media_for_property(
-        self,
-        listing_key: Union[str, int],
-        **kwargs: Any
+        self, listing_key: Union[str, int], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get media for a specific property.
 
@@ -190,14 +188,14 @@ class MediaClient(BaseClient):
                 listing_key="1611952",
                 orderby="Order asc"
             )
-            
+
             # Get just photo URLs for a property
             photo_urls = client.media.get_media_for_property(
                 listing_key=1611952,
                 select=["MediaURL", "Order"],
                 filter_query="MediaType eq 'Photo'"
             )
-            
+
             # Get first 5 photos for a property
             first_photos = client.media.get_media_for_property(
                 listing_key="1611952",
@@ -207,20 +205,18 @@ class MediaClient(BaseClient):
             ```
         """
         property_filter = f"ResourceRecordKeyNumeric eq {listing_key}"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
+            kwargs["filter_query"] = property_filter
+
         return self.get_media(**kwargs)
 
     def get_photos_for_property(
-        self,
-        listing_key: Union[str, int],
-        **kwargs: Any
+        self, listing_key: Union[str, int], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get photos only for a specific property.
 
@@ -241,7 +237,7 @@ class MediaClient(BaseClient):
                 listing_key="1611952",
                 orderby="Order asc"
             )
-            
+
             # Get photo URLs only
             photo_urls = client.media.get_photos_for_property(
                 listing_key="1611952",
@@ -250,20 +246,21 @@ class MediaClient(BaseClient):
             )
             ```
         """
-        photo_filter = f"ResourceRecordKeyNumeric eq {listing_key} and MediaType eq 'Photo'"
-        
+        photo_filter = (
+            f"ResourceRecordKeyNumeric eq {listing_key} and MediaType eq 'Photo'"
+        )
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{photo_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{photo_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = photo_filter
-            
+            kwargs["filter_query"] = photo_filter
+
         return self.get_media(**kwargs)
 
     def get_primary_photo(
-        self,
-        listing_key: Union[str, int]
+        self, listing_key: Union[str, int]
     ) -> Optional[Dict[str, Any]]:
         """Get the primary photo for a property.
 
@@ -280,7 +277,7 @@ class MediaClient(BaseClient):
             ```python
             # Get primary photo for a property
             primary_photo = client.media.get_primary_photo("1611952")
-            
+
             if primary_photo:
                 print(f"Primary photo URL: {primary_photo['MediaURL']}")
             else:
@@ -288,19 +285,16 @@ class MediaClient(BaseClient):
             ```
         """
         response = self.get_photos_for_property(
-            listing_key=listing_key,
-            filter_query="Order eq 1",
-            top=1
+            listing_key=listing_key, filter_query="Order eq 1", top=1
         )
-        
-        if response.get('value'):
-            return response['value'][0]
+
+        value_list: List[Dict[str, Any]] = response.get("value", [])
+        if value_list:
+            return value_list[0]
         return None
 
     def get_media_urls_for_property(
-        self,
-        listing_key: Union[str, int],
-        media_type: Optional[str] = None
+        self, listing_key: Union[str, int], media_type: Optional[str] = None
     ) -> List[str]:
         """Get just the media URLs for a property.
 
@@ -321,40 +315,37 @@ class MediaClient(BaseClient):
                 listing_key="1611952",
                 media_type="Photo"
             )
-            
+
             # Get all media URLs (photos, videos, etc.)
             all_urls = client.media.get_media_urls_for_property("1611952")
-            
+
             for url in photo_urls:
                 print(f"Photo: {url}")
             ```
         """
         filter_parts = [f"ResourceRecordKeyNumeric eq {listing_key}"]
-        
+
         if media_type:
             filter_parts.append(f"MediaType eq '{media_type}'")
-            
+
         filter_query = " and ".join(filter_parts)
-        
+
         response = self.get_media(
             filter_query=filter_query,
             select=["MediaURL"],
             orderby="Order asc",
-            top=200  # Get up to the max limit
+            top=200,  # Get up to the max limit
         )
-        
+
         urls = []
-        for item in response.get('value', []):
-            if 'MediaURL' in item:
-                urls.append(item['MediaURL'])
-                
+        for item in response.get("value", []):
+            if "MediaURL" in item:
+                urls.append(item["MediaURL"])
+
         return urls
 
     def get_media_by_category(
-        self,
-        listing_key: Union[str, int],
-        category: str,
-        **kwargs: Any
+        self, listing_key: Union[str, int], category: str, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get media for a property filtered by category.
 
@@ -377,7 +368,7 @@ class MediaClient(BaseClient):
                 category="Exterior",
                 orderby="Order asc"
             )
-            
+
             # Get kitchen photos
             kitchen_photos = client.media.get_media_by_category(
                 listing_key="1611952",
@@ -386,20 +377,17 @@ class MediaClient(BaseClient):
             ```
         """
         category_filter = f"ResourceRecordKeyNumeric eq {listing_key} and MediaCategory eq '{category}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{category_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{category_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = category_filter
-            
+            kwargs["filter_query"] = category_filter
+
         return self.get_media(**kwargs)
 
-    def get_media_with_property(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_media_with_property(self, **kwargs: Any) -> Dict[str, Any]:
         """Get media with their property information expanded.
 
         This is a convenience method that automatically expands the Property
@@ -419,7 +407,7 @@ class MediaClient(BaseClient):
                 orderby="ModificationTimestamp desc",
                 top=25
             )
-            
+
             # Access property info for first media item
             first_media = media_with_props['value'][0]
             if 'Property' in first_media:
@@ -430,9 +418,7 @@ class MediaClient(BaseClient):
         return self.get_media(expand="Property", **kwargs)
 
     def get_modified_media(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get media modified since a specific date/time.
 
@@ -450,7 +436,7 @@ class MediaClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get media modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.media.get_modified_media(
@@ -471,6 +457,6 @@ class MediaClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_media(filter_query=filter_query, **kwargs) 
+        return self.get_media(filter_query=filter_query, **kwargs)

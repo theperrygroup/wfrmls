@@ -9,7 +9,7 @@ from .base_client import BaseClient
 
 class ResourceClient(BaseClient):
     """Client for resource metadata API endpoints.
-    
+
     The Resource endpoint provides metadata about API resources, including
     field definitions, data types, and relationships. This is essential for
     understanding the structure and capabilities of each resource.
@@ -66,7 +66,7 @@ class ResourceClient(BaseClient):
             ```python
             # Get all resource metadata
             resources = client.resource.get_resources()
-            
+
             # Get specific resource information
             resources = client.resource.get_resources(
                 filter_query="ResourceName eq 'Property'",
@@ -129,7 +129,7 @@ class ResourceClient(BaseClient):
             ```python
             # Get specific resource by key
             resource = client.resource.get_resource("Property")
-            
+
             print(f"Resource Name: {resource['ResourceName']}")
             print(f"Standard Name: {resource.get('StandardName', 'Unknown')}")
             print(f"Description: {resource.get('Description', 'No description')}")
@@ -137,11 +137,7 @@ class ResourceClient(BaseClient):
         """
         return self.get(f"Resource('{resource_key}')")
 
-    def get_resource_by_name(
-        self,
-        resource_name: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_resource_by_name(self, resource_name: str, **kwargs: Any) -> Dict[str, Any]:
         """Get resource by resource name.
 
         Convenience method to filter resources by name.
@@ -161,20 +157,20 @@ class ResourceClient(BaseClient):
                 resource_name="Property",
                 expand="Fields"
             )
-            
+
             # Get Member resource information
             member_resource = client.resource.get_resource_by_name("Member")
             ```
         """
         resource_filter = f"ResourceName eq '{resource_name}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{resource_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{resource_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = resource_filter
-            
+            kwargs["filter_query"] = resource_filter
+
         return self.get_resources(**kwargs)
 
     def get_standard_resources(self, **kwargs: Any) -> Dict[str, Any]:
@@ -193,21 +189,21 @@ class ResourceClient(BaseClient):
             ```python
             # Get all standard resources
             standard_resources = client.resource.get_standard_resources()
-            
+
             for resource in standard_resources.get('value', []):
                 print(f"Standard Resource: {resource['StandardName']}")
             ```
         """
         # Filter for resources that have a StandardName (RESO standard resources)
         standard_filter = "StandardName ne null"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{standard_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{standard_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = standard_filter
-            
+            kwargs["filter_query"] = standard_filter
+
         return self.get_resources(**kwargs)
 
     def get_resources_with_fields(self, **kwargs: Any) -> Dict[str, Any]:
@@ -227,7 +223,7 @@ class ResourceClient(BaseClient):
             ```python
             # Get all resources with field information
             resources_with_fields = client.resource.get_resources_with_fields(top=10)
-            
+
             # Access field info for first resource
             first_resource = resources_with_fields['value'][0]
             if 'Fields' in first_resource:
@@ -238,9 +234,7 @@ class ResourceClient(BaseClient):
         return self.get_resources(expand="Fields", **kwargs)
 
     def get_modified_resources(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get resources modified since a specific date/time.
 
@@ -258,7 +252,7 @@ class ResourceClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get resources modified in last month
             cutoff_time = datetime.utcnow() - timedelta(days=30)
             updates = client.resource.get_modified_resources(
@@ -278,6 +272,6 @@ class ResourceClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_resources(filter_query=filter_query, **kwargs) 
+        return self.get_resources(filter_query=filter_query, **kwargs)
