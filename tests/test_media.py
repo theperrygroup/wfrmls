@@ -53,7 +53,7 @@ class TestMediaClient:
                     "MediaKey": "123_photo.jpg",
                     "MediaURL": "https://example.com/photo.jpg",
                     "Order": 1,
-                    "MediaType": "Photo"
+                    "MediaType": "Photo",
                 }
             ]
         }
@@ -77,7 +77,7 @@ class TestMediaClient:
             select=["MediaURL", "Order"],
             orderby="Order asc",
             expand=["Property"],
-            count=True
+            count=True,
         )
 
         expected_params = {
@@ -87,7 +87,7 @@ class TestMediaClient:
             "$select": "MediaURL,Order",
             "$orderby": "Order asc",
             "$expand": "Property",
-            "$count": "true"
+            "$count": "true",
         }
 
         mock_get.assert_called_once_with("Media", params=expected_params)
@@ -139,7 +139,7 @@ class TestMediaClient:
         mock_response: Dict[str, Any] = {
             "MediaKey": media_key,
             "MediaURL": "https://example.com/photo.jpg",
-            "Order": 1
+            "Order": 1,
         }
         mock_get.return_value = mock_response
 
@@ -155,13 +155,11 @@ class TestMediaClient:
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_for_property(
-            listing_key="12345",
-            orderby="Order asc"
+            listing_key="12345", orderby="Order asc"
         )
 
         mock_get_media.assert_called_once_with(
-            filter_query="ResourceRecordKeyNumeric eq 12345",
-            orderby="Order asc"
+            filter_query="ResourceRecordKeyNumeric eq 12345", orderby="Order asc"
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
@@ -177,14 +175,15 @@ class TestMediaClient:
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
-    def test_get_media_for_property_with_existing_filter(self, mock_get_media: Mock) -> None:
+    def test_get_media_for_property_with_existing_filter(
+        self, mock_get_media: Mock
+    ) -> None:
         """Test get_media_for_property with existing filter_query."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_for_property(
-            listing_key="12345",
-            filter_query="MediaType eq 'Photo'"
+            listing_key="12345", filter_query="MediaType eq 'Photo'"
         )
 
         expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaType eq 'Photo'"
@@ -197,28 +196,29 @@ class TestMediaClient:
         mock_get_media.return_value = mock_response
 
         result = self.client.get_photos_for_property(
-            listing_key="12345",
-            orderby="Order asc"
+            listing_key="12345", orderby="Order asc"
         )
 
         expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaType eq 'Photo'"
         mock_get_media.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="Order asc"
+            filter_query=expected_filter, orderby="Order asc"
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
-    def test_get_photos_for_property_with_existing_filter(self, mock_get_media: Mock) -> None:
+    def test_get_photos_for_property_with_existing_filter(
+        self, mock_get_media: Mock
+    ) -> None:
         """Test get_photos_for_property with existing filter_query."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_media.return_value = mock_response
 
         result = self.client.get_photos_for_property(
-            listing_key="12345",
-            filter_query="Order le 5"
+            listing_key="12345", filter_query="Order le 5"
         )
 
-        expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaType eq 'Photo' and Order le 5"
+        expected_filter = (
+            "ResourceRecordKeyNumeric eq 12345 and MediaType eq 'Photo' and Order le 5"
+        )
         mock_get_media.assert_called_once_with(filter_query=expected_filter)
 
     @patch("wfrmls.media.MediaClient.get_photos_for_property")
@@ -227,16 +227,14 @@ class TestMediaClient:
         primary_photo = {
             "MediaKey": "123_primary.jpg",
             "MediaURL": "https://example.com/primary.jpg",
-            "Order": 1
+            "Order": 1,
         }
         mock_get_photos.return_value = {"value": [primary_photo]}
 
         result = self.client.get_primary_photo("12345")
 
         mock_get_photos.assert_called_once_with(
-            listing_key="12345",
-            filter_query="Order eq 1",
-            top=1
+            listing_key="12345", filter_query="Order eq 1", top=1
         )
         assert result == primary_photo
 
@@ -250,20 +248,21 @@ class TestMediaClient:
         assert result is None
 
     @patch("wfrmls.media.MediaClient.get_media")
-    def test_get_media_urls_for_property_photos_only(self, mock_get_media: Mock) -> None:
+    def test_get_media_urls_for_property_photos_only(
+        self, mock_get_media: Mock
+    ) -> None:
         """Test get_media_urls_for_property with photo filter."""
         mock_response: Dict[str, Any] = {
             "value": [
                 {"MediaURL": "https://example.com/photo1.jpg"},
                 {"MediaURL": "https://example.com/photo2.jpg"},
-                {"MediaURL": "https://example.com/photo3.jpg"}
+                {"MediaURL": "https://example.com/photo3.jpg"},
             ]
         }
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_urls_for_property(
-            listing_key="12345",
-            media_type="Photo"
+            listing_key="12345", media_type="Photo"
         )
 
         expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaType eq 'Photo'"
@@ -271,13 +270,13 @@ class TestMediaClient:
             filter_query=expected_filter,
             select=["MediaURL"],
             orderby="Order asc",
-            top=200
+            top=200,
         )
 
         expected_urls = [
             "https://example.com/photo1.jpg",
             "https://example.com/photo2.jpg",
-            "https://example.com/photo3.jpg"
+            "https://example.com/photo3.jpg",
         ]
         assert result == expected_urls
 
@@ -288,7 +287,7 @@ class TestMediaClient:
             "value": [
                 {"MediaURL": "https://example.com/photo.jpg"},
                 {"MediaURL": "https://example.com/video.mp4"},
-                {}  # Missing MediaURL
+                {},  # Missing MediaURL
             ]
         }
         mock_get_media.return_value = mock_response
@@ -300,12 +299,12 @@ class TestMediaClient:
             filter_query=expected_filter,
             select=["MediaURL"],
             orderby="Order asc",
-            top=200
+            top=200,
         )
 
         expected_urls = [
             "https://example.com/photo.jpg",
-            "https://example.com/video.mp4"
+            "https://example.com/video.mp4",
         ]
         assert result == expected_urls
 
@@ -316,27 +315,26 @@ class TestMediaClient:
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_by_category(
-            listing_key="12345",
-            category="Kitchen",
-            orderby="Order asc"
+            listing_key="12345", category="Kitchen", orderby="Order asc"
         )
 
-        expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaCategory eq 'Kitchen'"
+        expected_filter = (
+            "ResourceRecordKeyNumeric eq 12345 and MediaCategory eq 'Kitchen'"
+        )
         mock_get_media.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="Order asc"
+            filter_query=expected_filter, orderby="Order asc"
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
-    def test_get_media_by_category_with_existing_filter(self, mock_get_media: Mock) -> None:
+    def test_get_media_by_category_with_existing_filter(
+        self, mock_get_media: Mock
+    ) -> None:
         """Test get_media_by_category with existing filter_query."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_by_category(
-            listing_key="12345",
-            category="Exterior",
-            filter_query="Order le 10"
+            listing_key="12345", category="Exterior", filter_query="Order le 10"
         )
 
         expected_filter = "ResourceRecordKeyNumeric eq 12345 and MediaCategory eq 'Exterior' and Order le 10"
@@ -349,14 +347,11 @@ class TestMediaClient:
         mock_get_media.return_value = mock_response
 
         result = self.client.get_media_with_property(
-            orderby="ModificationTimestamp desc",
-            top=25
+            orderby="ModificationTimestamp desc", top=25
         )
 
         mock_get_media.assert_called_once_with(
-            expand="Property",
-            orderby="ModificationTimestamp desc",
-            top=25
+            expand="Property", orderby="ModificationTimestamp desc", top=25
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
@@ -367,14 +362,12 @@ class TestMediaClient:
 
         since_datetime = datetime(2024, 1, 1, 12, 0, 0)
         result = self.client.get_modified_media(
-            since=since_datetime,
-            orderby="ModificationTimestamp desc"
+            since=since_datetime, orderby="ModificationTimestamp desc"
         )
 
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_media.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="ModificationTimestamp desc"
+            filter_query=expected_filter, orderby="ModificationTimestamp desc"
         )
 
     @patch("wfrmls.media.MediaClient.get_media")
@@ -405,14 +398,13 @@ class TestMediaClient:
         """Test MediaClient initialization with default parameters."""
         client = MediaClient()
         # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url')
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")
 
     def test_init_with_params(self) -> None:
         """Test MediaClient initialization with custom parameters."""
         client = MediaClient(
-            bearer_token="custom_token",
-            base_url="https://custom.api.com"
+            bearer_token="custom_token", base_url="https://custom.api.com"
         )
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url') 
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")

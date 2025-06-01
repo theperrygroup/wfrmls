@@ -5,7 +5,11 @@ from datetime import datetime, date
 from typing import Dict, Any
 from unittest.mock import Mock, patch
 
-from wfrmls.history import HistoryTransactionalClient, HistoryTransactionType, HistoryStatus
+from wfrmls.history import (
+    HistoryTransactionalClient,
+    HistoryTransactionType,
+    HistoryStatus,
+)
 from wfrmls.exceptions import WFRMLSError
 
 
@@ -48,7 +52,7 @@ class TestHistoryTransactionalClient:
                     "TransactionKey": "T123",
                     "ClosePrice": 500000,
                     "CloseDate": "2024-01-01T12:00:00Z",
-                    "TransactionType": "Sale"
+                    "TransactionType": "Sale",
                 }
             ]
         }
@@ -72,7 +76,7 @@ class TestHistoryTransactionalClient:
             select=["TransactionKey", "ClosePrice"],
             orderby="CloseDate desc",
             expand=["Property"],
-            count=True
+            count=True,
         )
 
         expected_params = {
@@ -82,13 +86,15 @@ class TestHistoryTransactionalClient:
             "$select": "TransactionKey,ClosePrice",
             "$orderby": "CloseDate desc",
             "$expand": "Property",
-            "$count": "true"
+            "$count": "true",
         }
 
         mock_get.assert_called_once_with("HistoryTransactional", params=expected_params)
 
     @patch("wfrmls.history.HistoryTransactionalClient.get")
-    def test_get_history_transactions_top_limit_enforcement(self, mock_get: Mock) -> None:
+    def test_get_history_transactions_top_limit_enforcement(
+        self, mock_get: Mock
+    ) -> None:
         """Test that top parameter is limited to 200."""
         mock_get.return_value = {"value": []}
 
@@ -104,7 +110,7 @@ class TestHistoryTransactionalClient:
         mock_response: Dict[str, Any] = {
             "TransactionKey": transaction_key,
             "ClosePrice": 500000,
-            "CloseDate": "2024-01-01T12:00:00Z"
+            "CloseDate": "2024-01-01T12:00:00Z",
         }
         mock_get.return_value = mock_response
 
@@ -120,13 +126,11 @@ class TestHistoryTransactionalClient:
         mock_get_transactions.return_value = mock_response
 
         result = self.client.get_transactions_for_property(
-            listing_key="12345",
-            orderby="CloseDate desc"
+            listing_key="12345", orderby="CloseDate desc"
         )
 
         mock_get_transactions.assert_called_once_with(
-            filter_query="ListingKey eq '12345'",
-            orderby="CloseDate desc"
+            filter_query="ListingKey eq '12345'", orderby="CloseDate desc"
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
@@ -136,15 +140,12 @@ class TestHistoryTransactionalClient:
         mock_get_transactions.return_value = mock_response
 
         result = self.client.get_sales_by_price_range(
-            min_price=400000,
-            max_price=600000,
-            orderby="CloseDate desc"
+            min_price=400000, max_price=600000, orderby="CloseDate desc"
         )
 
         expected_filter = "TransactionType eq 'Sale' and ClosePrice ge 400000 and ClosePrice le 600000"
         mock_get_transactions.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="CloseDate desc"
+            filter_query=expected_filter, orderby="CloseDate desc"
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
@@ -153,10 +154,7 @@ class TestHistoryTransactionalClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_transactions.return_value = mock_response
 
-        result = self.client.get_recent_sales(
-            days_back=30,
-            orderby="CloseDate desc"
-        )
+        result = self.client.get_recent_sales(days_back=30, orderby="CloseDate desc")
 
         # Check that the filter contains the expected parts
         mock_get_transactions.assert_called_once()
@@ -172,13 +170,11 @@ class TestHistoryTransactionalClient:
         mock_get_transactions.return_value = mock_response
 
         result = self.client.get_transactions_by_city(
-            city="Salt Lake City",
-            orderby="CloseDate desc"
+            city="Salt Lake City", orderby="CloseDate desc"
         )
 
         mock_get_transactions.assert_called_once_with(
-            filter_query="City eq 'Salt Lake City'",
-            orderby="CloseDate desc"
+            filter_query="City eq 'Salt Lake City'", orderby="CloseDate desc"
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
@@ -187,13 +183,10 @@ class TestHistoryTransactionalClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_transactions.return_value = mock_response
 
-        result = self.client.get_closed_transactions(
-            orderby="CloseDate desc"
-        )
+        result = self.client.get_closed_transactions(orderby="CloseDate desc")
 
         mock_get_transactions.assert_called_once_with(
-            filter_query="Status eq 'Closed'",
-            orderby="CloseDate desc"
+            filter_query="Status eq 'Closed'", orderby="CloseDate desc"
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
@@ -203,32 +196,29 @@ class TestHistoryTransactionalClient:
         mock_get_transactions.return_value = mock_response
 
         result = self.client.get_transactions_with_property(
-            orderby="CloseDate desc",
-            top=25
+            orderby="CloseDate desc", top=25
         )
 
         mock_get_transactions.assert_called_once_with(
-            expand="Property",
-            orderby="CloseDate desc",
-            top=25
+            expand="Property", orderby="CloseDate desc", top=25
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
-    def test_get_modified_transactions_datetime(self, mock_get_transactions: Mock) -> None:
+    def test_get_modified_transactions_datetime(
+        self, mock_get_transactions: Mock
+    ) -> None:
         """Test get_modified_transactions with datetime object."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_transactions.return_value = mock_response
 
         since_datetime = datetime(2024, 1, 1, 12, 0, 0)
         result = self.client.get_modified_transactions(
-            since=since_datetime,
-            orderby="ModificationTimestamp desc"
+            since=since_datetime, orderby="ModificationTimestamp desc"
         )
 
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_transactions.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="ModificationTimestamp desc"
+            filter_query=expected_filter, orderby="ModificationTimestamp desc"
         )
 
     @patch("wfrmls.history.HistoryTransactionalClient.get_history_transactions")
@@ -240,29 +230,25 @@ class TestHistoryTransactionalClient:
         start_date = date(2024, 1, 1)
         end_date = date(2024, 1, 31)
         result = self.client.get_sales_by_date_range(
-            start_date=start_date,
-            end_date=end_date,
-            orderby="CloseDate desc"
+            start_date=start_date, end_date=end_date, orderby="CloseDate desc"
         )
 
         expected_filter = "TransactionType eq 'Sale' and CloseDate ge '2024-01-01' and CloseDate le '2024-01-31'"
         mock_get_transactions.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="CloseDate desc"
+            filter_query=expected_filter, orderby="CloseDate desc"
         )
 
     def test_init_default_params(self) -> None:
         """Test HistoryTransactionalClient initialization with default parameters."""
         client = HistoryTransactionalClient()
         # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url')
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")
 
     def test_init_with_params(self) -> None:
         """Test HistoryTransactionalClient initialization with custom parameters."""
         client = HistoryTransactionalClient(
-            bearer_token="custom_token",
-            base_url="https://custom.api.com"
+            bearer_token="custom_token", base_url="https://custom.api.com"
         )
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url') 
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")

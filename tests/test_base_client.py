@@ -28,17 +28,17 @@ class TestBaseClientInit:
     def test_init_with_custom_base_url(self) -> None:
         """Test initialization with custom base URL."""
         client = BaseClient(
-            bearer_token="test_token", 
-            base_url="https://custom.api.com"
+            bearer_token="test_token", base_url="https://custom.api.com"
         )
         assert client.base_url == "https://custom.api.com"
 
     def test_init_with_env_token(self) -> None:
         """Test initialization loading token from environment."""
         import os
+
         # Save original value
         original_token = os.environ.get("WFRMLS_BEARER_TOKEN")
-        
+
         try:
             # Set environment variable
             os.environ["WFRMLS_BEARER_TOKEN"] = "env_test_token"
@@ -54,14 +54,15 @@ class TestBaseClientInit:
     def test_init_no_token_raises_error(self) -> None:
         """Test initialization without token raises AuthenticationError."""
         import os
+
         # Save original value
         original_token = os.environ.get("WFRMLS_BEARER_TOKEN")
-        
+
         try:
             # Remove environment variable
             if "WFRMLS_BEARER_TOKEN" in os.environ:
                 del os.environ["WFRMLS_BEARER_TOKEN"]
-            
+
             with pytest.raises(AuthenticationError, match="Bearer token is required"):
                 BaseClient()
         finally:
@@ -118,7 +119,10 @@ class TestBaseClient:
         request = responses.calls[0].request
         assert request.url is not None
         assert "%24top=10" in request.url
-        assert "Status+eq+%27Active%27" in request.url or "Status eq 'Active'" in request.url
+        assert (
+            "Status+eq+%27Active%27" in request.url
+            or "Status eq 'Active'" in request.url
+        )
 
     @responses.activate
     def test_validation_error_400(self) -> None:
@@ -143,7 +147,9 @@ class TestBaseClient:
             status=401,
         )
 
-        with pytest.raises(AuthenticationError, match="Authentication failed: Invalid credentials"):
+        with pytest.raises(
+            AuthenticationError, match="Authentication failed: Invalid credentials"
+        ):
             self.client.get("TestEndpoint")
 
     @responses.activate
@@ -156,7 +162,9 @@ class TestBaseClient:
             status=404,
         )
 
-        with pytest.raises(NotFoundError, match="Resource not found: Resource not found"):
+        with pytest.raises(
+            NotFoundError, match="Resource not found: Resource not found"
+        ):
             self.client.get("TestEndpoint")
 
     @responses.activate
@@ -169,7 +177,9 @@ class TestBaseClient:
             status=429,
         )
 
-        with pytest.raises(RateLimitError, match="Rate limit exceeded: Rate limit exceeded"):
+        with pytest.raises(
+            RateLimitError, match="Rate limit exceeded: Rate limit exceeded"
+        ):
             self.client.get("TestEndpoint")
 
     @responses.activate
@@ -218,7 +228,7 @@ class TestBaseClient:
             "https://resoapi.utahrealestate.com/reso/odata/TestEndpoint",
             body="Invalid JSON",
             status=200,
-            content_type="text/plain"
+            content_type="text/plain",
         )
 
         result = self.client.get("TestEndpoint")
@@ -230,7 +240,7 @@ class TestBaseClient:
         responses.add(
             responses.GET,
             "https://resoapi.utahrealestate.com/reso/odata/TestEndpoint",
-            body=ConnectionError("Connection failed")
+            body=ConnectionError("Connection failed"),
         )
 
         with pytest.raises(NetworkError, match="Network error: Connection failed"):
@@ -242,7 +252,7 @@ class TestBaseClient:
         responses.add(
             responses.GET,
             "https://resoapi.utahrealestate.com/reso/odata/TestEndpoint",
-            body=Timeout("Request timed out")
+            body=Timeout("Request timed out"),
         )
 
         with pytest.raises(NetworkError, match="Network error: Request timed out"):
@@ -263,15 +273,14 @@ class TestBaseClient:
 
     def test_session_headers(self) -> None:
         """Test that session headers are set correctly."""
-        assert self.client.session.headers["Authorization"] == "Bearer test_bearer_token"
+        assert (
+            self.client.session.headers["Authorization"] == "Bearer test_bearer_token"
+        )
         assert self.client.session.headers["Content-Type"] == "application/json"
         assert self.client.session.headers["Accept"] == "application/json"
 
     def test_custom_base_url_session(self) -> None:
         """Test session with custom base URL."""
-        client = BaseClient(
-            bearer_token="test", 
-            base_url="https://custom.api.com/api"
-        )
+        client = BaseClient(bearer_token="test", base_url="https://custom.api.com/api")
         assert client.base_url == "https://custom.api.com/api"
-        assert client.session.headers["Authorization"] == "Bearer test" 
+        assert client.session.headers["Authorization"] == "Bearer test"

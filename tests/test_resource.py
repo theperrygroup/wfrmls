@@ -24,7 +24,7 @@ class TestResourceClient:
                 {
                     "ResourceKey": "Property",
                     "ResourceName": "Property",
-                    "StandardName": "Property"
+                    "StandardName": "Property",
                 }
             ]
         }
@@ -48,7 +48,7 @@ class TestResourceClient:
             select=["ResourceKey", "ResourceName"],
             orderby="ResourceName asc",
             expand=["Fields"],
-            count=True
+            count=True,
         )
 
         expected_params = {
@@ -58,7 +58,7 @@ class TestResourceClient:
             "$select": "ResourceKey,ResourceName",
             "$orderby": "ResourceName asc",
             "$expand": "Fields",
-            "$count": "true"
+            "$count": "true",
         }
 
         mock_get.assert_called_once_with("Resource", params=expected_params)
@@ -110,7 +110,7 @@ class TestResourceClient:
         mock_response: Dict[str, Any] = {
             "ResourceKey": resource_key,
             "ResourceName": "Property",
-            "StandardName": "Property"
+            "StandardName": "Property",
         }
         mock_get.return_value = mock_response
 
@@ -126,24 +126,23 @@ class TestResourceClient:
         mock_get_resources.return_value = mock_response
 
         result = self.client.get_resource_by_name(
-            resource_name="Property",
-            expand="Fields"
+            resource_name="Property", expand="Fields"
         )
 
         mock_get_resources.assert_called_once_with(
-            filter_query="ResourceName eq 'Property'",
-            expand="Fields"
+            filter_query="ResourceName eq 'Property'", expand="Fields"
         )
 
     @patch("wfrmls.resource.ResourceClient.get_resources")
-    def test_get_resource_by_name_with_existing_filter(self, mock_get_resources: Mock) -> None:
+    def test_get_resource_by_name_with_existing_filter(
+        self, mock_get_resources: Mock
+    ) -> None:
         """Test get_resource_by_name with existing filter_query."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_resources.return_value = mock_response
 
         result = self.client.get_resource_by_name(
-            resource_name="Member",
-            filter_query="StandardName ne null"
+            resource_name="Member", filter_query="StandardName ne null"
         )
 
         expected_filter = "ResourceName eq 'Member' and StandardName ne null"
@@ -157,12 +156,12 @@ class TestResourceClient:
 
         result = self.client.get_standard_resources()
 
-        mock_get_resources.assert_called_once_with(
-            filter_query="StandardName ne null"
-        )
+        mock_get_resources.assert_called_once_with(filter_query="StandardName ne null")
 
     @patch("wfrmls.resource.ResourceClient.get_resources")
-    def test_get_standard_resources_with_existing_filter(self, mock_get_resources: Mock) -> None:
+    def test_get_standard_resources_with_existing_filter(
+        self, mock_get_resources: Mock
+    ) -> None:
         """Test get_standard_resources with existing filter_query."""
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_resources.return_value = mock_response
@@ -180,14 +179,9 @@ class TestResourceClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_resources.return_value = mock_response
 
-        result = self.client.get_resources_with_fields(
-            top=10
-        )
+        result = self.client.get_resources_with_fields(top=10)
 
-        mock_get_resources.assert_called_once_with(
-            expand="Fields",
-            top=10
-        )
+        mock_get_resources.assert_called_once_with(expand="Fields", top=10)
 
     @patch("wfrmls.resource.ResourceClient.get_resources")
     def test_get_modified_resources_datetime(self, mock_get_resources: Mock) -> None:
@@ -197,14 +191,12 @@ class TestResourceClient:
 
         since_datetime = datetime(2024, 1, 1, 12, 0, 0)
         result = self.client.get_modified_resources(
-            since=since_datetime,
-            orderby="ModificationTimestamp desc"
+            since=since_datetime, orderby="ModificationTimestamp desc"
         )
 
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_resources.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="ModificationTimestamp desc"
+            filter_query=expected_filter, orderby="ModificationTimestamp desc"
         )
 
     @patch("wfrmls.resource.ResourceClient.get_resources")
@@ -235,14 +227,13 @@ class TestResourceClient:
         """Test ResourceClient initialization with default parameters."""
         client = ResourceClient()
         # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url')
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")
 
     def test_init_with_params(self) -> None:
         """Test ResourceClient initialization with custom parameters."""
         client = ResourceClient(
-            bearer_token="custom_token",
-            base_url="https://custom.api.com"
+            bearer_token="custom_token", base_url="https://custom.api.com"
         )
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url') 
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")

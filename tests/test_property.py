@@ -22,9 +22,17 @@ class TestPropertyClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#Property",
             "value": [
-                {"ListingId": "12345678", "ListPrice": 250000, "StandardStatus": "Active"},
-                {"ListingId": "87654321", "ListPrice": 300000, "StandardStatus": "Pending"}
-            ]
+                {
+                    "ListingId": "12345678",
+                    "ListPrice": 250000,
+                    "StandardStatus": "Active",
+                },
+                {
+                    "ListingId": "87654321",
+                    "ListPrice": 300000,
+                    "StandardStatus": "Pending",
+                },
+            ],
         }
 
         responses.add(
@@ -57,7 +65,7 @@ class TestPropertyClient:
             select=["ListingId", "ListPrice"],
             orderby="ListPrice desc",
             expand=["Media", "Member"],
-            count=True
+            count=True,
         )
 
         assert result == mock_response
@@ -138,7 +146,7 @@ class TestPropertyClient:
             "ListingId": "12345678",
             "ListPrice": 250000,
             "StandardStatus": "Active",
-            "UnparsedAddress": "123 Main St, Salt Lake City, UT"
+            "UnparsedAddress": "123 Main St, Salt Lake City, UT",
         }
 
         responses.add(
@@ -182,7 +190,7 @@ class TestPropertyClient:
             longitude=-111.8910,
             radius_miles=10,
             additional_filters="StandardStatus eq 'Active'",
-            top=50
+            top=50,
         )
 
         assert result == mock_response
@@ -208,9 +216,7 @@ class TestPropertyClient:
         )
 
         result = self.client.search_properties_by_radius(
-            latitude=40.7608,
-            longitude=-111.8910,
-            radius_miles=5
+            latitude=40.7608, longitude=-111.8910, radius_miles=5
         )
 
         assert result == mock_response
@@ -234,13 +240,13 @@ class TestPropertyClient:
             {"lat": 40.7608, "lng": -111.8910},
             {"lat": 40.7708, "lng": -111.8810},
             {"lat": 40.7508, "lng": -111.8710},
-            {"lat": 40.7608, "lng": -111.8910}
+            {"lat": 40.7608, "lng": -111.8910},
         ]
 
         result = self.client.search_properties_by_polygon(
             polygon_coordinates=polygon,
             additional_filters="PropertyType eq 'Residential'",
-            top=100
+            top=100,
         )
 
         assert result == mock_response
@@ -265,7 +271,7 @@ class TestPropertyClient:
         polygon = [
             {"lat": 40.7608, "lng": -111.8910},
             {"lat": 40.7708, "lng": -111.8810},
-            {"lat": 40.7508, "lng": -111.8710}
+            {"lat": 40.7508, "lng": -111.8710},
         ]
 
         result = self.client.search_properties_by_polygon(polygon_coordinates=polygon)
@@ -285,10 +291,10 @@ class TestPropertyClient:
                     "ListingId": "12345678",
                     "Media": [
                         {"MediaUrl": "http://example.com/photo1.jpg"},
-                        {"MediaUrl": "http://example.com/photo2.jpg"}
-                    ]
+                        {"MediaUrl": "http://example.com/photo2.jpg"},
+                    ],
                 }
-            ]
+            ],
         }
 
         responses.add(
@@ -299,8 +305,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_properties_with_media(
-            filter_query="StandardStatus eq 'Active'",
-            top=25
+            filter_query="StandardStatus eq 'Active'", top=25
         )
 
         assert result == mock_response
@@ -325,13 +330,16 @@ class TestPropertyClient:
         result = self.client.get_active_properties(
             top=50,
             select=["ListingId", "ListPrice", "UnparsedAddress"],
-            orderby="ListPrice"
+            orderby="ListPrice",
         )
 
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "%24filter=StandardStatus+eq+%27Active%27" in request.url or "StandardStatus+eq+%27Active%27" in request.url
+        assert (
+            "%24filter=StandardStatus+eq+%27Active%27" in request.url
+            or "StandardStatus+eq+%27Active%27" in request.url
+        )
         assert "%24top=50" in request.url
 
     @responses.activate
@@ -347,9 +355,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_properties_by_price_range(
-            min_price=200000,
-            max_price=500000,
-            top=50
+            min_price=200000, max_price=500000, top=50
         )
 
         assert result == mock_response
@@ -428,10 +434,7 @@ class TestPropertyClient:
             status=200,
         )
 
-        result = self.client.get_properties_by_city(
-            city="Salt Lake City",
-            top=100
-        )
+        result = self.client.get_properties_by_city(city="Salt Lake City", top=100)
 
         assert result == mock_response
         request = responses.calls[0].request
@@ -451,9 +454,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_properties_by_city(
-            city="Provo",
-            filter_query="StandardStatus eq 'Active'",
-            orderby="ListPrice"
+            city="Provo", filter_query="StandardStatus eq 'Active'", orderby="ListPrice"
         )
 
         assert result == mock_response
@@ -509,13 +510,13 @@ class TestPropertyClient:
         page1_response = {
             "@odata.context": "test",
             "@odata.nextLink": "https://api.example.com/Property?$skip=200",
-            "value": [{"ListingId": f"P{i}"} for i in range(200)]
+            "value": [{"ListingId": f"P{i}"} for i in range(200)],
         }
-        
+
         # Second page response
         page2_response = {
             "@odata.context": "test",
-            "value": [{"ListingId": f"P{i}"} for i in range(200, 250)]
+            "value": [{"ListingId": f"P{i}"} for i in range(200, 250)],
         }
 
         responses.add(
@@ -532,9 +533,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_all_properties_paginated(
-            page_size=200,
-            max_pages=2,
-            filter_query="StandardStatus eq 'Active'"
+            page_size=200, max_pages=2, filter_query="StandardStatus eq 'Active'"
         )
 
         assert "@odata.context" in result
@@ -549,7 +548,7 @@ class TestPropertyClient:
         """Test paginated property retrieval with single page."""
         single_page_response = {
             "@odata.context": "test",
-            "value": [{"ListingId": f"P{i}"} for i in range(50)]
+            "value": [{"ListingId": f"P{i}"} for i in range(50)],
         }
 
         responses.add(
@@ -570,7 +569,7 @@ class TestPropertyClient:
         page_response = {
             "@odata.context": "test",
             "@odata.nextLink": "https://api.example.com/Property?$skip=200",
-            "value": [{"ListingId": f"P{i}"} for i in range(200)]
+            "value": [{"ListingId": f"P{i}"} for i in range(200)],
         }
 
         responses.add(
@@ -581,8 +580,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_all_properties_paginated(
-            page_size=200,
-            max_pages=1  # Limit to 1 page
+            page_size=200, max_pages=1  # Limit to 1 page
         )
 
         assert len(result["value"]) == 200
@@ -606,13 +604,11 @@ class TestPropertyClient:
             "city": "Salt Lake City",
             "property_type": "Residential",
             "bedrooms": 3,
-            "bathrooms": 2
+            "bathrooms": 2,
         }
 
         result = self.client.search_properties_by_multiple_criteria(
-            criteria=criteria,
-            top=50,
-            orderby="ListPrice desc"
+            criteria=criteria, top=50, orderby="ListPrice desc"
         )
 
         assert result == mock_response
@@ -657,9 +653,7 @@ class TestPropertyClient:
         )
 
         result = self.client.search_properties_near_address(
-            address="123 Main St, Salt Lake City, UT",
-            radius_miles=5.0,
-            top=25
+            address="123 Main St, Salt Lake City, UT", radius_miles=5.0, top=25
         )
 
         assert result == mock_response
@@ -701,9 +695,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_luxury_properties(
-            min_price=2000000,
-            top=20,
-            orderby="ListPrice desc"
+            min_price=2000000, top=20, orderby="ListPrice desc"
         )
 
         assert result == mock_response
@@ -745,9 +737,7 @@ class TestPropertyClient:
         )
 
         result = self.client.get_new_listings(
-            days_back=3,
-            top=30,
-            orderby="OnMarketDate desc"
+            days_back=3, top=30, orderby="OnMarketDate desc"
         )
 
         assert result == mock_response
@@ -763,7 +753,7 @@ class TestPropertyClient:
         assert PropertyStatus.EXPIRED.value == "Expired"
         assert PropertyStatus.WITHDRAWN.value == "Withdrawn"
         assert PropertyStatus.CANCELLED.value == "Cancelled"
-        
+
         assert PropertyType.RESIDENTIAL.value == "Residential"
         assert PropertyType.COMMERCIAL.value == "Commercial"
         assert PropertyType.LAND.value == "Land"
@@ -854,4 +844,4 @@ class TestPropertyClient:
         )
 
         with pytest.raises(ValidationError, match="Bad request"):
-            self.client.get_properties(filter_query="invalid syntax") 
+            self.client.get_properties(filter_query="invalid syntax")

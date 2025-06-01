@@ -6,7 +6,12 @@ import pytest
 import responses
 
 from wfrmls.exceptions import NotFoundError, ValidationError
-from wfrmls.openhouse import OpenHouseClient, OpenHouseStatus, OpenHouseType, OpenHouseAttendedBy
+from wfrmls.openhouse import (
+    OpenHouseClient,
+    OpenHouseStatus,
+    OpenHouseType,
+    OpenHouseAttendedBy,
+)
 
 
 class TestOpenHouseClient:
@@ -22,9 +27,19 @@ class TestOpenHouseClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#OpenHouse",
             "value": [
-                {"OpenHouseKey": "12345", "ListingKey": "67890", "OpenHouseDate": "2024-01-15", "OpenHouseStatus": "Active"},
-                {"OpenHouseKey": "23456", "ListingKey": "78901", "OpenHouseDate": "2024-01-16", "OpenHouseStatus": "Active"}
-            ]
+                {
+                    "OpenHouseKey": "12345",
+                    "ListingKey": "67890",
+                    "OpenHouseDate": "2024-01-15",
+                    "OpenHouseStatus": "Active",
+                },
+                {
+                    "OpenHouseKey": "23456",
+                    "ListingKey": "78901",
+                    "OpenHouseDate": "2024-01-16",
+                    "OpenHouseStatus": "Active",
+                },
+            ],
         }
 
         responses.add(
@@ -55,7 +70,7 @@ class TestOpenHouseClient:
             skip=20,
             filter_query="OpenHouseStatus eq 'Active'",
             select=["OpenHouseKey", "ListingKey", "OpenHouseDate"],
-            orderby="OpenHouseDate desc"
+            orderby="OpenHouseDate desc",
         )
 
         assert result == mock_response
@@ -142,7 +157,10 @@ class TestOpenHouseClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "ShowingAgentKey+eq+%27" in request.url or "ShowingAgentKey eq '" in request.url
+        assert (
+            "ShowingAgentKey+eq+%27" in request.url
+            or "ShowingAgentKey eq '" in request.url
+        )
         assert "67890" in request.url
 
     @responses.activate
@@ -160,8 +178,7 @@ class TestOpenHouseClient:
         start_date = date(2024, 1, 1)
         end_date = date(2024, 1, 31)
         result = self.client.get_open_houses_by_date_range(
-            start_date=start_date,
-            end_date=end_date
+            start_date=start_date, end_date=end_date
         )
 
         assert result == mock_response
@@ -214,11 +231,11 @@ class TestOpenHouseClient:
         assert OpenHouseStatus.ACTIVE.value == "Active"
         assert OpenHouseStatus.CANCELLED.value == "Cancelled"
         assert OpenHouseStatus.COMPLETED.value == "Completed"
-        
+
         assert OpenHouseType.PUBLIC.value == "Public"
         assert OpenHouseType.PRIVATE.value == "Private"
         assert OpenHouseType.BROKER.value == "Broker"
-        
+
         assert OpenHouseAttendedBy.LISTING_AGENT.value == "ListingAgent"
         assert OpenHouseAttendedBy.BUYER_AGENT.value == "BuyerAgent"
 
@@ -298,8 +315,7 @@ class TestOpenHouseClient:
         )
 
         result = self.client.get_open_houses_for_property(
-            listing_key="12345",
-            filter_query="OpenHouseStatus eq 'Active'"
+            listing_key="12345", filter_query="OpenHouseStatus eq 'Active'"
         )
 
         assert result == mock_response
@@ -309,4 +325,4 @@ class TestOpenHouseClient:
         assert "ListingKey" in request.url
         assert "12345" in request.url
         assert "OpenHouseStatus" in request.url
-        assert "Active" in request.url 
+        assert "Active" in request.url
