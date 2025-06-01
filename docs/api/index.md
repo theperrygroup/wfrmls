@@ -48,13 +48,13 @@ Complete documentation for all WFRMLS Python client methods, classes, and module
 
     [:octicons-arrow-right-24: Open Houses API](openhouses.md)
 
--   :material-database-search:{ .lg .middle } **Lookup**
+-   :material-chart-line:{ .lg .middle } **Analytics**
 
     ---
 
-    Reference data and lookup tables
+    Market insights and data analytics
 
-    [:octicons-arrow-right-24: Lookup API](lookup.md)
+    [:octicons-arrow-right-24: Analytics API](analytics.md)
 
 </div>
 
@@ -64,6 +64,14 @@ Complete documentation for all WFRMLS Python client methods, classes, and module
 
 <div class="grid cards" markdown>
 
+-   :material-database-search:{ .lg .middle } **Lookup**
+
+    ---
+
+    Reference data and lookup tables
+
+    [:octicons-arrow-right-24: Lookup API](lookup.md)
+
 -   :material-home-plus:{ .lg .middle } **ADU (Accessory Dwelling Units)**
 
     ---
@@ -71,14 +79,6 @@ Complete documentation for all WFRMLS Python client methods, classes, and module
     Additional dwelling unit information and regulations
 
     [:octicons-arrow-right-24: ADU API](adu.md)
-
--   :material-chart-line:{ .lg .middle } **Analytics**
-
-    ---
-
-    Market insights and data analytics
-
-    [:octicons-arrow-right-24: Analytics API](analytics.md)
 
 -   :material-delete:{ .lg .middle } **Deleted Records**
 
@@ -95,6 +95,22 @@ Complete documentation for all WFRMLS Python client methods, classes, and module
     System metadata and configuration
 
     [:octicons-arrow-right-24: Data System API](data-system.md)
+
+-   :material-history:{ .lg .middle } **History**
+
+    ---
+
+    Property and listing history tracking
+
+    [:octicons-arrow-right-24: History API](history.md)
+
+-   :material-image:{ .lg .middle } **Media**
+
+    ---
+
+    Property photos and media files
+
+    [:octicons-arrow-right-24: Media API](media.md)
 
 -   :material-alert-circle:{ .lg .middle } **Exceptions**
 
@@ -277,7 +293,8 @@ except ValidationError as e:
 | **[Properties](properties.md)** | Property listings and details | `get_properties()`, `get_property()` |
 | **[Members](members.md)** | Real estate agent information | `get_members()`, `get_member()` |
 | **[Offices](offices.md)** | Brokerage and office data | `get_offices()`, `get_office()` |
-| **[Open Houses](openhouses.md)** | Open house schedules | `get_open_houses()` |
+| **[Open Houses](openhouses.md)** | Open house schedules | `get_openhouses()`, `get_openhouse()` |
+| **[Analytics](analytics.md)** | Market analytics and insights | `get_analytics()`, `get_analytic()` |
 
 ### Extended Resources
 
@@ -285,9 +302,10 @@ except ValidationError as e:
 |--------|-------------|-------------|
 | **[Lookup](lookup.md)** | Reference data and codes | `get_lookup_values()` |
 | **[ADU](adu.md)** | Accessory dwelling units | `get_adu_data()` |
-| **[Analytics](analytics.md)** | Market analytics and insights | `get_market_stats()` |
 | **[Deleted](deleted.md)** | Deleted record tracking | `get_deleted_listings()` |
 | **[Data System](data-system.md)** | System metadata | `get_system_info()` |
+| **[History](history.md)** | Property and listing history | `get_history()` |
+| **[Media](media.md)** | Property photos and media | `get_media()` |
 
 ### Error Handling
 

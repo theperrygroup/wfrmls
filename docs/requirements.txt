@@ -7,5 +7,17 @@ mkdocstrings[python]>=0.24.0
 pymdown-extensions>=10.0.0
 mike>=2.0.0
 
+# Git-based plugins for enhanced documentation
+mkdocs-git-revision-date-localized-plugin>=1.2.0
+mkdocs-git-committers-plugin-2>=1.2.0
+
+# UI and visual enhancements
+mkdocs-glightbox>=0.3.0
+mkdocs-swagger-ui-tag>=0.6.0
+
+# Image processing dependencies
+pillow>=9.0.0
+cairosvg>=2.5.0
+
 # Additional dependencies for Google-style docstrings
 griffe>=0.38.0 
