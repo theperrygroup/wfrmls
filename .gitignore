@@ -164,7 +164,7 @@ config.json
 .idea/
 
 # Cursor IDE
-.cursor/
+.cursor/rules/
 
 # Todo docs
 PROJECT_STATUS.md
