@@ -1,77 +1,152 @@
-site_name: WFRMLS Python API Wrapper
-site_description: Official Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API
-site_author: WFRMLS API Team
+site_name: WFRMLS Python Client Documentation
+site_description: A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API
 site_url: https://theperrygroup.github.io/wfrmls/
-
-# Repository
-repo_name: wfrmls
 repo_url: https://github.com/theperrygroup/wfrmls
+repo_name: theperrygroup/wfrmls
 edit_uri: edit/main/docs/
 
-# Copyright
-copyright: Copyright &copy; 2024 WFRMLS API Team
+copyright: "&copy; 2024 WFRMLS API Team. Licensed under the MIT License."
 
-# Configuration
 theme:
   name: material
-  language: en
+  palette:
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
   features:
+    - navigation.instant
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.path
+    - navigation.indexes
     - navigation.top
-    - navigation.tracking
     - search.highlight
-    - search.share
     - search.suggest
+    - search.share
     - content.action.edit
     - content.action.view
-    - content.code.copy
     - content.code.annotate
-  palette:
-    # Palette toggle for light mode
-    - scheme: default
-      primary: deep orange
-      accent: orange
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    # Palette toggle for dark mode
-    - scheme: slate
-      primary: deep orange
-      accent: orange
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
-  font:
-    text: Roboto
-    code: Roboto Mono
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - toc.follow
+    - toc.integrate
+  language: en
+  favicon: assets/favicon.ico
+  logo: assets/logo.png
   icon:
-    logo: material/home-city
     repo: fontawesome/brands/github
     edit: material/pencil
-    view: material/eye
 
-# Plugins
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Authentication: getting-started/authentication.md
+  - Guides:
+    - guides/index.md
+    - Property Search: guides/property-search.md
+    - Geolocation Queries: guides/geolocation.md
+    - Data Synchronization: guides/data-sync.md
+    - Error Handling: guides/error-handling.md
+    - Rate Limits: guides/rate-limits.md
+    - OData Queries: guides/odata-queries.md
+  - API Reference:
+    - api/index.md
+    - Client: api/client.md
+    - Properties: api/properties.md
+    - Members: api/members.md
+    - Offices: api/offices.md
+    - Open Houses: api/openhouses.md
+    - Lookup: api/lookup.md
+    - ADU: api/adu.md
+    - Analytics: api/analytics.md
+    - Deleted Records: api/deleted.md
+    - Data System: api/data-system.md
+    - Exceptions: api/exceptions.md
+  - Examples:
+    - examples/index.md
+    - Basic Usage: examples/basic-usage.md
+    - Advanced Queries: examples/advanced-queries.md
+    - Real Estate Apps: examples/real-estate-apps.md
+    - Data Integration: examples/data-integration.md
+    - Monitoring & Analytics: examples/monitoring.md
+  - Reference:
+    - reference/index.md
+    - Data Types: reference/data-types.md
+    - Field Reference: reference/fields.md
+    - Status Codes: reference/status-codes.md
+    - Utah Grid System: reference/utah-grid.md
+    - RESO Standards: reference/reso-standards.md
+  - Development:
+    - development/index.md
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+    - Release Process: development/releases.md
+    - Style Guide: development/style-guide.md
+  - Legal:
+    - legal/index.md
+    - License: legal/license.md
+    - Terms of Service: legal/terms.md
+
 plugins:
   - search:
-      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
-  - include-markdown:
-      opening_tag: "{!"
-      closing_tag: "!}"
+      lang: en
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
   - minify:
       minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+      cache_safe: true
+  - include-markdown:
+      preserve_includer_indent: true
+      dedent: false
+      trailing_newlines: true
+      comments: true
   - mkdocstrings:
       handlers:
         python:
+          paths: [.]
           options:
             docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            show_submodules: true
             show_source: true
             show_root_heading: true
-            show_if_no_docstring: true
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            separate_signature: true
+            unwrap_annotated: true
+            line_length: 80
+            show_signature_annotations: true
+            annotations_path: brief
+            show_if_no_docstring: false
+            inherited_members: false
+            members_order: alphabetical
+            group_by_category: true
+            show_category_heading: true
+            show_object_full_path: false
+            show_root_full_path: true
 
-# Extensions
 markdown_extensions:
   - abbr
   - admonition
@@ -81,6 +156,8 @@ markdown_extensions:
   - md_in_html
   - toc:
       permalink: true
+      title: On this page
+  - tables
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.betterem:
@@ -88,8 +165,8 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.details
   - pymdownx.emoji:
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
       emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -97,11 +174,17 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.keys
   - pymdownx.magiclink:
+      normalize_issue_symbols: true
       repo_url_shorthand: true
       user: theperrygroup
       repo: wfrmls
   - pymdownx.mark
   - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+      base_path: [docs/examples]
+      auto_append:
+        - includes/abbreviations.md
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -109,89 +192,39 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
 
-# Navigation
-nav:
-  - Home: index.md
-  - Getting Started:
-    - Overview: getting-started/index.md
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
-    - Authentication: getting-started/authentication.md
-    - First Steps: getting-started/first-steps.md
-  - Guides:
-    - Overview: guides/index.md
-    - Property Search: guides/property-search.md
-    - Member Management: guides/member-management.md
-    - Data Synchronization: guides/data-synchronization.md
-    - Error Handling: guides/error-handling.md
-    - Best Practices: guides/best-practices.md
-    - Performance Optimization: guides/performance-optimization.md
-    - Troubleshooting: guides/troubleshooting.md
-  - API Reference:
-    - Overview: api/index.md
-    - Core Client: api/client.md
-    - Properties: api/properties.md
-    - Members: api/members.md
-    - Offices: api/offices.md
-    - Open Houses: api/openhouse.md
-    - Data System: api/data-system.md
-    - Lookups: api/lookup.md
-    - Specialized APIs: api/specialized.md
-  - Examples:
-    - Overview: examples/index.md
-    - Basic Usage: examples/basic-usage.md
-    - Advanced Patterns: examples/advanced-patterns.md
-    - Integration Examples: examples/integration-examples.md
-    - Real-World Scenarios: examples/real-world-scenarios.md
-  - Reference:
-    - Overview: reference/index.md
-    - Error Codes: reference/error-codes.md
-    - Rate Limits: reference/rate-limits.md
-    - Field Reference: reference/field-reference.md
-    - OData Queries: reference/odata-queries.md
-    - Changelog: reference/changelog.md
-  - Development:
-    - Overview: development/index.md
-    - Contributing: development/contributing.md
-    - Development Setup: development/development-setup.md
-    - Testing: development/testing.md
-    - Deployment: development/deployment.md
-    - Code Style Guide: development/style-guide.md
-    - Documentation Style Guide: documentation-style-guide.md
-  - Legal:
-    - Overview: legal/index.md
-    - License: legal/license.md
-    - Terms of Service: legal/terms-of-service.md
-
-# Extra
 extra:
   version:
     provider: mike
+    default: stable
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/theperrygroup/wfrmls
+      name: GitHub Repository
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/wfrmls/
-    - icon: material/home
-      link: https://utahrealestate.com
-    - icon: material/book-open
-      link: https://theperrygroup.github.io/wfrmls/
+      name: PyPI Package
   analytics:
     provider: google
-    property: G-XXXXXXXXXX  # Replace with actual Google Analytics ID
-  consent:
-    title: Cookie consent
-    description: >- 
-      We use cookies to recognize your repeated visits and preferences, as well
-      as to measure the effectiveness of our documentation and whether users
-      find what they're searching for. With your consent, you're helping us to
-      make our documentation better.
+    property: G-XXXXXXXXXX
+  generator: false
 
-# Watch extra directories
-watch:
-  - wfrmls/
-  - docs/ 
+extra_css:
+  - assets/extra.css
+
+extra_javascript:
+  - assets/extra.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn 

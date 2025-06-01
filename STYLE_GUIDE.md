@@ -164,6 +164,27 @@ def search_teams(
 - Provide usage examples for complex methods
 - Use proper Markdown formatting in examples
 
+### Parameter Documentation Tables
+When documenting method parameters in markdown documentation (separate from docstrings), **always use full width tables** with the following structure:
+
+```markdown
+| Parameter | Type | Required | Description | Default |
+|-----------|------|----------|-------------|---------|
+| page_number | int | No | Page number for pagination | 0 |
+| page_size | int | No | Number of results per page (min: 1) | 20 |
+| status | TeamStatus \| str | No | Filter by team status (ACTIVE or INACTIVE) | None |
+| **kwargs | Any | No | Additional OData parameters (top, select, orderby, etc.) | {} |
+```
+
+**Full Width Table Requirements:**
+- Use pipe-separated format for maximum compatibility
+- Include all five columns: Parameter, Type, Required, Description, Default
+- Bold parameter names when they are primary/required parameters
+- Use `|` (pipe) separators for union types in the Type column
+- Keep descriptions concise but informative (under 80 characters)
+- Always show default values, use "None" for optional parameters without defaults
+- Include **kwargs row when applicable for additional parameters
+
 ## Naming Conventions
 
 ### Files and Modules
