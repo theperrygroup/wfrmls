@@ -22,9 +22,17 @@ class TestLookupClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#Lookup",
             "value": [
-                {"LookupKey": "12345", "LookupName": "PropertyType", "LookupValue": "Residential"},
-                {"LookupKey": "23456", "LookupName": "PropertyType", "LookupValue": "Commercial"}
-            ]
+                {
+                    "LookupKey": "12345",
+                    "LookupName": "PropertyType",
+                    "LookupValue": "Residential",
+                },
+                {
+                    "LookupKey": "23456",
+                    "LookupName": "PropertyType",
+                    "LookupValue": "Commercial",
+                },
+            ],
         }
 
         responses.add(
@@ -57,7 +65,7 @@ class TestLookupClient:
             select=["LookupKey", "LookupName", "LookupValue"],
             orderby="LookupValue desc",
             expand=["Resource", "Field"],
-            count=True
+            count=True,
         )
 
         assert result == mock_response
@@ -140,7 +148,7 @@ class TestLookupClient:
             "LookupKey": "PROP_TYPE_RESIDENTIAL",
             "LookupName": "PropertyType",
             "LookupValue": "Residential",
-            "StandardLookupValue": "Residential"
+            "StandardLookupValue": "Residential",
         }
 
         responses.add(
@@ -180,15 +188,16 @@ class TestLookupClient:
         )
 
         result = self.client.get_lookups_by_name(
-            lookup_name="PropertyType", 
-            top=25,
-            orderby="DisplayOrder asc"
+            lookup_name="PropertyType", top=25, orderby="DisplayOrder asc"
         )
 
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "LookupName+eq+%27PropertyType%27" in request.url or "LookupName eq 'PropertyType'" in request.url
+        assert (
+            "LookupName+eq+%27PropertyType%27" in request.url
+            or "LookupName eq 'PropertyType'" in request.url
+        )
         assert "%24top=25" in request.url
 
     @responses.activate
@@ -204,8 +213,7 @@ class TestLookupClient:
         )
 
         result = self.client.get_lookups_by_name(
-            lookup_name="PropertyType",
-            filter_query="LookupValue eq 'Residential'"
+            lookup_name="PropertyType", filter_query="LookupValue eq 'Residential'"
         )
 
         assert result == mock_response
@@ -221,11 +229,11 @@ class TestLookupClient:
     def test_get_property_type_lookups(self) -> None:
         """Test get property type lookups convenience method."""
         mock_response = {
-            "@odata.context": "test", 
+            "@odata.context": "test",
             "value": [
                 {"LookupKey": "PT_RES", "LookupValue": "Residential"},
-                {"LookupKey": "PT_COM", "LookupValue": "Commercial"}
-            ]
+                {"LookupKey": "PT_COM", "LookupValue": "Commercial"},
+            ],
         }
 
         responses.add(
@@ -246,11 +254,11 @@ class TestLookupClient:
     def test_get_property_status_lookups(self) -> None:
         """Test get property status lookups convenience method."""
         mock_response = {
-            "@odata.context": "test", 
+            "@odata.context": "test",
             "value": [
                 {"LookupKey": "PS_ACT", "LookupValue": "Active"},
-                {"LookupKey": "PS_PEN", "LookupValue": "Pending"}
-            ]
+                {"LookupKey": "PS_PEN", "LookupValue": "Pending"},
+            ],
         }
 
         responses.add(
@@ -271,11 +279,11 @@ class TestLookupClient:
     def test_get_standard_lookups_success(self) -> None:
         """Test get standard RESO lookup values."""
         mock_response = {
-            "@odata.context": "test", 
+            "@odata.context": "test",
             "value": [
                 {"LookupKey": "STD_1", "StandardLookupValue": "Active"},
-                {"LookupKey": "STD_2", "StandardLookupValue": "Pending"}
-            ]
+                {"LookupKey": "STD_2", "StandardLookupValue": "Pending"},
+            ],
         }
 
         responses.add(
@@ -291,7 +299,10 @@ class TestLookupClient:
         request = responses.calls[0].request
         assert request.url is not None
         # Should filter for records with StandardLookupValue not null
-        assert "StandardLookupValue+ne+null" in request.url or "StandardLookupValue ne null" in request.url
+        assert (
+            "StandardLookupValue+ne+null" in request.url
+            or "StandardLookupValue ne null" in request.url
+        )
 
     @responses.activate
     def test_get_standard_lookups_with_existing_filter(self) -> None:
@@ -321,11 +332,11 @@ class TestLookupClient:
     def test_get_active_lookups_success(self) -> None:
         """Test get active lookup values."""
         mock_response = {
-            "@odata.context": "test", 
+            "@odata.context": "test",
             "value": [
                 {"LookupKey": "ACT_1", "IsActive": True},
-                {"LookupKey": "ACT_2", "IsActive": True}
-            ]
+                {"LookupKey": "ACT_2", "IsActive": True},
+            ],
         }
 
         responses.add(
@@ -373,11 +384,8 @@ class TestLookupClient:
     def test_get_lookup_names(self) -> None:
         """Test get unique lookup names."""
         mock_response = {
-            "@odata.context": "test", 
-            "value": [
-                {"LookupName": "PropertyType"},
-                {"LookupName": "PropertyStatus"}
-            ]
+            "@odata.context": "test",
+            "value": [{"LookupName": "PropertyType"}, {"LookupName": "PropertyStatus"}],
         }
 
         responses.add(
@@ -430,8 +438,7 @@ class TestLookupClient:
 
         since_date = date(2024, 1, 15)
         result = self.client.get_modified_lookups(
-            since=since_date,
-            orderby="ModificationTimestamp desc"
+            since=since_date, orderby="ModificationTimestamp desc"
         )
 
         assert result == mock_response
@@ -548,4 +555,4 @@ class TestLookupClient:
         )
 
         with pytest.raises(ValidationError, match="Bad request"):
-            self.client.get_lookups(filter_query="invalid syntax") 
+            self.client.get_lookups(filter_query="invalid syntax")

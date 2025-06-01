@@ -21,8 +21,7 @@ class TestDeletedClientInit:
     def test_init_with_base_url(self) -> None:
         """Test initialization with custom base URL."""
         client = DeletedClient(
-            bearer_token="test_token", 
-            base_url="https://custom.api.com"
+            bearer_token="test_token", base_url="https://custom.api.com"
         )
         assert client.base_url == "https://custom.api.com"
 
@@ -43,14 +42,14 @@ class TestDeletedClient:
                 {
                     "ResourceName": "Property",
                     "ResourceRecordKey": "12345678",
-                    "DeletedDateTime": "2024-01-15T10:30:00Z"
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
                 },
                 {
                     "ResourceName": "Member",
                     "ResourceRecordKey": "87654321",
-                    "DeletedDateTime": "2024-01-15T11:00:00Z"
-                }
-            ]
+                    "DeletedDateTime": "2024-01-15T11:00:00Z",
+                },
+            ],
         }
 
         responses.add(
@@ -82,7 +81,7 @@ class TestDeletedClient:
             filter_query="ResourceName eq 'Property'",
             select=["ResourceName", "ResourceRecordKey", "DeletedDateTime"],
             orderby="DeletedDateTime desc",
-            count=True
+            count=True,
         )
 
         assert result == mock_response
@@ -111,9 +110,7 @@ class TestDeletedClient:
             status=200,
         )
 
-        result = self.client.get_deleted(
-            expand=["ResourceDetails", "AuditInfo"]
-        )
+        result = self.client.get_deleted(expand=["ResourceDetails", "AuditInfo"])
 
         assert result == mock_response
         request = responses.calls[0].request
@@ -172,8 +169,7 @@ class TestDeletedClient:
         )
 
         result = self.client.get_deleted_by_resource(
-            resource_name=ResourceName.PROPERTY,
-            top=50
+            resource_name=ResourceName.PROPERTY, top=50
         )
 
         assert result == mock_response
@@ -195,15 +191,20 @@ class TestDeletedClient:
         )
 
         result = self.client.get_deleted_by_resource(
-            resource_name="Member",
-            orderby="DeletedDateTime desc"
+            resource_name="Member", orderby="DeletedDateTime desc"
         )
 
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "ResourceName+eq+%27Member%27" in request.url or "ResourceName eq 'Member'" in request.url
-        assert "DeletedDateTime+desc" in request.url or "DeletedDateTime desc" in request.url
+        assert (
+            "ResourceName+eq+%27Member%27" in request.url
+            or "ResourceName eq 'Member'" in request.url
+        )
+        assert (
+            "DeletedDateTime+desc" in request.url
+            or "DeletedDateTime desc" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_by_resource_combined_filters(self) -> None:
@@ -219,7 +220,7 @@ class TestDeletedClient:
 
         result = self.client.get_deleted_by_resource(
             resource_name=ResourceName.PROPERTY,
-            filter_query="DeletedDateTime gt 2024-01-01T00:00:00Z"
+            filter_query="DeletedDateTime gt 2024-01-01T00:00:00Z",
         )
 
         assert result == mock_response
@@ -286,14 +287,16 @@ class TestDeletedClient:
 
         cutoff_time = "2024-01-15T10:00:00Z"
         result = self.client.get_deleted_since(
-            since=cutoff_time,
-            resource_name=ResourceName.PROPERTY
+            since=cutoff_time, resource_name=ResourceName.PROPERTY
         )
 
         assert result == mock_response
         request = responses.calls[0].request
         assert "DeletedDateTime+gt" in request.url
-        assert "ResourceName+eq+%27Property%27" in request.url or "ResourceName eq 'Property'" in request.url
+        assert (
+            "ResourceName+eq+%27Property%27" in request.url
+            or "ResourceName eq 'Property'" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_since_with_string_resource_name(self) -> None:
@@ -309,14 +312,16 @@ class TestDeletedClient:
 
         cutoff_time = "2024-01-15T10:00:00Z"
         result = self.client.get_deleted_since(
-            since=cutoff_time,
-            resource_name="Member"
+            since=cutoff_time, resource_name="Member"
         )
 
         assert result == mock_response
         request = responses.calls[0].request
         assert "DeletedDateTime+gt" in request.url
-        assert "ResourceName+eq+%27Member%27" in request.url or "ResourceName eq 'Member'" in request.url
+        assert (
+            "ResourceName+eq+%27Member%27" in request.url
+            or "ResourceName eq 'Member'" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_since_with_existing_filter(self) -> None:
@@ -334,7 +339,7 @@ class TestDeletedClient:
         result = self.client.get_deleted_since(
             since=cutoff_time,
             resource_name=ResourceName.PROPERTY,
-            filter_query="ResourceRecordKey ne null"
+            filter_query="ResourceRecordKey ne null",
         )
 
         assert result == mock_response
@@ -361,7 +366,10 @@ class TestDeletedClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert "%24top=30" in request.url
-        assert "ResourceName+eq+%27Property%27" in request.url or "ResourceName eq 'Property'" in request.url
+        assert (
+            "ResourceName+eq+%27Property%27" in request.url
+            or "ResourceName eq 'Property'" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_member_records(self) -> None:
@@ -379,8 +387,14 @@ class TestDeletedClient:
 
         assert result == mock_response
         request = responses.calls[0].request
-        assert "ResourceName+eq+%27Member%27" in request.url or "ResourceName eq 'Member'" in request.url
-        assert "DeletedDateTime+desc" in request.url or "DeletedDateTime desc" in request.url
+        assert (
+            "ResourceName+eq+%27Member%27" in request.url
+            or "ResourceName eq 'Member'" in request.url
+        )
+        assert (
+            "DeletedDateTime+desc" in request.url
+            or "DeletedDateTime desc" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_office_records(self) -> None:
@@ -399,7 +413,10 @@ class TestDeletedClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert "%24top=10" in request.url
-        assert "ResourceName+eq+%27Office%27" in request.url or "ResourceName eq 'Office'" in request.url
+        assert (
+            "ResourceName+eq+%27Office%27" in request.url
+            or "ResourceName eq 'Office'" in request.url
+        )
 
     @responses.activate
     def test_get_deleted_media_records(self) -> None:
@@ -418,17 +435,30 @@ class TestDeletedClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert "%24top=100" in request.url
-        assert "ResourceName+eq+%27Media%27" in request.url or "ResourceName eq 'Media'" in request.url
+        assert (
+            "ResourceName+eq+%27Media%27" in request.url
+            or "ResourceName eq 'Media'" in request.url
+        )
 
     @responses.activate
     def test_get_all_deleted_for_sync_success(self) -> None:
         """Test get all deleted for sync with successful responses."""
         # Mock responses for each resource type
-        property_response = {"value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]}
-        member_response = {"value": [{"ResourceName": "Member", "ResourceRecordKey": "M1"}]}
-        office_response = {"value": [{"ResourceName": "Office", "ResourceRecordKey": "O1"}]}
-        media_response = {"value": [{"ResourceName": "Media", "ResourceRecordKey": "MD1"}]}
-        openhouse_response = {"value": [{"ResourceName": "OpenHouse", "ResourceRecordKey": "OH1"}]}
+        property_response = {
+            "value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]
+        }
+        member_response = {
+            "value": [{"ResourceName": "Member", "ResourceRecordKey": "M1"}]
+        }
+        office_response = {
+            "value": [{"ResourceName": "Office", "ResourceRecordKey": "O1"}]
+        }
+        media_response = {
+            "value": [{"ResourceName": "Media", "ResourceRecordKey": "MD1"}]
+        }
+        openhouse_response = {
+            "value": [{"ResourceName": "OpenHouse", "ResourceRecordKey": "OH1"}]
+        }
 
         responses.add(
             responses.GET,
@@ -469,7 +499,7 @@ class TestDeletedClient:
         assert "value" in result
         assert "by_resource" in result
         assert "sync_info" in result
-        
+
         # Should have 5 records total (one from each resource type)
         assert len(result["value"]) == 5
         assert result["sync_info"]["total_deleted_records"] == 5
@@ -478,7 +508,9 @@ class TestDeletedClient:
     @responses.activate
     def test_get_all_deleted_for_sync_with_custom_resource_types(self) -> None:
         """Test get all deleted for sync with custom resource types."""
-        property_response = {"value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]}
+        property_response = {
+            "value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]
+        }
 
         responses.add(
             responses.GET,
@@ -489,20 +521,21 @@ class TestDeletedClient:
 
         cutoff_time = date(2024, 1, 15)
         result = self.client.get_all_deleted_for_sync(
-            since=cutoff_time,
-            resource_types=[ResourceName.PROPERTY]
+            since=cutoff_time, resource_types=[ResourceName.PROPERTY]
         )
 
         assert result["sync_info"]["total_deleted_records"] == 1
         assert "Property" in result["by_resource"]
         assert len(result["value"]) == 1
 
-    @responses.activate 
+    @responses.activate
     def test_get_all_deleted_for_sync_with_exceptions(self) -> None:
         """Test get all deleted for sync handles exceptions gracefully."""
         # First call succeeds, second fails
-        property_response = {"value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]}
-        
+        property_response = {
+            "value": [{"ResourceName": "Property", "ResourceRecordKey": "P1"}]
+        }
+
         responses.add(
             responses.GET,
             "https://resoapi.utahrealestate.com/reso/odata/Deleted",
@@ -518,7 +551,7 @@ class TestDeletedClient:
         cutoff_time = "2024-01-15T10:00:00Z"
         result = self.client.get_all_deleted_for_sync(
             since=cutoff_time,
-            resource_types=[ResourceName.PROPERTY, ResourceName.MEMBER]
+            resource_types=[ResourceName.PROPERTY, ResourceName.MEMBER],
         )
 
         # Should still return results for successful calls
@@ -532,9 +565,21 @@ class TestDeletedClient:
         """Test get deletion summary with successful response."""
         mock_response = {
             "value": [
-                {"ResourceName": "Property", "ResourceRecordKey": "P1", "DeletedDateTime": "2024-01-15T10:30:00Z"},
-                {"ResourceName": "Property", "ResourceRecordKey": "P2", "DeletedDateTime": "2024-01-15T11:00:00Z"},
-                {"ResourceName": "Member", "ResourceRecordKey": "M1", "DeletedDateTime": "2024-01-15T10:45:00Z"},
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": "P1",
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
+                },
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": "P2",
+                    "DeletedDateTime": "2024-01-15T11:00:00Z",
+                },
+                {
+                    "ResourceName": "Member",
+                    "ResourceRecordKey": "M1",
+                    "DeletedDateTime": "2024-01-15T10:45:00Z",
+                },
             ]
         }
 
@@ -552,7 +597,7 @@ class TestDeletedClient:
         assert result["@odata.context"] == "Deletion summary"
         assert "value" in result
         assert "summary" in result
-        
+
         summary = result["summary"]
         assert summary["total_deletions"] == 3
         assert summary["resource_types_affected"] == 2
@@ -585,7 +630,10 @@ class TestDeletedClient:
         mock_response = {
             "value": [
                 {"ResourceRecordKey": "P1"},  # Missing ResourceName and DeletedDateTime
-                {"ResourceName": "Property", "ResourceRecordKey": "P2"},  # Missing DeletedDateTime
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": "P2",
+                },  # Missing DeletedDateTime
             ]
         }
 
@@ -609,8 +657,16 @@ class TestDeletedClient:
         """Test monitor deletion activity under normal conditions."""
         mock_response = {
             "value": [
-                {"ResourceName": "Property", "ResourceRecordKey": "P1", "DeletedDateTime": "2024-01-15T10:30:00Z"},
-                {"ResourceName": "Member", "ResourceRecordKey": "M1", "DeletedDateTime": "2024-01-15T10:45:00Z"},
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": "P1",
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
+                },
+                {
+                    "ResourceName": "Member",
+                    "ResourceRecordKey": "M1",
+                    "DeletedDateTime": "2024-01-15T10:45:00Z",
+                },
             ]
         }
 
@@ -621,14 +677,16 @@ class TestDeletedClient:
             status=200,
         )
 
-        result = self.client.monitor_deletion_activity(hours_back=12, alert_threshold=50)
+        result = self.client.monitor_deletion_activity(
+            hours_back=12, alert_threshold=50
+        )
 
         assert "@odata.context" in result
         assert result["@odata.context"] == "Deletion monitoring"
         assert "summary" in result
         assert "alerts" in result
         assert "status" in result
-        
+
         summary = result["summary"]
         assert summary["total_deletions"] == 2
         assert result["monitoring_period"] == "12 hours"
@@ -641,11 +699,13 @@ class TestDeletedClient:
         # Create a large number of deletion records
         mock_records = []
         for i in range(150):  # Above threshold of 100
-            mock_records.append({
-                "ResourceName": "Property",
-                "ResourceRecordKey": f"P{i}",
-                "DeletedDateTime": "2024-01-15T10:30:00Z"
-            })
+            mock_records.append(
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": f"P{i}",
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
+                }
+            )
 
         mock_response = {"value": mock_records}
 
@@ -669,17 +729,21 @@ class TestDeletedClient:
         # Create records heavily concentrated on one resource type
         mock_records = []
         for i in range(90):  # 90% of one type
-            mock_records.append({
-                "ResourceName": "Property",
-                "ResourceRecordKey": f"P{i}",
-                "DeletedDateTime": "2024-01-15T10:30:00Z"
-            })
+            mock_records.append(
+                {
+                    "ResourceName": "Property",
+                    "ResourceRecordKey": f"P{i}",
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
+                }
+            )
         for i in range(10):  # 10% of another type
-            mock_records.append({
-                "ResourceName": "Member",
-                "ResourceRecordKey": f"M{i}",
-                "DeletedDateTime": "2024-01-15T10:30:00Z"
-            })
+            mock_records.append(
+                {
+                    "ResourceName": "Member",
+                    "ResourceRecordKey": f"M{i}",
+                    "DeletedDateTime": "2024-01-15T10:30:00Z",
+                }
+            )
 
         mock_response = {"value": mock_records}
 
@@ -779,7 +843,10 @@ class TestDeletedClient:
         assert ResourceName.OPENHOUSE.value == "OpenHouse"
         assert ResourceName.MEDIA.value == "Media"
         assert ResourceName.HISTORY_TRANSACTIONAL.value == "HistoryTransactional"
-        assert ResourceName.PROPERTY_GREEN_VERIFICATION.value == "PropertyGreenVerification"
+        assert (
+            ResourceName.PROPERTY_GREEN_VERIFICATION.value
+            == "PropertyGreenVerification"
+        )
         assert ResourceName.PROPERTY_UNIT_TYPES.value == "PropertyUnitTypes"
         assert ResourceName.ADU.value == "Adu"
 
@@ -797,7 +864,7 @@ class TestDeletedClient:
 
         result = self.client.get_deleted_by_resource(
             resource_name=ResourceName.PROPERTY,
-            filter_query="DeletedDateTime gt 2024-01-01T00:00:00Z"
+            filter_query="DeletedDateTime gt 2024-01-01T00:00:00Z",
         )
 
         assert result == mock_response
@@ -805,4 +872,4 @@ class TestDeletedClient:
         # Should contain both filters combined with 'and'
         assert "ResourceName" in request.url
         assert "Property" in request.url
-        assert "DeletedDateTime" in request.url 
+        assert "DeletedDateTime" in request.url

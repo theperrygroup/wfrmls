@@ -24,7 +24,7 @@ class TestPropertyUnitTypesClient:
                 {
                     "PropertyUnitTypeKey": "PUT123",
                     "PropertyUnitTypeName": "Apartment",
-                    "PropertyUnitTypeStatus": "Active"
+                    "PropertyUnitTypeStatus": "Active",
                 }
             ]
         }
@@ -48,7 +48,7 @@ class TestPropertyUnitTypesClient:
             select=["UnitTypeKey", "UnitType"],
             orderby="UnitType asc",
             expand=["Properties"],
-            count=True
+            count=True,
         )
 
         expected_params = {
@@ -58,13 +58,15 @@ class TestPropertyUnitTypesClient:
             "$select": "UnitTypeKey,UnitType",
             "$orderby": "UnitType asc",
             "$expand": "Properties",
-            "$count": "true"
+            "$count": "true",
         }
 
         mock_get.assert_called_once_with("PropertyUnitTypes", params=expected_params)
 
     @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get")
-    def test_get_property_unit_types_top_limit_enforcement(self, mock_get: Mock) -> None:
+    def test_get_property_unit_types_top_limit_enforcement(
+        self, mock_get: Mock
+    ) -> None:
         """Test that top parameter is limited to 200."""
         mock_get.return_value = {"value": []}
 
@@ -110,7 +112,7 @@ class TestPropertyUnitTypesClient:
         mock_response: Dict[str, Any] = {
             "UnitTypeKey": unit_type_key,
             "UnitType": "Condo",
-            "Description": "Condominium unit"
+            "Description": "Condominium unit",
         }
         mock_get.return_value = mock_response
 
@@ -125,9 +127,7 @@ class TestPropertyUnitTypesClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_unit_types.return_value = mock_response
 
-        result = self.client.get_unit_types_for_property(
-            listing_key="1611952"
-        )
+        result = self.client.get_unit_types_for_property(listing_key="1611952")
 
         mock_get_unit_types.assert_called_once_with(
             filter_query="ListingKey eq '1611952'"
@@ -140,13 +140,11 @@ class TestPropertyUnitTypesClient:
         mock_get_unit_types.return_value = mock_response
 
         result = self.client.get_unit_types_by_type(
-            unit_type="Condo",
-            expand="Properties"
+            unit_type="Condo", expand="Properties"
         )
 
         mock_get_unit_types.assert_called_once_with(
-            filter_query="UnitType eq 'Condo'",
-            expand="Properties"
+            filter_query="UnitType eq 'Condo'", expand="Properties"
         )
 
     @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
@@ -170,14 +168,9 @@ class TestPropertyUnitTypesClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_unit_types.return_value = mock_response
 
-        result = self.client.get_unit_types_with_properties(
-            top=10
-        )
+        result = self.client.get_unit_types_with_properties(top=10)
 
-        mock_get_unit_types.assert_called_once_with(
-            expand="Properties",
-            top=10
-        )
+        mock_get_unit_types.assert_called_once_with(expand="Properties", top=10)
 
     @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
     def test_get_modified_unit_types_datetime(self, mock_get_unit_types: Mock) -> None:
@@ -187,14 +180,12 @@ class TestPropertyUnitTypesClient:
 
         since_datetime = datetime(2024, 1, 1, 12, 0, 0)
         result = self.client.get_modified_unit_types(
-            since=since_datetime,
-            orderby="ModificationTimestamp desc"
+            since=since_datetime, orderby="ModificationTimestamp desc"
         )
 
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_unit_types.assert_called_once_with(
-            filter_query=expected_filter,
-            orderby="ModificationTimestamp desc"
+            filter_query=expected_filter, orderby="ModificationTimestamp desc"
         )
 
     @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
@@ -225,14 +216,13 @@ class TestPropertyUnitTypesClient:
         """Test PropertyUnitTypesClient initialization with default parameters."""
         client = PropertyUnitTypesClient()
         # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url')
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")
 
     def test_init_with_params(self) -> None:
         """Test PropertyUnitTypesClient initialization with custom parameters."""
         client = PropertyUnitTypesClient(
-            bearer_token="custom_token",
-            base_url="https://custom.api.com"
+            bearer_token="custom_token", base_url="https://custom.api.com"
         )
-        assert hasattr(client, 'bearer_token')
-        assert hasattr(client, 'base_url') 
+        assert hasattr(client, "bearer_token")
+        assert hasattr(client, "base_url")

@@ -22,9 +22,17 @@ class TestOfficeClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#Office",
             "value": [
-                {"OfficeKey": "12345", "OfficeName": "ABC Realty", "OfficeStatus": "Active"},
-                {"OfficeKey": "67890", "OfficeName": "XYZ Properties", "OfficeStatus": "Active"}
-            ]
+                {
+                    "OfficeKey": "12345",
+                    "OfficeName": "ABC Realty",
+                    "OfficeStatus": "Active",
+                },
+                {
+                    "OfficeKey": "67890",
+                    "OfficeName": "XYZ Properties",
+                    "OfficeStatus": "Active",
+                },
+            ],
         }
 
         responses.add(
@@ -55,7 +63,7 @@ class TestOfficeClient:
             skip=20,
             filter_query="OfficeStatus eq 'Active'",
             select=["OfficeKey", "OfficeName", "OfficePhone"],
-            orderby="OfficeName desc"
+            orderby="OfficeName desc",
         )
 
         assert result == mock_response
@@ -101,7 +109,10 @@ class TestOfficeClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "%24filter=OfficeStatus+eq+%27Active%27" in request.url or "OfficeStatus+eq+%27Active%27" in request.url
+        assert (
+            "%24filter=OfficeStatus+eq+%27Active%27" in request.url
+            or "OfficeStatus+eq+%27Active%27" in request.url
+        )
         assert "%24top=50" in request.url
 
     @responses.activate
@@ -169,7 +180,7 @@ class TestOfficeClient:
         """Test enum values are correct."""
         assert OfficeStatus.ACTIVE.value == "Active"
         assert OfficeStatus.INACTIVE.value == "Inactive"
-        
+
         assert OfficeType.MAIN.value == "Main"
         assert OfficeType.BRANCH.value == "Branch"
         assert OfficeType.FRANCHISE.value == "Franchise"
@@ -250,8 +261,7 @@ class TestOfficeClient:
         )
 
         result = self.client.search_offices_by_name(
-            name="ABC",
-            filter_query="OfficeStatus eq 'Active'"
+            name="ABC", filter_query="OfficeStatus eq 'Active'"
         )
 
         assert result == mock_response
@@ -261,4 +271,4 @@ class TestOfficeClient:
         assert "OfficeName" in request.url
         assert "ABC" in request.url
         assert "OfficeStatus" in request.url
-        assert "Active" in request.url 
+        assert "Active" in request.url

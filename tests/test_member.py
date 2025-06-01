@@ -22,9 +22,19 @@ class TestMemberClient:
         mock_response = {
             "@odata.context": "https://resoapi.utahrealestate.com/reso/odata/$metadata#Member",
             "value": [
-                {"MemberKey": "12345", "MemberFirstName": "John", "MemberLastName": "Doe", "MemberStatus": "Active"},
-                {"MemberKey": "67890", "MemberFirstName": "Jane", "MemberLastName": "Smith", "MemberStatus": "Active"}
-            ]
+                {
+                    "MemberKey": "12345",
+                    "MemberFirstName": "John",
+                    "MemberLastName": "Doe",
+                    "MemberStatus": "Active",
+                },
+                {
+                    "MemberKey": "67890",
+                    "MemberFirstName": "Jane",
+                    "MemberLastName": "Smith",
+                    "MemberStatus": "Active",
+                },
+            ],
         }
 
         responses.add(
@@ -55,7 +65,7 @@ class TestMemberClient:
             skip=20,
             filter_query="MemberStatus eq 'Active'",
             select=["MemberKey", "MemberFirstName", "MemberLastName"],
-            orderby="MemberLastName desc"
+            orderby="MemberLastName desc",
         )
 
         assert result == mock_response
@@ -101,7 +111,10 @@ class TestMemberClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        assert "%24filter=MemberStatus+eq+%27Active%27" in request.url or "MemberStatus+eq+%27Active%27" in request.url
+        assert (
+            "%24filter=MemberStatus+eq+%27Active%27" in request.url
+            or "MemberStatus+eq+%27Active%27" in request.url
+        )
         assert "%24top=50" in request.url
 
     @responses.activate
@@ -138,8 +151,7 @@ class TestMemberClient:
         )
 
         result = self.client.search_members_by_name(
-            first_name="John",
-            last_name="Smith"
+            first_name="John", last_name="Smith"
         )
 
         assert result == mock_response
@@ -213,7 +225,7 @@ class TestMemberClient:
         assert MemberStatus.ACTIVE.value == "Active"
         assert MemberStatus.INACTIVE.value == "Inactive"
         assert MemberStatus.SUSPENDED.value == "Suspended"
-        
+
         assert MemberType.AGENT.value == "Agent"
         assert MemberType.BROKER.value == "Broker"
         assert MemberType.ASSISTANT.value == "Assistant"
@@ -291,8 +303,7 @@ class TestMemberClient:
         )
 
         result = self.client.get_members_by_office(
-            office_key="12345",
-            filter_query="MemberStatus eq 'Active'"
+            office_key="12345", filter_query="MemberStatus eq 'Active'"
         )
 
         assert result == mock_response
@@ -301,4 +312,4 @@ class TestMemberClient:
         assert "OfficeKey" in request.url
         assert "12345" in request.url
         assert "MemberStatus" in request.url
-        assert "Active" in request.url 
+        assert "Active" in request.url

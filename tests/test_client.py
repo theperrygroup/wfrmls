@@ -18,8 +18,7 @@ class TestWFRMLSClientInit:
     def test_init_with_base_url(self) -> None:
         """Test initialization with custom base URL."""
         client = WFRMLSClient(
-            bearer_token="test_token", 
-            base_url="https://custom.api.com"
+            bearer_token="test_token", base_url="https://custom.api.com"
         )
         assert client._base_url == "https://custom.api.com"
 
@@ -71,8 +70,6 @@ class TestWFRMLSClient:
         assert self.client._openhouse is not None
         assert openhouse_client is self.client._openhouse
 
-
-
     def test_data_system_client_lazy_initialization(self) -> None:
         """Test that data system client is lazily initialized."""
         assert self.client._data_system is None
@@ -123,8 +120,8 @@ class TestWFRMLSClient:
             "value": [
                 {"name": "Property", "url": "Property"},
                 {"name": "Member", "url": "Member"},
-                {"name": "Office", "url": "Office"}
-            ]
+                {"name": "Office", "url": "Office"},
+            ],
         }
 
         responses.add(
@@ -172,7 +169,7 @@ class TestWFRMLSClient:
             "https://resoapi.utahrealestate.com/reso/odata/$metadata",
             body=mock_xml,
             status=200,
-            content_type="application/xml"
+            content_type="application/xml",
         )
 
         result = self.client.get_metadata()
@@ -199,7 +196,7 @@ class TestWFRMLSClient:
         # NOTE: Media, History, and Green Verification clients are disabled
         clients = [
             self.client.property,
-            self.client.member, 
+            self.client.member,
             self.client.office,
             self.client.openhouse,
             self.client.data_system,
@@ -207,26 +204,26 @@ class TestWFRMLSClient:
             self.client.property_unit_types,
             self.client.lookup,
             self.client.adu,
-            self.client.deleted
+            self.client.deleted,
         ]
-        
+
         # All should be instantiated now
         for client in clients:
             assert client is not None
-            assert hasattr(client, 'bearer_token')
+            assert hasattr(client, "bearer_token")
             assert client.bearer_token == "test_bearer_token"
 
     def test_client_tokens_propagated(self) -> None:
         """Test that bearer tokens are properly propagated to sub-clients."""
         custom_token = "custom_test_token"
         custom_url = "https://custom.api.com"
-        
+
         client = WFRMLSClient(bearer_token=custom_token, base_url=custom_url)
-        
+
         # Access a few clients to verify token/URL propagation
         assert client.property.bearer_token == custom_token
         assert client.property.base_url == custom_url
         assert client.member.bearer_token == custom_token
         assert client.member.base_url == custom_url
         assert client.deleted.bearer_token == custom_token
-        assert client.deleted.base_url == custom_url 
+        assert client.deleted.base_url == custom_url
