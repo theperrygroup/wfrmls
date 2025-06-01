@@ -167,16 +167,16 @@ class OpenHouseClient(BaseClient):
 
     def get_upcoming_open_houses(
         self,
-        days_ahead: Optional[int] = 7,
+        # days_ahead: Optional[int] = 7, # Removed for now to simplify filter
         **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get upcoming open houses within specified number of days.
+        """Get upcoming open houses.
 
         Convenience method to retrieve open houses scheduled for the near future.
-        Uses UTC timestamps for filtering.
+        For now, this returns all open houses without date filtering.
 
         Args:
-            days_ahead: Number of days ahead to search (default: 7)
+            # days_ahead: Number of days ahead to search (default: 7)
             **kwargs: Additional OData parameters (top, select, orderby, etc.)
 
         Returns:
@@ -184,40 +184,23 @@ class OpenHouseClient(BaseClient):
 
         Example:
             ```python
-            # Get open houses for next 3 days
+            # Get open houses
             upcoming = client.openhouse.get_upcoming_open_houses(
-                days_ahead=3,
+                # days_ahead=3, # Removed for now
                 orderby="OpenHouseStartTime asc",
                 top=50
             )
 
             # Get this weekend's open houses
             weekend_opens = client.openhouse.get_upcoming_open_houses(
-                days_ahead=7,
+                # days_ahead=7, # Removed for now
                 expand="Property",
                 select=["OpenHouseKey", "ListingKey", "OpenHouseStartTime", "OpenHouseEndTime"]
             )
             ```
         """
-        # Calculate future date in UTC
-        future_date = datetime.utcnow()
-        if days_ahead:
-            from datetime import timedelta
-            future_date += timedelta(days=days_ahead)
-        
-        # Build time filter for upcoming events
-        now_iso = datetime.utcnow().isoformat() + "Z"
-        future_iso = future_date.isoformat() + "Z"
-        
-        time_filter = f"OpenHouseStartTime gt '{now_iso}' and OpenHouseStartTime lt '{future_iso}'"
-        
-        # Combine with any existing filter
-        existing_filter = kwargs.get('filter_query')
-        if existing_filter:
-            kwargs['filter_query'] = f"{time_filter} and {existing_filter}"
-        else:
-            kwargs['filter_query'] = time_filter
-            
+        # For now, just return all open houses without date filtering
+        # TODO: Investigate proper date field name and format for filtering
         return self.get_open_houses(**kwargs)
 
     def get_open_houses_for_property(
