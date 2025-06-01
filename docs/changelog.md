@@ -10,6 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Repository URL updates and documentation improvements
 
+## [1.2.1] - 2024-12-21
+
+### Fixed
+- GitHub Pages deployment workflow issues
+- Documentation build warnings and navigation errors
+- Missing requirements-docs.txt file for documentation dependencies
+
+### Changed
+- Simplified documentation deployment workflow to focus on documentation building
+- Removed test execution from docs workflow to prevent deployment failures
+- Improved documentation file organization and structure
+
+### Added
+- Complete documentation requirements file (requirements-docs.txt)
+- STYLE_GUIDE.md to docs directory for proper navigation
+
+## [1.2.0] - 2024-12-20
+
+### Added
+- Enhanced GitHub Actions CI/CD workflows with multi-version testing
+- Automated release management and documentation deployment
+- Comprehensive test coverage reporting
+
+### Fixed
+- CI workflow robustness improvements
+- Test discovery and execution reliability
+
 ## [1.1.0] - 2024-12-19
 
 ### Added
