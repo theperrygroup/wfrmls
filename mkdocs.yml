@@ -117,19 +117,55 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
-    - Installation: installation.md
-    - Quick Start: quickstart.md
-    - Examples: examples.md
-  - API Reference:
-    - Complete API Reference: api-reference.md
+    - Overview: getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Authentication: getting-started/authentication.md
+    - First Steps: getting-started/first-steps.md
   - Guides:
-    - Troubleshooting: troubleshooting.md
+    - Overview: guides/index.md
+    - Property Search: guides/property-search.md
+    - Member Management: guides/member-management.md
+    - Data Synchronization: guides/data-synchronization.md
+    - Error Handling: guides/error-handling.md
+    - Best Practices: guides/best-practices.md
+    - Performance Optimization: guides/performance-optimization.md
+    - Troubleshooting: guides/troubleshooting.md
+  - API Reference:
+    - Overview: api/index.md
+    - Core Client: api/client.md
+    - Properties: api/properties.md
+    - Members: api/members.md
+    - Offices: api/offices.md
+    - Open Houses: api/openhouse.md
+    - Data System: api/data-system.md
+    - Lookups: api/lookup.md
+    - Specialized APIs: api/specialized.md
+  - Examples:
+    - Overview: examples/index.md
+    - Basic Usage: examples/basic-usage.md
+    - Advanced Patterns: examples/advanced-patterns.md
+    - Integration Examples: examples/integration-examples.md
+    - Real-World Scenarios: examples/real-world-scenarios.md
+  - Reference:
+    - Overview: reference/index.md
+    - Error Codes: reference/error-codes.md
+    - Rate Limits: reference/rate-limits.md
+    - Field Reference: reference/field-reference.md
+    - OData Queries: reference/odata-queries.md
+    - Changelog: reference/changelog.md
   - Development:
-    - Contributing: contributing.md
-    - Release Notes: changelog.md
-    - Deployment Guide: deployment.md
-    - Style Guide: STYLE_GUIDE.md
-  - License: LICENSE
+    - Overview: development/index.md
+    - Contributing: development/contributing.md
+    - Development Setup: development/development-setup.md
+    - Testing: development/testing.md
+    - Deployment: development/deployment.md
+    - Code Style Guide: development/style-guide.md
+    - Documentation Style Guide: documentation-style-guide.md
+  - Legal:
+    - Overview: legal/index.md
+    - License: legal/license.md
+    - Terms of Service: legal/terms-of-service.md
 
 # Extra
 extra:
