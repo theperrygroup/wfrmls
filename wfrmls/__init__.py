@@ -54,7 +54,7 @@ from .properties import PropertyClient, PropertyStatus, PropertyType
 from .property_unit_types import PropertyUnitTypesClient
 from .resource import ResourceClient
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 __all__ = [
     "WFRMLSClient",
     "PropertyClient",
