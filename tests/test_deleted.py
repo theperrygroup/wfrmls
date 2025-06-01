@@ -1,6 +1,7 @@
 """Tests for deleted records client."""
 
 from datetime import date, datetime, timedelta
+from typing import Any, Dict
 
 import pytest
 import responses
