@@ -23,7 +23,7 @@ class ResourceName(Enum):
 
 class DeletedClient(BaseClient):
     """Client for deleted records API endpoints.
-    
+
     The Deleted resource tracks records that have been removed from the MLS system.
     This is essential for data synchronization to ensure local databases properly
     handle deletions and maintain data integrity.
@@ -125,9 +125,7 @@ class DeletedClient(BaseClient):
         return self.get("Deleted", params=params)
 
     def get_deleted_by_resource(
-        self,
-        resource_name: Union[ResourceName, str],
-        **kwargs: Any
+        self, resource_name: Union[ResourceName, str], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get deleted records for a specific resource type.
 
@@ -160,23 +158,23 @@ class DeletedClient(BaseClient):
             resource_value = resource_name.value
         else:
             resource_value = resource_name
-            
+
         filter_query = f"ResourceName eq '{resource_value}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{filter_query} and {existing_filter}"
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
         else:
-            kwargs['filter_query'] = filter_query
-            
+            kwargs["filter_query"] = filter_query
+
         return self.get_deleted(**kwargs)
 
     def get_deleted_since(
         self,
         since: Union[str, date],
         resource_name: Optional[Union[ResourceName, str]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get records deleted since a specific date/time.
 
@@ -195,7 +193,7 @@ class DeletedClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get records deleted in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             recent_deletions = client.deleted.get_deleted_since(
@@ -214,25 +212,25 @@ class DeletedClient(BaseClient):
             since_str = since.isoformat() + "Z"
         else:
             since_str = since
-            
+
         filters = [f"DeletedDateTime gt {since_str}"]
-        
+
         if resource_name is not None:
             if isinstance(resource_name, ResourceName):
                 resource_value = resource_name.value
             else:
                 resource_value = resource_name
             filters.append(f"ResourceName eq '{resource_value}'")
-            
+
         filter_query = " and ".join(filters)
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{filter_query} and {existing_filter}"
+            kwargs["filter_query"] = f"{filter_query} and {existing_filter}"
         else:
-            kwargs['filter_query'] = filter_query
-            
+            kwargs["filter_query"] = filter_query
+
         return self.get_deleted(**kwargs)
 
     def get_deleted_property_records(self, **kwargs: Any) -> Dict[str, Any]:
@@ -323,7 +321,7 @@ class DeletedClient(BaseClient):
         self,
         since: Union[str, date],
         resource_types: Optional[List[Union[ResourceName, str]]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get all deleted records for comprehensive data synchronization.
 
@@ -341,14 +339,14 @@ class DeletedClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get all deletions in last hour for comprehensive sync
             cutoff = datetime.utcnow() - timedelta(hours=1)
             all_deletions = client.deleted.get_all_deleted_for_sync(
                 since=cutoff.isoformat() + "Z",
                 resource_types=[ResourceName.PROPERTY, ResourceName.MEMBER, ResourceName.MEDIA]
             )
-            
+
             # Process by resource type
             for resource_type in all_deletions['by_resource']:
                 records = all_deletions['by_resource'][resource_type]
@@ -367,7 +365,7 @@ class DeletedClient(BaseClient):
                 ResourceName.MEMBER,
                 ResourceName.OFFICE,
                 ResourceName.MEDIA,
-                ResourceName.OPENHOUSE
+                ResourceName.OPENHOUSE,
             ]
 
         all_results = []
@@ -378,20 +376,26 @@ class DeletedClient(BaseClient):
             try:
                 # Get deleted records for this resource type
                 resource_results = self.get_deleted_since(
-                    since=since_str,
-                    resource_name=resource_type,
-                    **kwargs
+                    since=since_str, resource_name=resource_type, **kwargs
                 )
-                
-                resource_records = resource_results.get('value', [])
-                resource_name = resource_type.value if isinstance(resource_type, ResourceName) else resource_type
+
+                resource_records = resource_results.get("value", [])
+                resource_name = (
+                    resource_type.value
+                    if isinstance(resource_type, ResourceName)
+                    else resource_type
+                )
                 by_resource[resource_name] = resource_records
                 all_results.extend(resource_records)
                 total_count += len(resource_records)
-                
+
             except Exception:
                 # If one resource type fails, continue with others
-                resource_name = resource_type.value if isinstance(resource_type, ResourceName) else resource_type
+                resource_name = (
+                    resource_type.value
+                    if isinstance(resource_type, ResourceName)
+                    else resource_type
+                )
                 by_resource[resource_name] = []
 
         return {
@@ -402,14 +406,12 @@ class DeletedClient(BaseClient):
                 "total_deleted_records": total_count,
                 "resource_types_checked": len(resource_types),
                 "since_timestamp": since_str,
-                "resources_with_deletions": len([r for r in by_resource.values() if r])
-            }
+                "resources_with_deletions": len([r for r in by_resource.values() if r]),
+            },
         }
 
     def get_deletion_summary(
-        self,
-        since: Union[str, date],
-        **kwargs: Any
+        self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get a summary of deletion activity by resource type.
 
@@ -426,13 +428,13 @@ class DeletedClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get deletion summary for last 24 hours
             yesterday = datetime.utcnow() - timedelta(days=1)
             summary = client.deleted.get_deletion_summary(
                 since=yesterday.isoformat() + "Z"
             )
-            
+
             print(f"Total deletions: {summary['summary']['total_deletions']}")
             for resource, count in summary['summary']['by_resource_count'].items():
                 print(f"  {resource}: {count} deletions")
@@ -445,25 +447,28 @@ class DeletedClient(BaseClient):
 
         # Get all deleted records since the specified time
         all_deletions = self.get_deleted_since(since=since_str, **kwargs)
-        deleted_records = all_deletions.get('value', [])
+        deleted_records = all_deletions.get("value", [])
 
         # Organize by resource type
         by_resource_count: Dict[str, int] = {}
         by_resource_latest: Dict[str, str] = {}
-        
+
         for record in deleted_records:
-            resource_name = record.get('ResourceName', 'Unknown')
-            
+            resource_name = record.get("ResourceName", "Unknown")
+
             # Count by resource type
             if resource_name in by_resource_count:
                 by_resource_count[resource_name] += 1
             else:
                 by_resource_count[resource_name] = 1
-                
+
             # Track latest deletion time by resource
-            deleted_time = record.get('DeletedDateTime')
+            deleted_time = record.get("DeletedDateTime")
             if deleted_time:
-                if resource_name not in by_resource_latest or deleted_time > by_resource_latest[resource_name]:
+                if (
+                    resource_name not in by_resource_latest
+                    or deleted_time > by_resource_latest[resource_name]
+                ):
                     by_resource_latest[resource_name] = deleted_time
 
         return {
@@ -476,16 +481,13 @@ class DeletedClient(BaseClient):
                 "by_resource_latest": by_resource_latest,
                 "analysis_period": {
                     "since": since_str,
-                    "analysis_timestamp": f"{date.today().isoformat()}Z"
-                }
-            }
+                    "analysis_timestamp": f"{date.today().isoformat()}Z",
+                },
+            },
         }
 
     def monitor_deletion_activity(
-        self,
-        hours_back: int = 24,
-        alert_threshold: int = 100,
-        **kwargs: Any
+        self, hours_back: int = 24, alert_threshold: int = 100, **kwargs: Any
     ) -> Dict[str, Any]:
         """Monitor deletion activity and identify unusual patterns.
 
@@ -507,7 +509,7 @@ class DeletedClient(BaseClient):
                 hours_back=6,
                 alert_threshold=50
             )
-            
+
             if monitoring['alerts']:
                 print("ALERTS DETECTED:")
                 for alert in monitoring['alerts']:
@@ -515,45 +517,55 @@ class DeletedClient(BaseClient):
             ```
         """
         from datetime import datetime, timedelta
-        
+
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
         since_str = cutoff_time.isoformat() + "Z"
 
         # Get deletion summary for the period
         summary = self.get_deletion_summary(since=since_str, **kwargs)
-        
+
         alerts = []
         recommendations = []
-        
-        total_deletions = summary['summary']['total_deletions']
-        by_resource_count = summary['summary']['by_resource_count']
-        
+
+        total_deletions = summary["summary"]["total_deletions"]
+        by_resource_count = summary["summary"]["by_resource_count"]
+
         # Check for high deletion volumes
         if total_deletions > alert_threshold:
-            alerts.append(f"High deletion volume: {total_deletions} records deleted in {hours_back} hours")
-        
+            alerts.append(
+                f"High deletion volume: {total_deletions} records deleted in {hours_back} hours"
+            )
+
         # Check for resource-specific alerts
         for resource_type, count in by_resource_count.items():
-            resource_threshold = alert_threshold // len(by_resource_count) if by_resource_count else alert_threshold
+            resource_threshold = (
+                alert_threshold // len(by_resource_count)
+                if by_resource_count
+                else alert_threshold
+            )
             if count > resource_threshold:
                 alerts.append(f"High {resource_type} deletions: {count} records")
-                
+
         # Generate recommendations
         if total_deletions > 0:
-            recommendations.append("Consider running data integrity checks after bulk deletions")
-            
-        if 'Property' in by_resource_count and by_resource_count['Property'] > 10:
-            recommendations.append("Review property deletion patterns for market analysis")
-            
-        if 'Media' in by_resource_count and by_resource_count['Media'] > 50:
+            recommendations.append(
+                "Consider running data integrity checks after bulk deletions"
+            )
+
+        if "Property" in by_resource_count and by_resource_count["Property"] > 10:
+            recommendations.append(
+                "Review property deletion patterns for market analysis"
+            )
+
+        if "Media" in by_resource_count and by_resource_count["Media"] > 50:
             recommendations.append("Check for orphaned media cleanup processes")
 
         return {
             "@odata.context": "Deletion monitoring",
             "monitoring_period": f"{hours_back} hours",
-            "summary": summary['summary'],
+            "summary": summary["summary"],
             "alerts": alerts,
             "recommendations": recommendations,
             "status": "ALERT" if alerts else "NORMAL",
-            "monitoring_timestamp": datetime.utcnow().isoformat() + "Z"
-        } 
+            "monitoring_timestamp": datetime.utcnow().isoformat() + "Z",
+        }

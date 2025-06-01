@@ -9,7 +9,7 @@ from .base_client import BaseClient
 
 class DataSystemClient(BaseClient):
     """Client for data system metadata API endpoints.
-    
+
     The DataSystem resource provides metadata about the data system itself,
     including version information, contact details, and system capabilities.
     This is useful for understanding the MLS system configuration and features.
@@ -66,7 +66,7 @@ class DataSystemClient(BaseClient):
             ```python
             # Get all data system information
             data_systems = client.data_system.get_data_systems()
-            
+
             # Get specific fields only
             data_systems = client.data_system.get_data_systems(
                 select=["DataSystemKey", "DataSystemName", "SystemVersion"]
@@ -128,7 +128,7 @@ class DataSystemClient(BaseClient):
             ```python
             # Get specific data system by key
             data_system = client.data_system.get_data_system("WFRMLS")
-            
+
             print(f"System Name: {data_system['DataSystemName']}")
             print(f"Version: {data_system.get('SystemVersion', 'Unknown')}")
             print(f"Contact: {data_system.get('ContactEmail', 'Unknown')}")
@@ -149,7 +149,7 @@ class DataSystemClient(BaseClient):
             ```python
             # Get system information
             system_info = client.data_system.get_system_info()
-            
+
             for system in system_info.get('value', []):
                 print(f"System: {system['DataSystemName']}")
                 print(f"Description: {system.get('DataSystemDescription', 'N/A')}")
@@ -158,9 +158,7 @@ class DataSystemClient(BaseClient):
         return self.get_data_systems(top=10)
 
     def get_modified_data_systems(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get data systems modified since a specific date/time.
 
@@ -178,7 +176,7 @@ class DataSystemClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get systems modified in last day
             cutoff_time = datetime.utcnow() - timedelta(days=1)
             updates = client.data_system.get_modified_data_systems(
@@ -198,6 +196,6 @@ class DataSystemClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_data_systems(filter_query=filter_query, **kwargs) 
+        return self.get_data_systems(filter_query=filter_query, **kwargs)

@@ -28,7 +28,7 @@ class AduStatus(Enum):
 
 class AduClient(BaseClient):
     """Client for Accessory Dwelling Unit (ADU) API endpoints.
-    
+
     The Adu resource contains information about accessory dwelling units
     associated with properties. ADUs are secondary housing units on single-family
     residential lots and are important for housing density and rental income potential.
@@ -85,7 +85,7 @@ class AduClient(BaseClient):
             ```python
             # Get all ADUs
             adus = client.adu.get_adus()
-            
+
             # Get ADUs for existing units
             adus = client.adu.get_adus(
                 filter_query="AduStatus eq 'Existing'",
@@ -149,7 +149,7 @@ class AduClient(BaseClient):
             ```python
             # Get specific ADU by key
             adu = client.adu.get_adu("ADU123456")
-            
+
             print(f"ADU Type: {adu['AduType']}")
             print(f"Status: {adu['AduStatus']}")
             print(f"Square Feet: {adu.get('SquareFeet', 'Unknown')}")
@@ -158,11 +158,7 @@ class AduClient(BaseClient):
         """
         return self.get(f"Adu('{adu_key}')")
 
-    def get_adus_for_property(
-        self,
-        listing_key: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_adus_for_property(self, listing_key: str, **kwargs: Any) -> Dict[str, Any]:
         """Get ADUs for a specific property.
 
         Convenience method to retrieve all ADUs associated with a property.
@@ -182,7 +178,7 @@ class AduClient(BaseClient):
                 listing_key="1611952",
                 orderby="AduType asc"
             )
-            
+
             # Get existing ADUs for a property
             existing_adus = client.adu.get_adus_for_property(
                 listing_key="1611952",
@@ -191,21 +187,17 @@ class AduClient(BaseClient):
             ```
         """
         property_filter = f"ListingKey eq '{listing_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
+            kwargs["filter_query"] = property_filter
+
         return self.get_adus(**kwargs)
 
-    def get_adus_by_type(
-        self,
-        adu_type: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_adus_by_type(self, adu_type: str, **kwargs: Any) -> Dict[str, Any]:
         """Get ADUs by type.
 
         Convenience method to filter ADUs by type.
@@ -225,27 +217,23 @@ class AduClient(BaseClient):
                 adu_type="Detached",
                 expand="Property"
             )
-            
+
             # Get garage conversion ADUs
             garage_adus = client.adu.get_adus_by_type("Garage Conversion")
             ```
         """
         type_filter = f"AduType eq '{adu_type}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{type_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{type_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = type_filter
-            
+            kwargs["filter_query"] = type_filter
+
         return self.get_adus(**kwargs)
 
-    def get_adus_by_status(
-        self,
-        adu_status: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_adus_by_status(self, adu_status: str, **kwargs: Any) -> Dict[str, Any]:
         """Get ADUs by status.
 
         Convenience method to filter ADUs by status.
@@ -265,20 +253,20 @@ class AduClient(BaseClient):
                 adu_status="Existing",
                 orderby="CreatedDate desc"
             )
-            
+
             # Get planned ADUs
             planned_adus = client.adu.get_adus_by_status("Planned")
             ```
         """
         status_filter = f"AduStatus eq '{adu_status}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{status_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{status_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = status_filter
-            
+            kwargs["filter_query"] = status_filter
+
         return self.get_adus(**kwargs)
 
     def get_existing_adus(self, **kwargs: Any) -> Dict[str, Any]:
@@ -343,7 +331,7 @@ class AduClient(BaseClient):
             adus_with_props = client.adu.get_adus_with_property(
                 top=25
             )
-            
+
             # Access property info for first ADU
             first_adu = adus_with_props['value'][0]
             if 'Property' in first_adu:
@@ -354,9 +342,7 @@ class AduClient(BaseClient):
         return self.get_adus(expand="Property", **kwargs)
 
     def get_modified_adus(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get ADUs modified since a specific date/time.
 
@@ -374,7 +360,7 @@ class AduClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get ADUs modified in last week
             cutoff_time = datetime.utcnow() - timedelta(days=7)
             updates = client.adu.get_modified_adus(
@@ -394,6 +380,6 @@ class AduClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_adus(filter_query=filter_query, **kwargs) 
+        return self.get_adus(filter_query=filter_query, **kwargs)

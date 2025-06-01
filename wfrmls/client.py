@@ -1,25 +1,25 @@
 """Main WFRMLS client."""
 
 from builtins import property as property_decorator
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .exceptions import WFRMLSError
 
 # Use TYPE_CHECKING to avoid import cycles and property conflicts
 if TYPE_CHECKING:
-    from .properties import PropertyClient
-    from .member import MemberClient  
+    from .adu import AduClient
+    from .data_system import DataSystemClient
+    from .deleted import DeletedClient
+    from .green_verification import GreenVerificationClient
+    from .history import HistoryTransactionalClient
+    from .lookup import LookupClient
+    from .media import MediaClient
+    from .member import MemberClient
     from .office import OfficeClient
     from .openhouse import OpenHouseClient
-    from .media import MediaClient
-    from .history import HistoryTransactionalClient
-    from .green_verification import GreenVerificationClient
-    from .data_system import DataSystemClient
-    from .resource import ResourceClient
+    from .properties import PropertyClient
     from .property_unit_types import PropertyUnitTypesClient
-    from .lookup import LookupClient
-    from .adu import AduClient
-    from .deleted import DeletedClient
+    from .resource import ResourceClient
 
 
 class WFRMLSClient:
@@ -46,7 +46,7 @@ class WFRMLSClient:
         # Use service endpoints
         properties = client.property.get_properties(top=10)
         property_detail = client.property.get_property("12345678")
-        
+
         # Search properties by location
         properties = client.property.search_properties_by_radius(
             latitude=40.7608, longitude=-111.8910, radius_miles=10
@@ -54,10 +54,10 @@ class WFRMLSClient:
 
         # Get open houses
         open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-        
+
         # Get property photos
         photos = client.media.get_photos_for_property("1611952")
-        
+
         # Get transaction history
         sales = client.history.get_recent_sales(days_back=30)
         ```
@@ -78,7 +78,7 @@ class WFRMLSClient:
         """
         self._bearer_token = bearer_token
         self._base_url = base_url
-        
+
         # Service clients - lazily initialized
         self._property: Optional["PropertyClient"] = None
         self._member: Optional["MemberClient"] = None
@@ -93,7 +93,7 @@ class WFRMLSClient:
         self._lookup: Optional["LookupClient"] = None
         self._adu: Optional["AduClient"] = None
         self._deleted: Optional["DeletedClient"] = None
-        
+
         # Base client for service discovery - lazily initialized
         self._base_client: Optional[Any] = None
 
@@ -101,6 +101,7 @@ class WFRMLSClient:
         """Get base client instance for service discovery."""
         if self._base_client is None:
             from .base_client import BaseClient
+
             self._base_client = BaseClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -108,52 +109,53 @@ class WFRMLSClient:
 
     def get_service_document(self) -> Dict[str, Any]:
         """Get the OData service document.
-        
+
         The service document provides a list of all available resources (entity sets)
         that can be accessed through the API. This is essential for discovering
         what endpoints are available for the authenticated user.
-        
+
         Returns:
             Dictionary containing the service document with available resources
-            
+
         Raises:
             WFRMLSError: If the API request fails
             AuthenticationError: If authentication fails
-            
+
         Example:
             ```python
             # Get available resources
             service_doc = client.get_service_document()
-            
+
             # List available entity sets
             for resource in service_doc.get('value', []):
                 print(f"Resource: {resource['name']} - {resource['url']}")
             ```
         """
         from typing import cast
+
         base_client = self._get_base_client()
         result = base_client.get("")  # Root endpoint returns service document
         return cast(Dict[str, Any], result)
 
     def get_metadata(self) -> str:
         """Get the OData metadata document.
-        
+
         The metadata document provides the complete schema definition including
         entity types, properties, relationships, and enumerations. This is
         essential for understanding the structure of the data model.
-        
+
         Returns:
             XML string containing the complete metadata schema
-            
+
         Raises:
             WFRMLSError: If the API request fails
             AuthenticationError: If authentication fails
-            
+
         Example:
             ```python
             # Get metadata schema
             metadata_xml = client.get_metadata()
-            
+
             # Save to file for inspection
             with open('wfrmls_metadata.xml', 'w') as f:
                 f.write(metadata_xml)
@@ -162,13 +164,17 @@ class WFRMLSClient:
         base_client = self._get_base_client()
         # For metadata, we need to handle the raw response since it's XML
         import requests
+
         url = f"{base_client.base_url}/$metadata"
-        headers = {"Authorization": f"Bearer {base_client.bearer_token}", "Accept": "application/xml"}
+        headers = {
+            "Authorization": f"Bearer {base_client.bearer_token}",
+            "Accept": "application/xml",
+        }
         response = requests.get(url, headers=headers)
-        
+
         if response.status_code != 200:
             raise WFRMLSError(f"Failed to fetch metadata: {response.status_code}")
-        
+
         return response.text
 
     @property_decorator
@@ -185,7 +191,7 @@ class WFRMLSClient:
             ```python
             # Get active properties
             properties = client.property.get_active_properties(top=50)
-            
+
             # Get property with photos
             property_with_media = client.property.get_properties_with_media(
                 filter_query="ListingId eq '12345678'"
@@ -194,6 +200,7 @@ class WFRMLSClient:
         """
         if self._property is None:
             from .properties import PropertyClient
+
             self._property = PropertyClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -213,7 +220,7 @@ class WFRMLSClient:
             ```python
             # Get active members
             members = client.member.get_active_members(top=50)
-            
+
             # Get member with office info
             member_with_office = client.member.get_members_with_office(
                 filter_query="MemberKey eq '12345'"
@@ -222,6 +229,7 @@ class WFRMLSClient:
         """
         if self._member is None:
             from .member import MemberClient
+
             self._member = MemberClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -241,7 +249,7 @@ class WFRMLSClient:
             ```python
             # Get active offices
             offices = client.office.get_active_offices(top=50)
-            
+
             # Get office with members
             office_with_members = client.office.get_offices_with_members(
                 filter_query="OfficeKey eq '12345'"
@@ -250,6 +258,7 @@ class WFRMLSClient:
         """
         if self._office is None:
             from .office import OfficeClient
+
             self._office = OfficeClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -269,16 +278,17 @@ class WFRMLSClient:
             ```python
             # Get upcoming open houses
             open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-            
+
             # Get open houses for a property
             property_opens = client.openhouse.get_open_houses_for_property("1611952")
-            
+
             # Get open houses by agent
             agent_opens = client.openhouse.get_open_houses_by_agent("96422")
             ```
         """
         if self._openhouse is None:
             from .openhouse import OpenHouseClient
+
             self._openhouse = OpenHouseClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -298,16 +308,17 @@ class WFRMLSClient:
             ```python
             # Get photos for a property
             photos = client.media.get_photos_for_property("1611952")
-            
+
             # Get primary photo for a property
             primary_photo = client.media.get_primary_photo("1611952")
-            
+
             # Get photo URLs only
             photo_urls = client.media.get_media_urls_for_property("1611952", "Photo")
             ```
         """
         if self._media is None:
             from .media import MediaClient
+
             self._media = MediaClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -327,16 +338,17 @@ class WFRMLSClient:
             ```python
             # Get recent sales
             recent_sales = client.history.get_recent_sales(days_back=30)
-            
+
             # Get transaction history for a property
             property_history = client.history.get_transactions_for_property("1611952")
-            
+
             # Get sales in a price range
             mid_range_sales = client.history.get_sales_by_price_range(400000, 600000)
             ```
         """
         if self._history is None:
             from .history import HistoryTransactionalClient
+
             self._history = HistoryTransactionalClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -356,13 +368,14 @@ class WFRMLSClient:
             ```python
             # Get green verifications for a property
             green_certs = client.green_verification.get_verifications_for_property("1611952")
-            
+
             # Get all LEED certified properties
             leed_properties = client.green_verification.get_verifications_by_type("LEED")
             ```
         """
         if self._green_verification is None:
             from .green_verification import GreenVerificationClient
+
             self._green_verification = GreenVerificationClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -382,13 +395,14 @@ class WFRMLSClient:
             ```python
             # Get system information
             system_info = client.data_system.get_system_info()
-            
+
             # Get specific data system by key
             system = client.data_system.get_data_system("WFRMLS")
             ```
         """
         if self._data_system is None:
             from .data_system import DataSystemClient
+
             self._data_system = DataSystemClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -408,13 +422,14 @@ class WFRMLSClient:
             ```python
             # Get all resources
             resources = client.resource.get_resources()
-            
+
             # Get Property resource metadata
             property_resource = client.resource.get_resource_by_name("Property")
             ```
         """
         if self._resource is None:
             from .resource import ResourceClient
+
             self._resource = ResourceClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -434,13 +449,14 @@ class WFRMLSClient:
             ```python
             # Get all unit types
             unit_types = client.property_unit_types.get_property_unit_types()
-            
+
             # Get residential unit types
             residential = client.property_unit_types.get_residential_unit_types()
             ```
         """
         if self._property_unit_types is None:
             from .property_unit_types import PropertyUnitTypesClient
+
             self._property_unit_types = PropertyUnitTypesClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -460,13 +476,14 @@ class WFRMLSClient:
             ```python
             # Get property type lookups
             property_types = client.lookup.get_property_type_lookups()
-            
+
             # Get all lookup names
             lookup_names = client.lookup.get_lookup_names()
             ```
         """
         if self._lookup is None:
             from .lookup import LookupClient
+
             self._lookup = LookupClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -486,16 +503,17 @@ class WFRMLSClient:
             ```python
             # Get all ADUs
             adus = client.adu.get_adus()
-            
+
             # Get existing ADUs
             existing_adus = client.adu.get_existing_adus()
-            
+
             # Get ADUs for a property
             property_adus = client.adu.get_adus_for_property("1611952")
             ```
         """
         if self._adu is None:
             from .adu import AduClient
+
             self._adu = AduClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
@@ -515,7 +533,7 @@ class WFRMLSClient:
             ```python
             # Get all deleted records
             deleted = client.deleted.get_deleted(top=50)
-            
+
             # Get deleted properties since yesterday
             from datetime import datetime, timedelta
             yesterday = datetime.utcnow() - timedelta(days=1)
@@ -523,7 +541,7 @@ class WFRMLSClient:
                 since=yesterday.isoformat() + "Z",
                 resource_name="Property"
             )
-            
+
             # Get recent deletions for synchronization
             recent_deletions = client.deleted.get_deleted_property_records(
                 orderby="DeletedDateTime desc"
@@ -532,7 +550,8 @@ class WFRMLSClient:
         """
         if self._deleted is None:
             from .deleted import DeletedClient
+
             self._deleted = DeletedClient(
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
-        return self._deleted 
+        return self._deleted

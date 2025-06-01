@@ -33,7 +33,7 @@ class OpenHouseAttendedBy(Enum):
 
 class OpenHouseClient(BaseClient):
     """Client for open house schedule API endpoints.
-    
+
     The OpenHouse resource contains information about scheduled open house events,
     including dates, times, showing agents, and related property information.
     All timestamps are in UTC format.
@@ -157,7 +157,7 @@ class OpenHouseClient(BaseClient):
             ```python
             # Get specific open house by key
             open_house = client.openhouse.get_open_house("306227")
-            
+
             print(f"Open House: {open_house['OpenHouseStartTime']} - {open_house['OpenHouseEndTime']}")
             print(f"Property: {open_house['ListingKey']}")
             print(f"Agent: {open_house['ShowingAgentFirstName']} {open_house['ShowingAgentLastName']}")
@@ -168,7 +168,7 @@ class OpenHouseClient(BaseClient):
     def get_upcoming_open_houses(
         self,
         # days_ahead: Optional[int] = 7, # Removed for now to simplify filter
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Get upcoming open houses.
 
@@ -204,9 +204,7 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(**kwargs)
 
     def get_open_houses_for_property(
-        self,
-        listing_key: str,
-        **kwargs: Any
+        self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
         """Get open houses for a specific property.
 
@@ -227,7 +225,7 @@ class OpenHouseClient(BaseClient):
                 listing_key="1625740",
                 orderby="OpenHouseStartTime asc"
             )
-            
+
             # Get upcoming open houses for property
             upcoming_opens = client.openhouse.get_open_houses_for_property(
                 listing_key="1625740",
@@ -236,21 +234,17 @@ class OpenHouseClient(BaseClient):
             ```
         """
         property_filter = f"ListingKey eq '{listing_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{property_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{property_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = property_filter
-            
+            kwargs["filter_query"] = property_filter
+
         return self.get_open_houses(**kwargs)
 
-    def get_open_houses_by_agent(
-        self,
-        agent_key: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_open_houses_by_agent(self, agent_key: str, **kwargs: Any) -> Dict[str, Any]:
         """Get open houses by showing agent.
 
         Convenience method to filter open houses by the agent conducting them.
@@ -274,20 +268,17 @@ class OpenHouseClient(BaseClient):
             ```
         """
         agent_filter = f"ShowingAgentKey eq '{agent_key}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{agent_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{agent_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = agent_filter
-            
+            kwargs["filter_query"] = agent_filter
+
         return self.get_open_houses(**kwargs)
 
-    def get_active_open_houses(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_active_open_houses(self, **kwargs: Any) -> Dict[str, Any]:
         """Get open houses with Active status.
 
         Convenience method to retrieve only active open houses.
@@ -315,12 +306,11 @@ class OpenHouseClient(BaseClient):
             )
             ```
         """
-        return self.get_open_houses(filter_query="OpenHouseStatus eq 'Active'", **kwargs)
+        return self.get_open_houses(
+            filter_query="OpenHouseStatus eq 'Active'", **kwargs
+        )
 
-    def get_open_houses_with_property(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_open_houses_with_property(self, **kwargs: Any) -> Dict[str, Any]:
         """Get open houses with their property information expanded.
 
         This is a convenience method that automatically expands the Property
@@ -341,7 +331,7 @@ class OpenHouseClient(BaseClient):
                 orderby="OpenHouseStartTime asc",
                 top=25
             )
-            
+
             # Access property info for first open house
             first_open = opens_with_props['value'][0]
             if 'Property' in first_open:
@@ -352,9 +342,7 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(expand="Property", **kwargs)
 
     def get_modified_open_houses(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get open houses modified since a specific date/time.
 
@@ -372,7 +360,7 @@ class OpenHouseClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get open houses modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.openhouse.get_modified_open_houses(
@@ -393,6 +381,6 @@ class OpenHouseClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_open_houses(filter_query=filter_query, **kwargs) 
+        return self.get_open_houses(filter_query=filter_query, **kwargs)

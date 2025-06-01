@@ -25,7 +25,7 @@ class OfficeType(Enum):
 
 class OfficeClient(BaseClient):
     """Client for office (real estate brokerage) API endpoints.
-    
+
     The Office resource contains information about real estate brokerages,
     including contact information, addresses, and licensing details.
     """
@@ -146,7 +146,7 @@ class OfficeClient(BaseClient):
             ```python
             # Get specific office by key
             office = client.office.get_office("12345")
-            
+
             print(f"Office: {office['OfficeName']}")
             print(f"Phone: {office['OfficePhone']}")
             print(f"Address: {office['OfficeAddress']}")
@@ -154,10 +154,7 @@ class OfficeClient(BaseClient):
         """
         return self.get(f"Office('{office_key}')")
 
-    def get_active_offices(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_active_offices(self, **kwargs: Any) -> Dict[str, Any]:
         """Get offices with Active status.
 
         Convenience method to retrieve only active offices.
@@ -183,11 +180,7 @@ class OfficeClient(BaseClient):
         """
         return self.get_offices(filter_query="OfficeStatus eq 'Active'", **kwargs)
 
-    def get_offices_by_city(
-        self,
-        city: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_offices_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
         """Get offices in a specific city.
 
         Convenience method to filter offices by city name.
@@ -207,7 +200,7 @@ class OfficeClient(BaseClient):
                 city="Salt Lake City",
                 top=100
             )
-            
+
             # Get active offices in Provo
             offices = client.office.get_offices_by_city(
                 city="Provo",
@@ -217,21 +210,17 @@ class OfficeClient(BaseClient):
             ```
         """
         city_filter = f"OfficeCity eq '{city}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{city_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{city_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = city_filter
-            
+            kwargs["filter_query"] = city_filter
+
         return self.get_offices(**kwargs)
 
-    def search_offices_by_name(
-        self,
-        name: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def search_offices_by_name(self, name: str, **kwargs: Any) -> Dict[str, Any]:
         """Search offices by name using partial matching.
 
         Convenience method to find brokerages by name using partial matching.
@@ -261,10 +250,7 @@ class OfficeClient(BaseClient):
         filter_query = f"contains(OfficeName, '{name}')"
         return self.get_offices(filter_query=filter_query, **kwargs)
 
-    def get_offices_with_members(
-        self,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_offices_with_members(self, **kwargs: Any) -> Dict[str, Any]:
         """Get offices with their member information expanded.
 
         This is a convenience method that automatically expands the Member
@@ -284,7 +270,7 @@ class OfficeClient(BaseClient):
                 filter_query="OfficeStatus eq 'Active'",
                 top=25
             )
-            
+
             # Access members for first office
             first_office = offices['value'][0]
             if 'Member' in first_office:
@@ -294,11 +280,7 @@ class OfficeClient(BaseClient):
         """
         return self.get_offices(expand="Member", **kwargs)
 
-    def get_offices_by_zipcode(
-        self,
-        zipcode: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_offices_by_zipcode(self, zipcode: str, **kwargs: Any) -> Dict[str, Any]:
         """Get offices in a specific ZIP code.
 
         Convenience method to filter offices by postal code.
@@ -321,20 +303,18 @@ class OfficeClient(BaseClient):
             ```
         """
         zipcode_filter = f"OfficePostalCode eq '{zipcode}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{zipcode_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{zipcode_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = zipcode_filter
-            
+            kwargs["filter_query"] = zipcode_filter
+
         return self.get_offices(**kwargs)
 
     def get_modified_offices(
-        self,
-        since: Union[str, date],
-        **kwargs: Any
+        self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get offices modified since a specific date/time.
 
@@ -352,7 +332,7 @@ class OfficeClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get offices modified in last 15 minutes (recommended sync interval)
             cutoff_time = datetime.utcnow() - timedelta(minutes=15)
             updates = client.office.get_modified_offices(
@@ -370,6 +350,6 @@ class OfficeClient(BaseClient):
             since_str = since.isoformat() + "Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt {since_str}"
-        return self.get_offices(filter_query=filter_query, **kwargs) 
+        return self.get_offices(filter_query=filter_query, **kwargs)

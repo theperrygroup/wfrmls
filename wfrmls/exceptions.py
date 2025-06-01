@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 class WFRMLSError(Exception):
     """Base exception for all WFRMLS API errors.
-    
+
     This is the base class for all exceptions raised by the WFRMLS API wrapper.
     All other custom exceptions inherit from this class.
     """
@@ -30,7 +30,7 @@ class WFRMLSError(Exception):
 
 class AuthenticationError(WFRMLSError):
     """Raised when authentication fails.
-    
+
     This exception is raised when the bearer token is invalid, missing,
     or expired, resulting in a 401 Unauthorized response.
     """
@@ -38,7 +38,7 @@ class AuthenticationError(WFRMLSError):
 
 class ValidationError(WFRMLSError):
     """Raised when request validation fails.
-    
+
     This exception is raised when the API returns a 400 Bad Request,
     indicating that the request parameters or format are invalid.
     """
@@ -46,7 +46,7 @@ class ValidationError(WFRMLSError):
 
 class NotFoundError(WFRMLSError):
     """Raised when a resource is not found.
-    
+
     This exception is raised when the API returns a 404 Not Found,
     indicating that the requested resource (property, member, etc.) does not exist.
     """
@@ -54,7 +54,7 @@ class NotFoundError(WFRMLSError):
 
 class RateLimitError(WFRMLSError):
     """Raised when rate limit is exceeded.
-    
+
     This exception is raised when the API returns a 429 Too Many Requests,
     indicating that the client has exceeded the rate limit.
     """
@@ -62,7 +62,7 @@ class RateLimitError(WFRMLSError):
 
 class ServerError(WFRMLSError):
     """Raised when server returns 5xx error.
-    
+
     This exception is raised when the API returns a 500+ status code,
     indicating a server-side error that is not caused by the client request.
     """
@@ -70,7 +70,7 @@ class ServerError(WFRMLSError):
 
 class NetworkError(WFRMLSError):
     """Raised when network connection fails.
-    
+
     This exception is raised when there are network connectivity issues
     preventing the request from reaching the API server.
-    """ 
+    """

@@ -9,7 +9,7 @@ from .base_client import BaseClient
 
 class LookupClient(BaseClient):
     """Client for lookup table data API endpoints.
-    
+
     The Lookup resource contains enumeration values and reference data used
     throughout the MLS system. This includes property types, status values,
     and other standardized lookup values.
@@ -66,7 +66,7 @@ class LookupClient(BaseClient):
             ```python
             # Get all lookup data
             lookups = client.lookup.get_lookups()
-            
+
             # Get lookups for a specific resource
             lookups = client.lookup.get_lookups(
                 filter_query="LookupName eq 'PropertyType'",
@@ -129,7 +129,7 @@ class LookupClient(BaseClient):
             ```python
             # Get specific lookup by key
             lookup = client.lookup.get_lookup("PROP_TYPE_RESIDENTIAL")
-            
+
             print(f"Lookup Name: {lookup['LookupName']}")
             print(f"Value: {lookup['LookupValue']}")
             print(f"Standard Value: {lookup.get('StandardLookupValue', 'N/A')}")
@@ -137,15 +137,11 @@ class LookupClient(BaseClient):
         """
         return self.get(f"Lookup('{lookup_key}')")
 
-    def get_lookups_by_name(
-        self,
-        lookup_name: str,
-        **kwargs: Any
-    ) -> Dict[str, Any]:
+    def get_lookups_by_name(self, lookup_name: str, **kwargs: Any) -> Dict[str, Any]:
         """Get lookups by lookup name.
 
         Convenience method to retrieve all lookup values for a specific lookup name.
-        Useful for getting all values for enumeration types like PropertyType, 
+        Useful for getting all values for enumeration types like PropertyType,
         PropertyStatus, etc.
 
         Args:
@@ -162,20 +158,20 @@ class LookupClient(BaseClient):
                 lookup_name="PropertyType",
                 orderby="DisplayOrder asc"
             )
-            
+
             # Get all property status lookups
             statuses = client.lookup.get_lookups_by_name("PropertyStatus")
             ```
         """
         name_filter = f"LookupName eq '{lookup_name}'"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{name_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{name_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = name_filter
-            
+            kwargs["filter_query"] = name_filter
+
         return self.get_lookups(**kwargs)
 
     def get_property_type_lookups(self, **kwargs: Any) -> Dict[str, Any]:
@@ -196,7 +192,7 @@ class LookupClient(BaseClient):
             property_types = client.lookup.get_property_type_lookups(
                 orderby="DisplayOrder asc"
             )
-            
+
             for prop_type in property_types.get('value', []):
                 print(f"Property Type: {prop_type['LookupValue']}")
             ```
@@ -219,7 +215,7 @@ class LookupClient(BaseClient):
             ```python
             # Get all property statuses
             statuses = client.lookup.get_property_status_lookups()
-            
+
             for status in statuses.get('value', []):
                 print(f"Status: {status['LookupValue']}")
             ```
@@ -242,21 +238,21 @@ class LookupClient(BaseClient):
             ```python
             # Get all standard lookups
             standard_lookups = client.lookup.get_standard_lookups()
-            
+
             for lookup in standard_lookups.get('value', []):
                 print(f"Standard Lookup: {lookup['StandardLookupValue']}")
             ```
         """
         # Filter for lookups that have a StandardLookupValue (RESO standard lookups)
         standard_filter = "StandardLookupValue ne null"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{standard_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{standard_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = standard_filter
-            
+            kwargs["filter_query"] = standard_filter
+
         return self.get_lookups(**kwargs)
 
     def get_active_lookups(self, **kwargs: Any) -> Dict[str, Any]:
@@ -281,14 +277,14 @@ class LookupClient(BaseClient):
         """
         # Filter for active lookups (assuming IsActive field exists)
         active_filter = "IsActive eq true"
-        
+
         # If additional filter_query provided, combine them
-        existing_filter = kwargs.get('filter_query')
+        existing_filter = kwargs.get("filter_query")
         if existing_filter:
-            kwargs['filter_query'] = f"{active_filter} and {existing_filter}"
+            kwargs["filter_query"] = f"{active_filter} and {existing_filter}"
         else:
-            kwargs['filter_query'] = active_filter
-            
+            kwargs["filter_query"] = active_filter
+
         return self.get_lookups(**kwargs)
 
     def get_lookup_names(self) -> List[str]:
@@ -304,27 +300,22 @@ class LookupClient(BaseClient):
             ```python
             # Get all available lookup names
             lookup_names = client.lookup.get_lookup_names()
-            
+
             for name in lookup_names:
                 print(f"Available lookup: {name}")
             ```
         """
-        response = self.get_lookups(
-            select=["LookupName"],
-            orderby="LookupName asc"
-        )
-        
+        response = self.get_lookups(select=["LookupName"], orderby="LookupName asc")
+
         names = set()
-        for item in response.get('value', []):
-            if 'LookupName' in item:
-                names.add(item['LookupName'])
-                
+        for item in response.get("value", []):
+            if "LookupName" in item:
+                names.add(item["LookupName"])
+
         return sorted(list(names))
 
     def get_modified_lookups(
-        self,
-        since: Union[str, date, datetime],
-        **kwargs: Any
+        self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
         """Get lookups modified since a specific date/time.
 
@@ -342,7 +333,7 @@ class LookupClient(BaseClient):
         Example:
             ```python
             from datetime import datetime, timedelta
-            
+
             # Get lookups modified in last month
             cutoff_time = datetime.utcnow() - timedelta(days=30)
             updates = client.lookup.get_modified_lookups(
@@ -362,6 +353,6 @@ class LookupClient(BaseClient):
             since_str = since.isoformat() + "T00:00:00Z"
         else:
             since_str = since
-            
+
         filter_query = f"ModificationTimestamp gt '{since_str}'"
-        return self.get_lookups(filter_query=filter_query, **kwargs) 
+        return self.get_lookups(filter_query=filter_query, **kwargs)
