@@ -44,6 +44,9 @@ jobs:
         python -c "import wfrmls; print(f'Successfully installed wfrmls {wfrmls.__version__}')"
         python -c "import pytest; print(f'pytest version: {pytest.__version__}')"
         python -c "import sys; print(f'Python: {sys.version}')"
+        
+        # Verify all key modules can be imported
+        python -c "import wfrmls; from wfrmls import WFRMLSClient; from wfrmls.exceptions import WFRMLSError; print('✓ All key modules imported successfully')"
 
     - name: Lint with flake8
       run: |
@@ -67,39 +70,29 @@ jobs:
     - name: Test with pytest
       env:
         WFRMLS_BEARER_TOKEN: ${{ secrets.WFRMLS_BEARER_TOKEN }}
+        PYTHONPATH: ${{ github.workspace }}
       run: |
-        # Debug: Show what's installed and where we are
+        # Ensure we're in the right directory and Python can find our package
         echo "Current directory: $(pwd)"
-        echo "Python path:"
-        python -c "import sys; print('\n'.join(sys.path))"
-        echo "Installed packages:"
-        pip list | grep wfrmls || echo "wfrmls not found in pip list"
-        echo "Can we import wfrmls?"
-        python -c "import wfrmls; print(f'wfrmls version: {wfrmls.__version__}')" || echo "Cannot import wfrmls"
+        echo "PYTHONPATH: $PYTHONPATH"
         
-        # Check test discovery first
-        echo "=== Test Discovery Debug ==="
-        echo "Files in tests directory:"
-        ls -la tests/
-        echo "Python can import our package:"
-        python -c "import wfrmls; print('✓ wfrmls imported successfully')"
+        # Verify installation and imports work
+        python -c "import wfrmls; print(f'✓ wfrmls {wfrmls.__version__} imported successfully')"
         
-        echo "Test discovery (all tests):"
-        pytest --collect-only tests/ -v
+        # Show test discovery
+        echo "=== Test Discovery ==="
+        pytest --collect-only tests/ --ignore=tests/test_integration.py
         
-        echo "Test discovery (excluding integration file):"
-        pytest --collect-only tests/ --ignore=tests/test_integration.py -v
-        
-        # Test a single file first to verify environment
-        echo "=== Single Test File Verification ==="
-        pytest tests/test_analytics.py -v --tb=short || echo "Single test file failed"
-        
-        # Simple test run first without coverage to isolate issues
-        echo "=== Running Tests (No Coverage) ==="
-        pytest tests/ --ignore=tests/test_integration.py -v --tb=short || echo "Tests failed but continuing to coverage..."
-        
-        echo "=== Running Tests (With Coverage) ==="
-        python -m pytest tests/ --ignore=tests/test_integration.py --cov=wfrmls --cov-report=xml --cov-report=term-missing --cov-report=html -v || echo "Coverage tests completed with issues"
+        # Run tests with proper error handling
+        echo "=== Running Unit Tests ==="
+        pytest tests/ --ignore=tests/test_integration.py \
+               --cov=wfrmls \
+               --cov-report=xml \
+               --cov-report=term-missing \
+               --cov-report=html \
+               --cov-fail-under=20 \
+               --tb=short \
+               -v
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
