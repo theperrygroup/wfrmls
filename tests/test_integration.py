@@ -8,12 +8,11 @@ due to server-side issues (504 Gateway Timeouts and missing entity types).
 """
 
 import os
-from datetime import datetime, timedelta
 
 import pytest
 
 from wfrmls import WFRMLSClient
-from wfrmls.exceptions import AuthenticationError, WFRMLSError
+from wfrmls.exceptions import WFRMLSError
 
 
 @pytest.fixture

@@ -72,6 +72,14 @@ Complete documentation for all WFRMLS Python client methods, classes, and module
 
     [:octicons-arrow-right-24: Lookup API](lookup.md)
 
+-   :material-home-city:{ .lg .middle } **Property Unit Types**
+
+    ---
+
+    Property unit type classifications and multi-unit information
+
+    [:octicons-arrow-right-24: Property Unit Types API](property-unit-types.md)
+
 -   :material-home-plus:{ .lg .middle } **ADU (Accessory Dwelling Units)**
 
     ---

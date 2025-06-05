@@ -4,10 +4,7 @@ from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
 from wfrmls.data_system import DataSystemClient
-from wfrmls.exceptions import WFRMLSError
 
 
 class TestDataSystemClient:
@@ -126,7 +123,7 @@ class TestDataSystemClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_data_systems.return_value = mock_response
 
-        result = self.client.get_system_info()
+        self.client.get_system_info()
 
         mock_get_data_systems.assert_called_once_with(top=10)
 

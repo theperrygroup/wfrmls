@@ -1,11 +1,11 @@
 """Tests for openhouse client."""
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ValidationError
+from wfrmls.exceptions import NotFoundError
 from wfrmls.openhouse import (
     OpenHouseAttendedBy,
     OpenHouseClient,
