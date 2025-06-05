@@ -4,9 +4,6 @@ from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
-from wfrmls.exceptions import WFRMLSError
 from wfrmls.history import (
     HistoryStatus,
     HistoryTransactionalClient,

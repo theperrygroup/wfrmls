@@ -339,16 +339,16 @@ class OfficeClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get offices modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.office.get_modified_offices(
                 since=cutoff_time.isoformat() + "Z"
             )
 
             # Get offices modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.office.get_modified_offices(
                 since=yesterday.isoformat() + "Z"
             )

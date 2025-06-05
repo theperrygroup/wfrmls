@@ -4,11 +4,9 @@ This module provides higher-level analytics functions and utilities that work
 across multiple API endpoints to provide comprehensive real estate market insights.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from statistics import mean, median
-from typing import Any, Dict, List, Optional, Union
-
-from .base_client import BaseClient
+from typing import Any, Dict, Optional
 
 
 class WFRMLSAnalytics:
@@ -65,7 +63,7 @@ class WFRMLSAnalytics:
             print(f"Days on market: {summary['activity']['avg_days_on_market']}")
             ```
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
 
         # Build filters
@@ -116,7 +114,8 @@ class WFRMLSAnalytics:
                             list_date.replace("Z", "+00:00")
                         )
                         days_on_market = (
-                            datetime.utcnow().replace(tzinfo=list_dt.tzinfo) - list_dt
+                            datetime.now(timezone.utc).replace(tzinfo=list_dt.tzinfo)
+                            - list_dt
                         ).days
                         dom_values.append(days_on_market)
                     except (ValueError, TypeError):
@@ -128,7 +127,7 @@ class WFRMLSAnalytics:
                 "market_area": city or "All Areas",
                 "property_type": property_type or "All Types",
                 "analysis_period": f"{days_back} days",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "inventory": {
                     "active_listings": len(active_properties),
                     "new_listings": len(new_properties),
@@ -156,7 +155,7 @@ class WFRMLSAnalytics:
             return {
                 "error": f"Failed to generate market summary: {str(e)}",
                 "market_area": city or "All Areas",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             }
 
     def analyze_price_trends(
@@ -282,7 +281,7 @@ class WFRMLSAnalytics:
                 "property_type": property_type or "All Types",
                 "analysis_period": f"{days_back} days",
                 "properties_analyzed": len(valid_properties),
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "overall_pricing": {
                     "average_price": avg_price,
                     "median_price": median_price,
@@ -312,7 +311,7 @@ class WFRMLSAnalytics:
             return {
                 "error": f"Failed to analyze price trends: {str(e)}",
                 "market_area": city or "All Areas",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             }
 
     def generate_agent_performance_report(
@@ -343,7 +342,7 @@ class WFRMLSAnalytics:
                 print(f"  {agent['name']}: {agent['listing_count']} listings")
             ```
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
 
         try:
@@ -440,7 +439,7 @@ class WFRMLSAnalytics:
                 "min_listings_threshold": min_listings,
                 "total_agents_analyzed": len(qualified_agents),
                 "total_listings_analyzed": len(listings),
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "summary": {
                     "avg_listings_per_agent": (
                         mean([agent["listing_count"] for agent in qualified_agents])
@@ -466,7 +465,7 @@ class WFRMLSAnalytics:
         except Exception as e:
             return {
                 "error": f"Failed to generate agent performance report: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             }
 
     def get_data_quality_report(self) -> Dict[str, Any]:
@@ -566,7 +565,7 @@ class WFRMLSAnalytics:
             overall_score = (property_completeness + member_completeness) / 2
 
             return {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                 "overall_quality_score": overall_score,
                 "property_quality": {
                     "total_analyzed": total_properties,
@@ -595,5 +594,5 @@ class WFRMLSAnalytics:
         except Exception as e:
             return {
                 "error": f"Failed to generate data quality report: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             }

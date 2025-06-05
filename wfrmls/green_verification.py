@@ -1,6 +1,5 @@
 """PropertyGreenVerification client for WFRMLS API."""
 
-from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 

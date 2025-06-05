@@ -167,7 +167,7 @@ class WFRMLSClient:
             "Authorization": f"Bearer {base_client.bearer_token}",
             "Accept": "application/xml",
         }
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=30)
 
         if response.status_code != 200:
             raise WFRMLSError(f"Failed to fetch metadata: {response.status_code}")
@@ -445,8 +445,8 @@ class WFRMLSClient:
             deleted = client.deleted.get_deleted(top=50)
 
             # Get deleted properties since yesterday
-            from datetime import datetime, timedelta
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            from datetime import datetime, timedelta, timezone
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             deleted_properties = client.deleted.get_deleted_since(
                 since=yesterday.isoformat() + "Z",
                 resource_name="Property"

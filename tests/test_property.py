@@ -1,11 +1,11 @@
 """Tests for property client."""
 
-from datetime import date, datetime, timedelta
+from datetime import date
 
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ServerError, ValidationError, WFRMLSError
+from wfrmls.exceptions import NotFoundError, ServerError, ValidationError
 from wfrmls.properties import PropertyClient, PropertyStatus, PropertyType
 
 

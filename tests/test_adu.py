@@ -6,7 +6,7 @@ import pytest
 import responses
 
 from wfrmls.adu import AduClient, AduStatus, AduType
-from wfrmls.exceptions import NotFoundError, ValidationError
+from wfrmls.exceptions import NotFoundError
 
 
 class TestAduClient:

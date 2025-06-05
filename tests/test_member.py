@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ValidationError
+from wfrmls.exceptions import NotFoundError
 from wfrmls.member import MemberClient, MemberStatus, MemberType
 
 

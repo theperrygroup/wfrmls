@@ -449,16 +449,16 @@ class PropertyClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get properties modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.property.get_modified_properties(
                 since=cutoff_time.isoformat() + "Z"
             )
 
             # Get properties modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.property.get_modified_properties(
                 since=yesterday.isoformat() + "Z"
             )
@@ -783,9 +783,9 @@ class PropertyClient(BaseClient):
             )
             ```
         """
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
 
         filter_query = f"ListingContractDate gt {cutoff_str}"

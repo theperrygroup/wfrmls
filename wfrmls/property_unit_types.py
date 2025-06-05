@@ -1,7 +1,6 @@
 """PropertyUnitTypes client for WFRMLS API."""
 
 from datetime import date, datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from .base_client import BaseClient
@@ -297,10 +296,10 @@ class PropertyUnitTypesClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get unit types modified in last week
-            cutoff_time = datetime.utcnow() - timedelta(days=7)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             updates = client.property_unit_types.get_modified_unit_types(
                 since=cutoff_time
             )

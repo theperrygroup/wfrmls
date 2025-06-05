@@ -1,11 +1,11 @@
 """Tests for lookup client."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ValidationError, WFRMLSError
+from wfrmls.exceptions import NotFoundError, ValidationError
 from wfrmls.lookup import LookupClient
 
 
