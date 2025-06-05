@@ -32,14 +32,14 @@ def get_properties(
     select: Optional[List[str]] = None,
     orderby: Optional[str] = None,
     count: bool = False
-) -> List[Dict[str, Any]]
+) -> Dict[str, Any]
 ```
 
 **Parameters:**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return |
+| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
 | `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
 | `filter_query` | `Optional[str]` | `None` | OData filter expression |
 | `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
@@ -47,7 +47,11 @@ def get_properties(
 | `count` | `bool` | `False` | Include total count in response metadata |
 
 **Returns:**
-- `List[Dict[str, Any]]` - List of property dictionaries
+- `Dict[str, Any]` - Response dictionary containing:
+  - `@odata.context`: OData context URL
+  - `value`: List of property dictionaries
+  - `@odata.count`: Total count (if requested)
+  - `@odata.nextLink`: URL for next page of results
 
 **Raises:**
 - `ValidationError` - Invalid query parameters
@@ -63,37 +67,35 @@ from wfrmls import WFRMLSClient
 client = WFRMLSClient()
 
 # Basic usage - get first 10 active properties
-properties = client.property.get_properties(
+response = client.property.get_properties(
     filter_query="StandardStatus eq 'Active'",
     top=10
 )
+properties = response["value"]
 
 # Advanced filtering with field selection
-luxury_homes = client.property.get_properties(
+luxury_response = client.property.get_properties(
     filter_query=(
         "StandardStatus eq 'Active' and "
         "ListPrice ge 750000 and "
         "BedroomsTotal ge 4"
     ),
-    select=["ListingId", "ListPrice", "Address", "City", "BedroomsTotal"],
+    select=["ListingId", "ListPrice", "City", "BedroomsTotal"],
     orderby="ListPrice desc",
     top=25
 )
 
-# Pagination example
-page_1 = client.property.get_properties(
+# Pagination using @odata.nextLink
+first_page = client.property.get_properties(
     filter_query="StandardStatus eq 'Active'",
-    orderby="ListingId asc",
-    top=50,
-    skip=0
+    top=50
 )
 
-page_2 = client.property.get_properties(
-    filter_query="StandardStatus eq 'Active'",
-    orderby="ListingId asc",
-    top=50,
-    skip=50
-)
+# If there's a next page
+if "@odata.nextLink" in first_page:
+    # Extract skip value from nextLink for next page
+    # The nextLink contains the full URL with skip parameter
+    pass
 
 # Count total results
 result_with_count = client.property.get_properties(
@@ -101,6 +103,7 @@ result_with_count = client.property.get_properties(
     count=True,
     top=10
 )
+total_properties = result_with_count.get("@odata.count", 0)
 ```
 
 ### `get_property()`
@@ -121,7 +124,6 @@ def get_property(listing_id: str) -> Optional[Dict[str, Any]]
 - `Optional[Dict[str, Any]]` - Property dictionary or `None` if not found
 
 **Raises:**
-- `NotFoundError` - Property not found
 - `ValidationError` - Invalid listing ID format
 - `AuthenticationError` - Invalid API credentials
 - `WFRMLSError` - Other API errors
@@ -130,126 +132,181 @@ def get_property(listing_id: str) -> Optional[Dict[str, Any]]
 
 ```python
 # Get specific property
-property_detail = client.property.get_property("12345678")
+property_detail = client.property.get_property("1611952")
 
 if property_detail:
-    print(f"Property: {property_detail['Address']}")
+    print(f"Address: {property_detail['UnparsedAddress']}")
     print(f"Price: ${property_detail['ListPrice']:,}")
     print(f"Bedrooms: {property_detail.get('BedroomsTotal', 'N/A')}")
-else:
-    print("Property not found")
-
-# Error handling
-try:
-    property_data = client.property.get_property("invalid_id")
-except NotFoundError:
-    print("Property does not exist")
-except ValidationError:
-    print("Invalid listing ID format")
 ```
 
 ---
 
 ## 🏷️ Field Reference
 
-### Core Fields
+### Core Identification Fields
 
-These fields are commonly available across all property types:
+These fields uniquely identify and track properties:
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| **ListingId** | `string` | Unique property identifier | `"12345678"` |
-| **StandardStatus** | `string` | Current listing status | `"Active"`, `"Pending"`, `"Sold"` |
-| **ListPrice** | `integer` | Current asking price | `450000` |
-| **OriginalListPrice** | `integer` | Initial listing price | `475000` |
-| **Address** | `string` | Full property address | `"123 Main Street"` |
-| **City** | `string` | Property city | `"Salt Lake City"` |
+| **ListingKeyNumeric** | `integer` | Numeric listing key | `1611952` |
+| **ListingId** | `string` | String listing identifier | `"1611952"` |
+| **ListingKey** | `string` | Primary listing key | `"1611952"` |
+| **OriginatingSystemID** | `string` | Source system ID | `"M00000628"` |
+| **OriginatingSystemKey** | `string` | Source system key | `"2cb5b35c..."` |
+| **OriginatingSystemName** | `string` | Source system name | `"UtahRealEstate.com"` |
+| **SourceSystemID** | `string` | Source system identifier | `"M00000628"` |
+| **SourceSystemKey** | `string` | Source system key | `"M00000628"` |
+| **SourceSystemName** | `string` | Source system name | `"UtahRealEstate.com"` |
+
+### Property Status & Type
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **StandardStatus** | `string` | RESO standard status | `"Active"`, `"Pending"`, `"Sold"`, `"Expired"` |
+| **MlsStatus** | `string` | MLS-specific status | `"Active"`, `"Expired"` |
+| **PropertyType** | `string` | Property category | `"Residential"`, `"Commercial Lease"`, `"Land"` |
+| **PropertySubType** | `string` | Property subcategory | `"Single Family Residence"`, `"Condominium"`, `"Retail"` |
+| **CurrentUse** | `string` | Current property use | `"Single Family"`, `"Retail"` |
+
+### Address & Location
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **UnparsedAddress** | `string` | Full address string | `"1611 S MAIN ST 200"` |
+| **StreetNumber** | `string` | Street number | `"1611"` |
+| **StreetNumberNumeric** | `integer` | Numeric street number | `1611` |
+| **StreetName** | `string` | Street name | `"MAIN"` |
+| **StreetDirPrefix** | `string` | Street direction prefix | `"S"` |
+| **StreetDirSuffix** | `string` | Street direction suffix | `""` |
+| **StreetSuffix** | `string` | Street type suffix | `"ST"` |
+| **UnitNumber** | `string` | Unit/apartment number | `"200"` |
+| **City** | `string` | City name | `"Salt Lake City"` |
+| **PostalCity** | `string` | Postal city name | `"Salt Lake City"` |
 | **StateOrProvince** | `string` | State abbreviation | `"UT"` |
-| **PostalCode** | `string` | ZIP code | `"84101"` |
-| **County** | `string` | County name | `"Salt Lake"` |
-
-### Property Details
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **PropertyType** | `string` | Type of property | `"Residential"`, `"Condominium"`, `"Land"` |
-| **BedroomsTotal** | `integer` | Total number of bedrooms | `3` |
-| **BathroomsTotal** | `decimal` | Total bathrooms (with decimals) | `2.5` |
-| **BathroomsTotalInteger** | `integer` | Total bathrooms (integer only) | `2` |
-| **SquareFeet** | `integer` | Living area square footage | `2150` |
-| **LotSizeSquareFeet** | `integer` | Lot size in square feet | `8712` |
-| **YearBuilt** | `integer` | Year property was built | `1998` |
-| **Stories** | `decimal` | Number of stories | `2.0` |
+| **PostalCode** | `string` | ZIP code | `"84115"` |
+| **PostalCodePlus4** | `string` | ZIP+4 extension | `null` |
+| **CountyOrParish** | `string` | County name | `"Salt Lake"` |
+| **Country** | `string` | Country code | `"US"` |
 
 ### Financial Information
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| **ListPrice** | `integer` | Current asking price | `450000` |
-| **OriginalListPrice** | `integer` | Initial asking price | `475000` |
-| **PreviousListPrice** | `integer` | Previous listing price | `460000` |
-| **ClosePrice** | `integer` | Final sale price | `440000` |
-| **PricePerSquareFoot** | `decimal` | Price per square foot | `209.30` |
-| **TaxAnnualAmount** | `decimal` | Annual property taxes | `3250.00` |
-| **HOAFee** | `decimal` | Monthly HOA fee | `125.00` |
+| **ListPrice** | `decimal` | Current asking price | `1600.0` |
+| **OriginalListPrice** | `decimal` | Initial listing price | `1750.0` |
+| **ClosePrice** | `decimal` | Final sale price | `null` |
+| **LeaseAmount** | `decimal` | Lease amount (for rentals) | `1600.0` |
+| **ConcessionsAmount** | `decimal` | Seller concessions | `null` |
+| **TaxAnnualAmount** | `decimal` | Annual property taxes | `6924.0` |
+| **AssociationFee** | `decimal` | HOA/Association fee | `null` |
+| **AssociationFeeFrequency** | `string` | Fee payment frequency | `""` |
 
-### Location and Geography
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **Latitude** | `decimal` | GPS latitude coordinate | `40.7589` |
-| **Longitude** | `decimal` | GPS longitude coordinate | `-111.8883` |
-| **MapCoordinateSource** | `string` | Source of coordinates | `"Geocoder"` |
-| **StreetName** | `string` | Street name only | `"Main Street"` |
-| **StreetNumber** | `string` | House number | `"123"` |
-| **UnitNumber** | `string` | Unit or apartment number | `"A"` |
-| **Directions** | `string` | Driving directions | `"Take I-15 to Exit 300"` |
-
-### Listing Information
+### Property Details
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| **OnMarketDate** | `datetime` | Date listed on market | `"2024-01-15T00:00:00Z"` |
-| **OffMarketDate** | `datetime` | Date removed from market | `"2024-02-15T00:00:00Z"` |
-| **DaysOnMarket** | `integer` | Days currently on market | `45` |
-| **CumulativeDaysOnMarket** | `integer` | Total days on market | `60` |
-| **ModificationTimestamp** | `datetime` | Last modified date/time | `"2024-01-20T14:30:00Z"` |
-| **PriceChangeTimestamp** | `datetime` | Last price change date | `"2024-01-18T09:00:00Z"` |
+| **BedroomsTotal** | `integer` | Total bedrooms | `2` |
+| **BathroomsFull** | `integer` | Full bathrooms | `1` |
+| **BathroomsHalf** | `integer` | Half bathrooms | `null` |
+| **BathroomsThreeQuarter** | `integer` | Three-quarter bathrooms | `null` |
+| **BathroomsTotalInteger** | `integer` | Total bathrooms (integer) | `1` |
+| **LivingArea** | `decimal` | Living area square feet | `868.0` |
+| **BuildingAreaTotal** | `decimal` | Total building area | `868.0` |
+| **AboveGradeFinishedArea** | `decimal` | Above grade finished sqft | `868.0` |
+| **YearBuilt** | `integer` | Year constructed | `1993` |
+| **YearBuiltEffective** | `integer` | Effective year built | `null` |
+| **Stories** | `integer` | Number of stories | `1` |
+| **RoomsTotal** | `integer` | Total room count | `5` |
 
-### Agent and Office Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **ListAgentKey** | `string` | Listing agent identifier | `"AGT123456"` |
-| **ListAgentFullName** | `string` | Listing agent name | `"John Smith"` |
-| **ListAgentEmail** | `string` | Listing agent email | `"john@example.com"` |
-| **ListAgentPhone** | `string` | Listing agent phone | `"801-555-0123"` |
-| **ListOfficeKey** | `string` | Listing office identifier | `"OFF789"` |
-| **ListOfficeName** | `string` | Listing office name | `"ABC Realty"` |
-| **CoListAgentKey** | `string` | Co-listing agent identifier | `"AGT654321"` |
-
-### Property Features
+### Lot Information
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| **Garage** | `string` | Garage description | `"2 Car Attached"` |
-| **GarageSpaces** | `integer` | Number of garage spaces | `2` |
-| **ParkingTotal** | `integer` | Total parking spaces | `3` |
-| **Appliances** | `string` | Included appliances | `"Dishwasher, Microwave"` |
-| **Flooring** | `string` | Flooring types | `"Hardwood, Carpet"` |
-| **Heating** | `string` | Heating system | `"Forced Air, Gas"` |
-| **Cooling** | `string` | Cooling system | `"Central Air"` |
-| **Pool** | `string` | Pool information | `"In Ground, Heated"` |
+| **LotSizeAcres** | `decimal` | Lot size in acres | `0.27` |
+| **LotSizeSquareFeet** | `decimal` | Lot size in square feet | `11761.2` |
+| **LotSizeArea** | `decimal` | General lot size | `10000.0` |
+| **LotSizeDimensions** | `string` | Lot dimensions | `"0.0x0.0x0.0"` |
+| **FrontageLength** | `string` | Street frontage | `"0.0"` |
 
-### Descriptive Information
+### Parking & Garage
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| **PublicRemarks** | `string` | Public description | `"Beautiful home with..."` |
-| **PrivateRemarks** | `string` | Agent-only remarks | `"Seller motivated"` |
-| **ShowingInstructions** | `string` | Showing instructions | `"Call listing agent"` |
-| **InternetEntireListingDisplay** | `boolean` | Display on internet | `true` |
-| **InternetAddressDisplay** | `boolean` | Display address online | `true` |
+| **GarageSpaces** | `decimal` | Garage parking spaces | `2.0` |
+| **CarportSpaces** | `decimal` | Carport spaces | `null` |
+| **CoveredSpaces** | `decimal` | Covered parking spaces | `1.0` |
+| **OpenParkingSpaces** | `decimal` | Open parking spaces | `null` |
+| **ParkingTotal** | `decimal` | Total parking spaces | `2.0` |
+| **AttachedGarageYN** | `boolean` | Has attached garage | `false` |
+| **CarportYN** | `boolean` | Has carport | `false` |
+| **GarageYN** | `boolean` | Has garage | `true` |
+
+### Features & Amenities
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **FireplacesTotal** | `integer` | Number of fireplaces | `null` |
+| **FireplaceYN** | `boolean` | Has fireplace | `false` |
+| **HeatingYN** | `boolean` | Has heating | `true` |
+| **CoolingYN** | `boolean` | Has cooling | `true` |
+| **PoolPrivateYN** | `boolean` | Has private pool | `false` |
+| **SpaYN** | `boolean` | Has spa/hot tub | `false` |
+| **WaterfrontYN** | `boolean` | Is waterfront property | `false` |
+| **ViewYN** | `boolean` | Has view | `false` |
+| **NewConstructionYN** | `boolean` | Is new construction | `false` |
+
+### Listing Dates & Times
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **OnMarketDate** | `datetime` | Date listed | `"2024-12-27"` |
+| **OffMarketDate** | `datetime` | Date delisted | `null` |
+| **ContractStatusChangeDate** | `datetime` | Contract status change | `"2025-01-29"` |
+| **ListingContractDate** | `datetime` | Listing agreement date | `"2024-12-27"` |
+| **CloseDate** | `datetime` | Closing date | `null` |
+| **ModificationTimestamp** | `datetime` | Last modification | `"2025-01-31T18:48:38Z"` |
+| **OriginalEntryTimestamp** | `datetime` | Original entry date | `"2024-12-27T21:56:13Z"` |
+| **PhotosChangeTimestamp** | `datetime` | Photos last updated | `"2025-01-24T20:18:07Z"` |
+| **PriceChangeTimestamp** | `datetime` | Price last changed | `"2025-01-22T23:11:33Z"` |
+| **StatusChangeTimestamp** | `datetime` | Status last changed | `"2025-01-29T17:48:45Z"` |
+
+### Days on Market
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **DaysOnMarket** | `integer` | Current days on market | `35` |
+| **CumulativeDaysOnMarket** | `integer` | Total cumulative DOM | `null` |
+
+### Agent & Office Information
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **ListAgentKeyNumeric** | `integer` | Listing agent numeric key | `69404` |
+| **ListAgentKey** | `string` | Listing agent key | `"69404"` |
+| **ListAgentMlsId** | `string` | Agent MLS ID | `"69404"` |
+| **ListAgentFirstName** | `string` | Agent first name | `"Andrea"` |
+| **ListAgentLastName** | `string` | Agent last name | `"Miller"` |
+| **ListAgentFullName** | `string` | Agent full name | `"Andrea Lynn Miller"` |
+| **ListAgentPreferredPhone** | `string` | Agent phone | `"801-450-2200"` |
+| **ListAgentOfficePhone** | `string` | Office phone | `"801-676-0400"` |
+| **ListAgentStateLicense** | `string` | Agent license | `"13757889-SA00"` |
+| **ListOfficeKeyNumeric** | `integer` | Office numeric key | `51607` |
+| **ListOfficeKey** | `string` | Office key | `"51607"` |
+| **ListOfficeMlsId** | `string` | Office MLS ID | `"51607"` |
+| **ListOfficeName** | `string` | Office name | `"Equity Real Estate (Solid)"` |
+
+### Additional Details
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **PublicRemarks** | `string` | Public description | `"Beautiful home..."` |
+| **ShowingContactName** | `string` | Showing contact | `"Andrea Miller"` |
+| **ShowingContactPhone** | `string` | Showing phone | `"801-450-2200"` |
+| **Directions** | `string` | Property directions | `""` |
+| **VirtualTourURLBranded** | `string` | Branded virtual tour | `null` |
+| **VirtualTourURLUnbranded** | `string` | Unbranded virtual tour | `null` |
 
 ---
 
