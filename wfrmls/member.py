@@ -316,16 +316,16 @@ class MemberClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get members modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.member.get_modified_members(
                 since=cutoff_time.isoformat() + "Z"
             )
 
             # Get members modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.member.get_modified_members(
                 since=yesterday.isoformat() + "Z"
             )

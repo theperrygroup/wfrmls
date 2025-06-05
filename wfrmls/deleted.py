@@ -1,6 +1,6 @@
 """Deleted records client for WFRMLS API."""
 
-from datetime import date
+from datetime import date, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
@@ -89,7 +89,7 @@ class DeletedClient(BaseClient):
 
             # Get recent deletions (last 24 hours)
             from datetime import datetime, timedelta
-            cutoff = datetime.utcnow() - timedelta(days=1)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=1)
             recent_deletions = client.deleted.get_deleted(
                 filter_query=f"DeletedDateTime gt {cutoff.isoformat()}Z",
                 orderby="DeletedDateTime desc"
@@ -195,13 +195,13 @@ class DeletedClient(BaseClient):
             from datetime import datetime, timedelta
 
             # Get records deleted in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             recent_deletions = client.deleted.get_deleted_since(
                 since=cutoff_time.isoformat() + "Z"
             )
 
             # Get properties deleted since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             deleted_properties = client.deleted.get_deleted_since(
                 since=yesterday.isoformat() + "Z",
                 resource_name=ResourceName.PROPERTY
@@ -341,7 +341,7 @@ class DeletedClient(BaseClient):
             from datetime import datetime, timedelta
 
             # Get all deletions in last hour for comprehensive sync
-            cutoff = datetime.utcnow() - timedelta(hours=1)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
             all_deletions = client.deleted.get_all_deleted_for_sync(
                 since=cutoff.isoformat() + "Z",
                 resource_types=[ResourceName.PROPERTY, ResourceName.MEMBER, ResourceName.MEDIA]
@@ -430,7 +430,7 @@ class DeletedClient(BaseClient):
             from datetime import datetime, timedelta
 
             # Get deletion summary for last 24 hours
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             summary = client.deleted.get_deletion_summary(
                 since=yesterday.isoformat() + "Z"
             )
@@ -518,7 +518,7 @@ class DeletedClient(BaseClient):
         """
         from datetime import datetime, timedelta
 
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
         since_str = cutoff_time.isoformat() + "Z"
 
         # Get deletion summary for the period
@@ -567,5 +567,5 @@ class DeletedClient(BaseClient):
             "alerts": alerts,
             "recommendations": recommendations,
             "status": "ALERT" if alerts else "NORMAL",
-            "monitoring_timestamp": datetime.utcnow().isoformat() + "Z",
+            "monitoring_timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         }

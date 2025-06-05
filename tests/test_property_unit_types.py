@@ -4,9 +4,6 @@ from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
-from wfrmls.exceptions import WFRMLSError
 from wfrmls.property_unit_types import PropertyUnitTypesClient
 
 
@@ -154,7 +151,7 @@ class TestPropertyUnitTypesClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_unit_types.return_value = mock_response
 
-        result = self.client.get_residential_unit_types()
+        self.client.get_residential_unit_types()
 
         # Check that the method was called with a complex filter
         mock_get_unit_types.assert_called_once()
@@ -227,3 +224,57 @@ class TestPropertyUnitTypesClient:
         )
         assert hasattr(client, "bearer_token")
         assert hasattr(client, "base_url")
+
+    @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
+    def test_get_unit_types_for_property_with_existing_filter(
+        self, mock_get_unit_types: Mock
+    ) -> None:
+        """Test get_unit_types_for_property with existing filter_query."""
+        mock_response: Dict[str, Any] = {"value": []}
+        mock_get_unit_types.return_value = mock_response
+
+        result = self.client.get_unit_types_for_property(
+            listing_key="1611952", filter_query="UnitType eq 'Condo'"
+        )
+
+        # Should combine the filters with 'and'
+        expected_filter = "ListingKey eq '1611952' and UnitType eq 'Condo'"
+        mock_get_unit_types.assert_called_once_with(filter_query=expected_filter)
+
+    @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
+    def test_get_unit_types_by_type_with_existing_filter(
+        self, mock_get_unit_types: Mock
+    ) -> None:
+        """Test get_unit_types_by_type with existing filter_query."""
+        mock_response: Dict[str, Any] = {"value": []}
+        mock_get_unit_types.return_value = mock_response
+
+        result = self.client.get_unit_types_by_type(
+            unit_type="Condo", filter_query="PropertyKey eq '12345'"
+        )
+
+        # Should combine the filters with 'and'
+        expected_filter = "UnitType eq 'Condo' and PropertyKey eq '12345'"
+        mock_get_unit_types.assert_called_once_with(filter_query=expected_filter)
+
+    @patch("wfrmls.property_unit_types.PropertyUnitTypesClient.get_property_unit_types")
+    def test_get_residential_unit_types_with_existing_filter(
+        self, mock_get_unit_types: Mock
+    ) -> None:
+        """Test get_residential_unit_types with existing filter_query."""
+        mock_response: Dict[str, Any] = {"value": []}
+        mock_get_unit_types.return_value = mock_response
+
+        result = self.client.get_residential_unit_types(
+            filter_query="ModificationTimestamp gt '2023-01-01Z'"
+        )
+
+        # Should combine the residential filter with the existing filter
+        mock_get_unit_types.assert_called_once()
+        call_args = mock_get_unit_types.call_args
+        assert "filter_query" in call_args.kwargs
+        filter_query = call_args.kwargs["filter_query"]
+        # Should contain both the residential types filter and the existing filter
+        assert "UnitType eq 'Condo'" in filter_query
+        assert "ModificationTimestamp gt '2023-01-01Z'" in filter_query
+        assert " and " in filter_query

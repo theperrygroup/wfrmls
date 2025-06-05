@@ -1,13 +1,8 @@
 """Tests for WFRMLS Analytics module."""
 
-import json
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 from wfrmls.analytics import WFRMLSAnalytics
-from wfrmls.exceptions import WFRMLSError
 
 
 class TestWFRMLSAnalytics:

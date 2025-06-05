@@ -1,7 +1,6 @@
 """DataSystem client for WFRMLS API."""
 
 from datetime import date, datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from .base_client import BaseClient
@@ -175,10 +174,10 @@ class DataSystemClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get systems modified in last day
-            cutoff_time = datetime.utcnow() - timedelta(days=1)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.data_system.get_modified_data_systems(
                 since=cutoff_time
             )

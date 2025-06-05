@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wfrmls"
-version = "1.3.4"
+version = "1.3.5"
 description = "Python wrapper for Wasatch Front Regional MLS API"
 readme = "README.md"
 license = {file = "LICENSE"}
