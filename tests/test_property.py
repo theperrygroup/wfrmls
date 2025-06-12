@@ -151,7 +151,7 @@ class TestPropertyClient:
 
         responses.add(
             responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property('12345678')",
+            "https://resoapi.utahrealestate.com/reso/odata/Property(12345678)",
             json=mock_response,
             status=200,
         )
@@ -160,82 +160,44 @@ class TestPropertyClient:
         assert result == mock_response
         assert len(responses.calls) == 1
 
+    def test_get_property_invalid_id(self) -> None:
+        """Test get property with invalid (non-numeric) ID."""
+        with pytest.raises(ValidationError, match="Listing ID must be numeric"):
+            self.client.get_property("nonexistent")
+
     @responses.activate
     def test_get_property_not_found(self) -> None:
         """Test get property not found error."""
         responses.add(
             responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property('nonexistent')",
+            "https://resoapi.utahrealestate.com/reso/odata/Property(99999999)",
             json={"error": {"message": "Property not found"}},
             status=404,
         )
 
         with pytest.raises(NotFoundError, match="Resource not found"):
-            self.client.get_property("nonexistent")
+            self.client.get_property("99999999")
 
-    @responses.activate
-    def test_search_properties_by_radius_success(self) -> None:
-        """Test geolocation radius search."""
-        mock_response = {"@odata.context": "test", "value": []}
+    def test_search_properties_by_radius_not_supported(self) -> None:
+        """Test that geolocation radius search raises ValidationError."""
+        with pytest.raises(ValidationError, match="Geospatial radius search is not supported"):
+            self.client.search_properties_by_radius(
+                latitude=40.7608,
+                longitude=-111.8910,
+                radius_miles=10,
+                additional_filters="StandardStatus eq 'Active'",
+                top=50,
+            )
 
-        responses.add(
-            responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property",
-            json=mock_response,
-            status=200,
-        )
-
-        result = self.client.search_properties_by_radius(
-            latitude=40.7608,
-            longitude=-111.8910,
-            radius_miles=10,
-            additional_filters="StandardStatus eq 'Active'",
-            top=50,
-        )
-
-        assert result == mock_response
-        request = responses.calls[0].request
-        assert request.url is not None
-        assert "geo.distance" in request.url
-        assert "40.7608" in request.url
-        assert "-111.891" in request.url  # URL encoding may truncate trailing zero
-        assert "le+10" in request.url
-        assert "StandardStatus+eq+%27Active%27" in request.url
-        assert "%24top=50" in request.url
-
-    @responses.activate
     def test_search_properties_by_radius_no_additional_filters(self) -> None:
-        """Test radius search without additional filters."""
-        mock_response = {"@odata.context": "test", "value": []}
+        """Test radius search without additional filters raises ValidationError."""
+        with pytest.raises(ValidationError, match="Geospatial radius search is not supported"):
+            self.client.search_properties_by_radius(
+                latitude=40.7608, longitude=-111.8910, radius_miles=5
+            )
 
-        responses.add(
-            responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property",
-            json=mock_response,
-            status=200,
-        )
-
-        result = self.client.search_properties_by_radius(
-            latitude=40.7608, longitude=-111.8910, radius_miles=5
-        )
-
-        assert result == mock_response
-        request = responses.calls[0].request
-        assert request.url is not None
-        assert "geo.distance" in request.url
-
-    @responses.activate
-    def test_search_properties_by_polygon_success(self) -> None:
-        """Test geolocation polygon search."""
-        mock_response = {"@odata.context": "test", "value": []}
-
-        responses.add(
-            responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property",
-            json=mock_response,
-            status=200,
-        )
-
+    def test_search_properties_by_polygon_not_supported(self) -> None:
+        """Test that geolocation polygon search raises ValidationError."""
         polygon = [
             {"lat": 40.7608, "lng": -111.8910},
             {"lat": 40.7708, "lng": -111.8810},
@@ -243,43 +205,23 @@ class TestPropertyClient:
             {"lat": 40.7608, "lng": -111.8910},
         ]
 
-        result = self.client.search_properties_by_polygon(
-            polygon_coordinates=polygon,
-            additional_filters="PropertyType eq 'Residential'",
-            top=100,
-        )
+        with pytest.raises(ValidationError, match="Geospatial polygon search is not supported"):
+            self.client.search_properties_by_polygon(
+                polygon_coordinates=polygon,
+                additional_filters="PropertyType eq 'Residential'",
+                top=100,
+            )
 
-        assert result == mock_response
-        request = responses.calls[0].request
-        assert request.url is not None
-        assert "geo.intersects" in request.url
-        assert "POLYGON" in request.url
-        assert "PropertyType+eq+%27Residential%27" in request.url
-
-    @responses.activate
     def test_search_properties_by_polygon_no_additional_filters(self) -> None:
-        """Test polygon search without additional filters."""
-        mock_response = {"@odata.context": "test", "value": []}
-
-        responses.add(
-            responses.GET,
-            "https://resoapi.utahrealestate.com/reso/odata/Property",
-            json=mock_response,
-            status=200,
-        )
-
+        """Test polygon search without additional filters raises ValidationError."""
         polygon = [
             {"lat": 40.7608, "lng": -111.8910},
             {"lat": 40.7708, "lng": -111.8810},
             {"lat": 40.7508, "lng": -111.8710},
         ]
 
-        result = self.client.search_properties_by_polygon(polygon_coordinates=polygon)
-
-        assert result == mock_response
-        request = responses.calls[0].request
-        assert request.url is not None
-        assert "geo.intersects" in request.url
+        with pytest.raises(ValidationError, match="Geospatial polygon search is not supported"):
+            self.client.search_properties_by_polygon(polygon_coordinates=polygon)
 
     @responses.activate
     def test_get_properties_with_media(self) -> None:
