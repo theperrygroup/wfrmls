@@ -156,6 +156,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "contains" in request.url
         assert "MemberFirstName" in request.url
         assert "MemberLastName" in request.url
@@ -178,6 +179,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "contains" in request.url
         assert "MemberLastName" in request.url
         assert "Smith" in request.url
@@ -198,6 +200,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "%24expand=Office" in request.url or "$expand=Office" in request.url
         assert "%24top=25" in request.url
 
@@ -218,6 +221,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "ModificationTimestamp+gt+2023-01-01Z" in request.url
 
     def test_enum_values(self) -> None:
@@ -247,6 +251,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         # Should be capped at 200
         assert "%24top=200" in request.url or "$top=200" in request.url
 
@@ -268,6 +273,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "MemberKey" in request.url
         assert "MemberFirstName" in request.url
         assert "MemberLastName" in request.url
@@ -288,6 +294,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         assert "%24expand=Office%2CProperty" in request.url
 
     @responses.activate
@@ -308,6 +315,7 @@ class TestMemberClient:
 
         assert result == mock_response
         request = responses.calls[0].request
+        assert request.url is not None
         # Should contain both filters combined with 'and'
         assert "OfficeKey" in request.url
         assert "12345" in request.url
