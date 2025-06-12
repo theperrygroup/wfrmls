@@ -9,6 +9,8 @@ due to server-side issues (504 Gateway Timeouts and missing entity types).
 
 import os
 from datetime import datetime, timedelta
+from typing import Any, Callable
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,7 +19,7 @@ from wfrmls.exceptions import AuthenticationError, WFRMLSError
 
 
 @pytest.fixture
-def client():
+def client() -> WFRMLSClient:
     """Create a test client with real API credentials."""
     # Set the bearer token from environment or use test token
     os.environ["WFRMLS_BEARER_TOKEN"] = "9d0243d7632d115b002acf3547d2d7ee"
@@ -27,14 +29,14 @@ def client():
 class TestIntegration:
     """Integration tests with real API calls."""
 
-    def test_client_initialization(self, client):
+    def test_client_initialization(self, client: WFRMLSClient) -> None:
         """Test that client initializes without errors."""
         assert client is not None
         assert hasattr(client, "property")
         assert hasattr(client, "member")
         assert hasattr(client, "office")
 
-    def test_property_client_basic(self, client):
+    def test_property_client_basic(self, client: WFRMLSClient) -> None:
         """Test basic property client functionality."""
         # Get one property to test basic functionality
         response = client.property.get_properties(top=1)
@@ -49,7 +51,7 @@ class TestIntegration:
             # Should have some basic property fields
             assert "ListingId" in property_data or "ListingKey" in property_data
 
-    def test_property_client_count(self, client):
+    def test_property_client_count(self, client: WFRMLSClient) -> None:
         """Test property count functionality."""
         response = client.property.get_properties(top=1, count=True)
 
@@ -59,7 +61,7 @@ class TestIntegration:
         assert total_count > 0
         print(f"Total properties in system: {total_count:,}")
 
-    def test_property_client_active_filter(self, client):
+    def test_property_client_active_filter(self, client: WFRMLSClient) -> None:
         """Test active properties filtering."""
         response = client.property.get_active_properties(top=5)
 
@@ -67,7 +69,7 @@ class TestIntegration:
         assert "value" in response
         assert len(response["value"]) <= 5
 
-    def test_property_client_specific_fields(self, client):
+    def test_property_client_specific_fields(self, client: WFRMLSClient) -> None:
         """Test selecting specific fields."""
         response = client.property.get_properties(
             top=1, select=["ListingId", "ListPrice", "StandardStatus"]
@@ -79,7 +81,7 @@ class TestIntegration:
             # Should only have selected fields (plus any system fields)
             assert "ListingId" in property_data or "ListingKey" in property_data
 
-    def test_member_client_basic(self, client):
+    def test_member_client_basic(self, client: WFRMLSClient) -> None:
         """Test basic member client functionality."""
         response = client.member.get_members(top=1)
 
@@ -93,7 +95,7 @@ class TestIntegration:
             # Should have some basic member fields
             assert "MemberKey" in member_data
 
-    def test_member_client_count(self, client):
+    def test_member_client_count(self, client: WFRMLSClient) -> None:
         """Test member count functionality."""
         response = client.member.get_members(top=1, count=True)
 
@@ -103,7 +105,7 @@ class TestIntegration:
         assert total_count > 0
         print(f"Total members in system: {total_count:,}")
 
-    def test_member_client_active_filter(self, client):
+    def test_member_client_active_filter(self, client: WFRMLSClient) -> None:
         """Test active members filtering."""
         response = client.member.get_active_members(top=5)
 
@@ -111,7 +113,7 @@ class TestIntegration:
         assert "value" in response
         assert len(response["value"]) <= 5
 
-    def test_office_client_basic(self, client):
+    def test_office_client_basic(self, client: WFRMLSClient) -> None:
         """Test basic office client functionality."""
         response = client.office.get_offices(top=1)
 
@@ -125,7 +127,7 @@ class TestIntegration:
             # Should have some basic office fields
             assert "OfficeKey" in office_data
 
-    def test_office_client_count(self, client):
+    def test_office_client_count(self, client: WFRMLSClient) -> None:
         """Test office count functionality."""
         response = client.office.get_offices(top=1, count=True)
 
@@ -135,7 +137,7 @@ class TestIntegration:
         assert total_count > 0
         print(f"Total offices in system: {total_count:,}")
 
-    def test_office_client_active_filter(self, client):
+    def test_office_client_active_filter(self, client: WFRMLSClient) -> None:
         """Test active offices filtering."""
         response = client.office.get_active_offices(top=5)
 
@@ -366,6 +368,184 @@ class TestErrorHandling:
 
         with pytest.raises(ValidationError):
             client.property.get_property("nonexistent_key")
+
+
+@pytest.fixture
+def bearer_token() -> str:
+    """Get bearer token from environment or return test token."""
+    return os.environ.get("WFRMLS_BEARER_TOKEN", "test_bearer_token")
+
+
+def test_client_initialization(bearer_token: str) -> None:
+    """Test client can be initialized."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.bearer_token == bearer_token
+
+
+def test_property_endpoint_accessible(bearer_token: str) -> None:
+    """Test property endpoint is accessible."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client, "property")
+    assert client.property is not None
+
+
+def test_member_endpoint_accessible(bearer_token: str) -> None:
+    """Test member endpoint is accessible."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client, "member")
+    assert client.member is not None
+
+
+def test_office_endpoint_accessible(bearer_token: str) -> None:
+    """Test office endpoint is accessible."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client, "office")
+    assert client.office is not None
+
+
+def test_openhouse_endpoint_accessible(bearer_token: str) -> None:
+    """Test openhouse endpoint is accessible."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client, "open_house")
+    assert client.open_house is not None
+
+
+def test_deleted_endpoint_accessible(bearer_token: str) -> None:
+    """Test deleted endpoint is accessible."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client, "deleted")
+    assert client.deleted is not None
+
+
+def test_property_endpoint_has_required_methods(bearer_token: str) -> None:
+    """Test property endpoint has required methods."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client.property, "get_properties")
+    assert hasattr(client.property, "get_property")
+    assert hasattr(client.property, "search_properties")
+
+
+def test_member_endpoint_has_required_methods(bearer_token: str) -> None:
+    """Test member endpoint has required methods."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client.member, "get_members")
+    assert hasattr(client.member, "get_member")
+    assert hasattr(client.member, "get_active_members")
+
+
+def test_office_endpoint_has_required_methods(bearer_token: str) -> None:
+    """Test office endpoint has required methods."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client.office, "get_offices")
+    assert hasattr(client.office, "get_office")
+    assert hasattr(client.office, "get_active_offices")
+
+
+def test_openhouse_endpoint_has_required_methods(bearer_token: str) -> None:
+    """Test openhouse endpoint has required methods."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client.open_house, "get_open_houses")
+    assert hasattr(client.open_house, "get_open_house")
+    assert hasattr(client.open_house, "get_upcoming_open_houses")
+
+
+def test_deleted_endpoint_has_required_methods(bearer_token: str) -> None:
+    """Test deleted endpoint has required methods."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert hasattr(client.deleted, "get_deleted_properties")
+    assert hasattr(client.deleted, "get_deleted_members")
+    assert hasattr(client.deleted, "get_deleted_offices")
+    assert hasattr(client.deleted, "get_deleted_open_houses")
+
+
+def test_property_client_bearer_token_propagation(bearer_token: str) -> None:
+    """Test bearer token is properly propagated to property client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.property.bearer_token == bearer_token
+
+
+def test_member_client_bearer_token_propagation(bearer_token: str) -> None:
+    """Test bearer token is properly propagated to member client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.member.bearer_token == bearer_token
+
+
+def test_office_client_bearer_token_propagation(bearer_token: str) -> None:
+    """Test bearer token is properly propagated to office client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.office.bearer_token == bearer_token
+
+
+def test_openhouse_client_bearer_token_propagation(bearer_token: str) -> None:
+    """Test bearer token is properly propagated to openhouse client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.open_house.bearer_token == bearer_token
+
+
+def test_deleted_client_bearer_token_propagation(bearer_token: str) -> None:
+    """Test bearer token is properly propagated to deleted client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.deleted.bearer_token == bearer_token
+
+
+def test_property_base_url_propagation(bearer_token: str) -> None:
+    """Test base URL is properly propagated to property client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.property.base_url == "https://resoapi.utahrealestate.com/reso/odata"
+
+
+def test_member_base_url_propagation(bearer_token: str) -> None:
+    """Test base URL is properly propagated to member client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.member.base_url == "https://resoapi.utahrealestate.com/reso/odata"
+
+
+def test_office_base_url_propagation(bearer_token: str) -> None:
+    """Test base URL is properly propagated to office client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.office.base_url == "https://resoapi.utahrealestate.com/reso/odata"
+
+
+def test_openhouse_base_url_propagation(bearer_token: str) -> None:
+    """Test base URL is properly propagated to openhouse client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.open_house.base_url == "https://resoapi.utahrealestate.com/reso/odata"
+
+
+def test_deleted_base_url_propagation(bearer_token: str) -> None:
+    """Test base URL is properly propagated to deleted client."""
+    client = WFRMLSClient(bearer_token=bearer_token)
+    assert client.deleted.base_url == "https://resoapi.utahrealestate.com/reso/odata"
+
+
+def test_custom_base_url_propagation(bearer_token: str) -> None:
+    """Test custom base URL is properly propagated to all clients."""
+    custom_base_url = "https://custom.api.url/reso/odata"
+    client = WFRMLSClient(bearer_token=bearer_token, base_url=custom_base_url)
+
+    assert client.property.base_url == custom_base_url
+    assert client.member.base_url == custom_base_url
+    assert client.office.base_url == custom_base_url
+    assert client.open_house.base_url == custom_base_url
+    assert client.deleted.base_url == custom_base_url
+
+
+@pytest.fixture
+def mock_client() -> Callable[[], Any]:
+    """Create a mock WFRMLS client for testing."""
+    mock = Mock(spec=WFRMLSClient)
+    return lambda: mock
+
+
+def test_mock_client_integration(mock_client: Callable[[], Any]) -> None:
+    """Test integration with mocked client."""
+    client = WFRMLSClient(bearer_token="test_token")
+
+    # Test that all endpoints are available
+    assert client.property is not None
+    assert client.member is not None
+    assert client.office is not None
+    assert client.open_house is not None
 
 
 if __name__ == "__main__":
