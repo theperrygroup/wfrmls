@@ -205,7 +205,7 @@ class OpenHouseClient(BaseClient):
         kwargs.pop("days_ahead", None)
 
         if days_ahead is not None:
-            from datetime import datetime, timedelta
+            from datetime import datetime
 
             start_date = datetime.now().date()
             filter_query = f"OpenHouseDate ge {start_date.isoformat()}"
@@ -375,16 +375,16 @@ class OpenHouseClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get open houses modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.openhouse.get_modified_open_houses(
                 since=cutoff_time
             )
 
             # Get open houses modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.openhouse.get_modified_open_houses(
                 since=yesterday,
                 orderby="ModificationTimestamp desc"
@@ -421,7 +421,7 @@ class OpenHouseClient(BaseClient):
 
         Example:
             ```python
-            from datetime import date
+            from datetime import date, timezone
 
             # Get open houses for January 2024
             start_date = date(2024, 1, 1)
@@ -480,7 +480,7 @@ class OpenHouseClient(BaseClient):
             )
             ```
         """
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         # Calculate the date range for weekends
         start_date = datetime.now().date()

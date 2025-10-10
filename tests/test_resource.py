@@ -4,9 +4,6 @@ from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
-from wfrmls.exceptions import WFRMLSError
 from wfrmls.resource import ResourceClient
 
 
@@ -155,7 +152,7 @@ class TestResourceClient:
         mock_response: Dict[str, Any] = {"value": []}
         mock_get_resources.return_value = mock_response
 
-        result = self.client.get_standard_resources()
+        self.client.get_standard_resources()
 
         mock_get_resources.assert_called_once_with(filter_query="StandardName ne null")
 

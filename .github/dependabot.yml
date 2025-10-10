@@ -1,0 +1,75 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "theperrygroup"
+    assignees:
+      - "theperrygroup"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      production-dependencies:
+        patterns:
+          - "requests*"
+          - "python-dotenv*"
+      development-dependencies:
+        patterns:
+          - "pytest*"
+          - "black*"
+          - "flake8*"
+          - "mypy*"
+          - "isort*"
+          - "pylint*"
+          - "responses*"
+      documentation-dependencies:
+        patterns:
+          - "mkdocs*"
+          - "pymdown-extensions*"
+          - "pillow*"
+          - "cairosvg*"
+          - "griffe*"
+          - "mike*"
+    ignore:
+      # Ignore patch updates for stable packages
+      - dependency-name: "requests"
+        update-types: ["version-update:semver-patch"]
+
+  # Documentation dependencies
+  - package-ecosystem: "pip"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "theperrygroup"
+    assignees:
+      - "theperrygroup"
+    commit-message:
+      prefix: "docs"
+      include: "scope"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "theperrygroup"
+    assignees:
+      - "theperrygroup"
+    commit-message:
+      prefix: "ci"
+      include: "scope" 

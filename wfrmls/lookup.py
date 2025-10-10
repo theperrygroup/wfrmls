@@ -1,7 +1,6 @@
 """Lookup client for WFRMLS API."""
 
 from datetime import date, datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from .base_client import BaseClient
@@ -329,10 +328,10 @@ class LookupClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get lookups modified in last month
-            cutoff_time = datetime.utcnow() - timedelta(days=30)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=30)
             updates = client.lookup.get_modified_lookups(
                 since=cutoff_time
             )

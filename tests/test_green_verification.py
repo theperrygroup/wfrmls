@@ -1,12 +1,8 @@
 """Tests for WFRMLS Green Verification module."""
 
-from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
-from wfrmls.exceptions import WFRMLSError
 from wfrmls.green_verification import GreenVerificationClient, GreenVerificationType
 
 

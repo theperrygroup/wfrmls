@@ -278,7 +278,7 @@ class HistoryTransactionalClient(BaseClient):
 
         Example:
             ```python
-            from datetime import date
+            from datetime import date, timezone
 
             # Get sales from Q1 2023
             q1_sales = client.history.get_sales_by_date_range(
@@ -288,7 +288,7 @@ class HistoryTransactionalClient(BaseClient):
             )
 
             # Get sales from last 30 days
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             recent_sales = client.history.get_sales_by_date_range(
                 start_date=datetime.now() - timedelta(days=30),
                 end_date=datetime.now(),
@@ -481,16 +481,16 @@ class HistoryTransactionalClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get transactions modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.history.get_modified_transactions(
                 since=cutoff_time
             )
 
             # Get transactions modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.history.get_modified_transactions(
                 since=yesterday,
                 orderby="ModificationTimestamp desc"

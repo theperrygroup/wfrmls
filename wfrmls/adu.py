@@ -359,10 +359,10 @@ class AduClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get ADUs modified in last week
-            cutoff_time = datetime.utcnow() - timedelta(days=7)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
             updates = client.adu.get_modified_adus(
                 since=cutoff_time
             )
