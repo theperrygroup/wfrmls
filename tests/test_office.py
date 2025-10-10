@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ValidationError
+from wfrmls.exceptions import NotFoundError
 from wfrmls.office import OfficeClient, OfficeStatus, OfficeType
 
 
@@ -272,3 +272,111 @@ class TestOfficeClient:
         assert "ABC" in request.url
         assert "OfficeStatus" in request.url
         assert "Active" in request.url
+
+    @responses.activate
+    def test_get_offices_by_city(self) -> None:
+        """Test get offices by city."""
+        mock_response = {"@odata.context": "test", "value": []}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Office",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_offices_by_city(city="Salt Lake City")
+
+        assert result == mock_response
+        request = responses.calls[0].request
+        assert request.url is not None
+        assert "OfficeCity" in request.url
+        assert "Salt+Lake+City" in request.url or "Salt Lake City" in request.url
+
+    @responses.activate
+    def test_get_offices_by_city_with_existing_filter(self) -> None:
+        """Test get offices by city with existing filter."""
+        mock_response = {"@odata.context": "test", "value": []}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Office",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_offices_by_city(
+            city="Provo", filter_query="OfficeStatus eq 'Active'"
+        )
+
+        assert result == mock_response
+        request = responses.calls[0].request
+        assert request.url is not None
+        assert "OfficeCity" in request.url
+        assert "Provo" in request.url
+        assert "OfficeStatus" in request.url
+        assert "Active" in request.url
+
+    @responses.activate
+    def test_get_offices_by_zipcode(self) -> None:
+        """Test get offices by zipcode."""
+        mock_response = {"@odata.context": "test", "value": []}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Office",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_offices_by_zipcode(zipcode="84101")
+
+        assert result == mock_response
+        request = responses.calls[0].request
+        assert request.url is not None
+        assert "OfficePostalCode" in request.url
+        assert "84101" in request.url
+
+    @responses.activate
+    def test_get_offices_by_zipcode_with_existing_filter(self) -> None:
+        """Test get offices by zipcode with existing filter."""
+        mock_response = {"@odata.context": "test", "value": []}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Office",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_offices_by_zipcode(
+            zipcode="84101", filter_query="OfficeStatus eq 'Active'"
+        )
+
+        assert result == mock_response
+        request = responses.calls[0].request
+        assert request.url is not None
+        assert "OfficePostalCode" in request.url
+        assert "84101" in request.url
+        assert "OfficeStatus" in request.url
+        assert "Active" in request.url
+
+    @responses.activate
+    def test_get_office_success(self) -> None:
+        """Test successful get office by key."""
+        mock_response = {
+            "OfficeKey": "12345",
+            "OfficeName": "ABC Realty",
+            "OfficeStatus": "Active",
+        }
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Office('12345')",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_office("12345")
+        assert result == mock_response
+        assert len(responses.calls) == 1

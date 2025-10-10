@@ -1,13 +1,13 @@
 """Tests for deleted records client."""
 
-from datetime import date, datetime, timedelta
+from datetime import date
 from typing import Any, Dict
 
 import pytest
 import responses
 
 from wfrmls.deleted import DeletedClient, ResourceName
-from wfrmls.exceptions import NotFoundError, ValidationError, WFRMLSError
+from wfrmls.exceptions import NotFoundError
 
 
 class TestDeletedClientInit:

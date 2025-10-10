@@ -1,12 +1,9 @@
 """Tests for WFRMLS Media module."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any, Dict
 from unittest.mock import Mock, patch
 
-import pytest
-
-from wfrmls.exceptions import WFRMLSError
 from wfrmls.media import MediaCategory, MediaClient, MediaType
 
 
