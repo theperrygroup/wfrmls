@@ -112,6 +112,38 @@ if member:
     print(f"Phone: {member['MemberPreferredPhone']}")
 ```
 
+### `get_member_by_mls_id()`
+
+Retrieve detailed information for a specific member by MLS ID.
+
+```python
+def get_member_by_mls_id(mls_id: str) -> Dict[str, Any]
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `mls_id` | `str` | MLS ID of the member to retrieve |
+
+**Returns:**
+- `Dict[str, Any]` - Member dictionary with office information included
+
+**Raises:**
+- `NotFoundError` - If no member with the given MLS ID is found
+- `WFRMLSError` - If the API request fails
+
+**Examples:**
+
+```python
+# Get agent details by MLS ID
+agent = client.member.get_member_by_mls_id("4020986")
+
+print(f"Agent: {agent['MemberFullName']}")
+print(f"Email: {agent['MemberEmail']}")
+print(f"Office: {agent['OfficeName']}")
+```
+
 ---
 
 ## 🏷️ Field Reference

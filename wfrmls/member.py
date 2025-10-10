@@ -154,6 +154,44 @@ class MemberClient(BaseClient):
         """
         return self.get(f"Member('{member_key}')")
 
+    def get_member_by_mls_id(self, mls_id: str) -> Dict[str, Any]:
+        """Get member by MLS ID.
+
+        Retrieves a single member record by their MLS ID.
+        This method is useful when you have the MLS ID rather than the member key.
+
+        Args:
+            mls_id: MLS ID of the member to retrieve
+
+        Returns:
+            Dictionary containing member data for the specified MLS ID
+
+        Raises:
+            NotFoundError: If no member with the given MLS ID is found
+            WFRMLSError: If the API request fails
+
+        Example:
+            ```python
+            # Get agent details by MLS ID
+            agent = client.member.get_member_by_mls_id("4020986")
+
+            print(f"Agent: {agent['MemberFirstName']} {agent['MemberLastName']}")
+            print(f"Email: {agent['MemberEmail']}")
+            print(f"Office: {agent['OfficeName']}")
+            ```
+        """
+        results = self.get_members(
+            filter_query=f"MemberMlsId eq '{mls_id}'", expand="Office", top=1
+        )
+
+        values = results.get("value", [])
+        if not values:
+            from .exceptions import NotFoundError
+
+            raise NotFoundError(f"No member found with MLS ID: {mls_id}")
+
+        return dict(values[0])
+
     def get_active_members(self, **kwargs: Any) -> Dict[str, Any]:
         """Get members with Active status.
 

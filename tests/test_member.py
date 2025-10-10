@@ -1,6 +1,7 @@
 """Tests for member client."""
 
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 import pytest
 import responses
@@ -321,3 +322,269 @@ class TestMemberClient:
         assert "12345" in request.url
         assert "MemberStatus" in request.url
         assert "Active" in request.url
+
+
+@pytest.fixture
+def member_client():
+    """Create a member client for testing."""
+    return MemberClient(bearer_token="test_token")
+
+
+@pytest.fixture
+def mock_response():
+    """Create a mock response for testing."""
+    return {
+        "@odata.context": "https://api.example.com/odata/$metadata#Member",
+        "value": [
+            {
+                "MemberKey": "12345",
+                "MemberKeyNumeric": 12345,
+                "MemberMlsId": "4020986",
+                "MemberFirstName": "Lena",
+                "MemberLastName": "Watson",
+                "MemberFullName": "Lena A Watson",
+                "MemberEmail": "lena@example.com",
+                "MemberPreferredPhone": "801-414-3095",
+                "MemberStatus": "Active",
+                "OfficeName": "Real Broker, LLC",
+                "OfficeKey": "54321",
+            }
+        ],
+    }
+
+
+@pytest.fixture
+def mock_empty_response():
+    """Create an empty mock response for testing."""
+    return {
+        "@odata.context": "https://api.example.com/odata/$metadata#Member",
+        "value": [],
+    }
+
+
+def test_get_members(member_client):
+    """Test getting members with various parameters."""
+    with patch.object(member_client, "get") as mock_get:
+        mock_get.return_value = {"value": []}
+
+        # Test with no parameters
+        member_client.get_members()
+        mock_get.assert_called_with("Member", params={})
+
+        # Test with top parameter
+        member_client.get_members(top=10)
+        mock_get.assert_called_with("Member", params={"$top": 10})
+
+        # Test with filter parameter
+        member_client.get_members(filter_query="MemberStatus eq 'Active'")
+        mock_get.assert_called_with(
+            "Member", params={"$filter": "MemberStatus eq 'Active'"}
+        )
+
+        # Test with select parameter as list
+        member_client.get_members(select=["MemberKey", "MemberFullName"])
+        mock_get.assert_called_with(
+            "Member", params={"$select": "MemberKey,MemberFullName"}
+        )
+
+        # Test with select parameter as string
+        member_client.get_members(select="MemberKey,MemberFullName")
+        mock_get.assert_called_with(
+            "Member", params={"$select": "MemberKey,MemberFullName"}
+        )
+
+        # Test with expand parameter as list
+        member_client.get_members(expand=["Office", "Property"])
+        mock_get.assert_called_with("Member", params={"$expand": "Office,Property"})
+
+        # Test with expand parameter as string
+        member_client.get_members(expand="Office,Property")
+        mock_get.assert_called_with("Member", params={"$expand": "Office,Property"})
+
+        # Test with count parameter
+        member_client.get_members(count=True)
+        mock_get.assert_called_with("Member", params={"$count": "true"})
+
+        # Test with multiple parameters
+        member_client.get_members(
+            top=10,
+            skip=5,
+            filter_query="MemberStatus eq 'Active'",
+            select=["MemberKey", "MemberFullName"],
+            orderby="MemberLastName asc",
+            expand="Office",
+            count=True,
+        )
+        mock_get.assert_called_with(
+            "Member",
+            params={
+                "$top": 10,
+                "$skip": 5,
+                "$filter": "MemberStatus eq 'Active'",
+                "$select": "MemberKey,MemberFullName",
+                "$orderby": "MemberLastName asc",
+                "$expand": "Office",
+                "$count": "true",
+            },
+        )
+
+
+def test_get_member(member_client):
+    """Test getting a member by key."""
+    with patch.object(member_client, "get") as mock_get:
+        mock_get.return_value = {"MemberKey": "12345"}
+
+        result = member_client.get_member("12345")
+
+        mock_get.assert_called_with("Member('12345')")
+        assert result == {"MemberKey": "12345"}
+
+
+def test_get_member_by_mls_id(member_client, mock_response):
+    """Test getting a member by MLS ID."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = mock_response
+
+        result = member_client.get_member_by_mls_id("4020986")
+
+        mock_get_members.assert_called_with(
+            filter_query="MemberMlsId eq '4020986'", expand="Office", top=1
+        )
+        assert result["MemberMlsId"] == "4020986"
+        assert result["MemberFullName"] == "Lena A Watson"
+        assert result["OfficeName"] == "Real Broker, LLC"
+
+
+def test_get_member_by_mls_id_not_found(member_client, mock_empty_response):
+    """Test getting a member by MLS ID when not found."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = mock_empty_response
+
+        with pytest.raises(NotFoundError) as excinfo:
+            member_client.get_member_by_mls_id("nonexistent")
+
+        assert "No member found with MLS ID: nonexistent" in str(excinfo.value)
+
+
+def test_get_active_members(member_client):
+    """Test getting active members."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = {"value": []}
+
+        member_client.get_active_members()
+
+        mock_get_members.assert_called_with(filter_query="MemberStatus eq 'Active'")
+
+        # Test with additional parameters
+        member_client.get_active_members(top=10, orderby="MemberLastName")
+
+        mock_get_members.assert_called_with(
+            filter_query="MemberStatus eq 'Active'", top=10, orderby="MemberLastName"
+        )
+
+
+def test_get_members_by_office(member_client):
+    """Test getting members by office."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = {"value": []}
+
+        # Test with no additional filter
+        member_client.get_members_by_office("54321")
+
+        mock_get_members.assert_called_with(filter_query="OfficeKey eq '54321'")
+
+        # Test with additional filter
+        member_client.get_members_by_office(
+            "54321", filter_query="MemberStatus eq 'Active'"
+        )
+
+        mock_get_members.assert_called_with(
+            filter_query="OfficeKey eq '54321' and MemberStatus eq 'Active'"
+        )
+
+
+def test_search_members_by_name(member_client):
+    """Test searching members by name."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = {"value": []}
+
+        # Test with first name only
+        member_client.search_members_by_name(first_name="John")
+
+        mock_get_members.assert_called_with(
+            filter_query="contains(MemberFirstName, 'John')"
+        )
+
+        # Test with last name only
+        member_client.search_members_by_name(last_name="Smith")
+
+        mock_get_members.assert_called_with(
+            filter_query="contains(MemberLastName, 'Smith')"
+        )
+
+        # Test with both names
+        member_client.search_members_by_name(first_name="John", last_name="Smith")
+
+        mock_get_members.assert_called_with(
+            filter_query="contains(MemberFirstName, 'John') and contains(MemberLastName, 'Smith')"
+        )
+
+        # Test with no names
+        member_client.search_members_by_name()
+
+        mock_get_members.assert_called_with()
+
+
+def test_get_members_with_office(member_client):
+    """Test getting members with office information."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = {"value": []}
+
+        member_client.get_members_with_office()
+
+        mock_get_members.assert_called_with(expand="Office")
+
+        # Test with additional parameters
+        member_client.get_members_with_office(
+            top=10, filter_query="MemberStatus eq 'Active'"
+        )
+
+        mock_get_members.assert_called_with(
+            expand="Office", top=10, filter_query="MemberStatus eq 'Active'"
+        )
+
+
+def test_get_modified_members(member_client):
+    """Test getting modified members."""
+    with patch.object(member_client, "get_members") as mock_get_members:
+        mock_get_members.return_value = {"value": []}
+
+        # Test with string date
+        member_client.get_modified_members("2023-01-01T00:00:00Z")
+
+        mock_get_members.assert_called_with(
+            filter_query="ModificationTimestamp gt 2023-01-01T00:00:00Z"
+        )
+
+        # Test with date object
+        test_date = date(2023, 1, 1)
+
+        member_client.get_modified_members(test_date)
+
+        mock_get_members.assert_called_with(
+            filter_query="ModificationTimestamp gt 2023-01-01Z"
+        )
+
+
+def test_member_status_enum():
+    """Test the MemberStatus enum."""
+    assert MemberStatus.ACTIVE.value == "Active"
+    assert MemberStatus.INACTIVE.value == "Inactive"
+    assert MemberStatus.SUSPENDED.value == "Suspended"
+
+
+def test_member_type_enum():
+    """Test the MemberType enum."""
+    assert MemberType.AGENT.value == "Agent"
+    assert MemberType.BROKER.value == "Broker"
+    assert MemberType.ASSISTANT.value == "Assistant"

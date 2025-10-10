@@ -180,7 +180,9 @@ class TestPropertyClient:
 
     def test_search_properties_by_radius_not_supported(self) -> None:
         """Test that geolocation radius search raises ValidationError."""
-        with pytest.raises(ValidationError, match="Geospatial radius search is not supported"):
+        with pytest.raises(
+            ValidationError, match="Geospatial radius search is not supported"
+        ):
             self.client.search_properties_by_radius(
                 latitude=40.7608,
                 longitude=-111.8910,
@@ -191,7 +193,9 @@ class TestPropertyClient:
 
     def test_search_properties_by_radius_no_additional_filters(self) -> None:
         """Test radius search without additional filters raises ValidationError."""
-        with pytest.raises(ValidationError, match="Geospatial radius search is not supported"):
+        with pytest.raises(
+            ValidationError, match="Geospatial radius search is not supported"
+        ):
             self.client.search_properties_by_radius(
                 latitude=40.7608, longitude=-111.8910, radius_miles=5
             )
@@ -205,7 +209,9 @@ class TestPropertyClient:
             {"lat": 40.7608, "lng": -111.8910},
         ]
 
-        with pytest.raises(ValidationError, match="Geospatial polygon search is not supported"):
+        with pytest.raises(
+            ValidationError, match="Geospatial polygon search is not supported"
+        ):
             self.client.search_properties_by_polygon(
                 polygon_coordinates=polygon,
                 additional_filters="PropertyType eq 'Residential'",
@@ -220,7 +226,9 @@ class TestPropertyClient:
             {"lat": 40.7508, "lng": -111.8710},
         ]
 
-        with pytest.raises(ValidationError, match="Geospatial polygon search is not supported"):
+        with pytest.raises(
+            ValidationError, match="Geospatial polygon search is not supported"
+        ):
             self.client.search_properties_by_polygon(polygon_coordinates=polygon)
 
     @responses.activate
@@ -663,8 +671,8 @@ class TestPropertyClient:
         assert result == mock_response
         request = responses.calls[0].request
         assert request.url is not None
-        # Should filter by listing date within last 7 days using gt (greater than)
-        assert "ListingContractDate+gt" in request.url
+        # Should filter by market date within last 7 days using gt (greater than)
+        assert "OnMarketDate+gt" in request.url
 
     @responses.activate
     def test_get_new_listings_custom_days(self) -> None:
