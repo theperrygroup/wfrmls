@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from .base_client import BaseClient
+from .exceptions import ValidationError
 
 
 class PropertyStatus(Enum):
@@ -148,7 +149,7 @@ class PropertyClient(BaseClient):
         a specific property.
 
         Args:
-            listing_id: Listing ID to retrieve (ResourceRecordKey)
+            listing_id: Listing ID to retrieve (must be numeric)
 
         Returns:
             Dictionary containing property data for the specified listing
@@ -156,6 +157,7 @@ class PropertyClient(BaseClient):
         Raises:
             NotFoundError: If the property with the given ID is not found
             WFRMLSError: If the API request fails
+            ValidationError: If the listing_id is not a valid numeric value
 
         Example:
             ```python
@@ -166,7 +168,13 @@ class PropertyClient(BaseClient):
             print(f"Address: {property['UnparsedAddress']}")
             ```
         """
-        return self.get(f"Property('{listing_id}')")
+        # Ensure listing_id is numeric (API requires numeric keys without quotes)
+        try:
+            numeric_id = int(listing_id)
+        except ValueError:
+            raise ValidationError(f"Listing ID must be numeric, got: {listing_id}")
+
+        return self.get(f"Property({numeric_id})")
 
     def search_properties_by_radius(
         self,
@@ -178,8 +186,10 @@ class PropertyClient(BaseClient):
     ) -> Dict[str, Any]:
         """Search properties within a radius of given coordinates.
 
-        Uses geospatial queries to find properties within a specified distance
-        from a center point. This is ideal for location-based property searches.
+        WARNING: This method is not supported by the WFRMLS API as property records
+        do not contain latitude/longitude coordinates. This method will always fail.
+
+        Use city-based or address-based searches instead.
 
         Args:
             latitude: Latitude coordinate for center point
@@ -192,38 +202,25 @@ class PropertyClient(BaseClient):
             Dictionary containing property data within the specified radius
 
         Raises:
-            ValidationError: If coordinates are invalid
+            ValidationError: Always raised as geospatial data is not available
             WFRMLSError: If the API request fails
 
         Example:
             ```python
-            # Find properties within 10 miles of Salt Lake City
-            properties = client.property.search_properties_by_radius(
-                latitude=40.7608,
-                longitude=-111.8910,
-                radius_miles=10,
+            # This method will not work with WFRMLS API
+            # Use get_properties_by_city() instead:
+            properties = client.property.get_properties_by_city(
+                city="Salt Lake City",
                 additional_filters="StandardStatus eq 'Active'",
                 top=50
             )
-
-            # Find expensive properties near downtown
-            properties = client.property.search_properties_by_radius(
-                latitude=40.7608,
-                longitude=-111.8910,
-                radius_miles=5,
-                additional_filters="ListPrice ge 500000 and StandardStatus eq 'Active'",
-                orderby="ListPrice desc"
-            )
             ```
         """
-        geo_filter = f"geo.distance(Latitude, Longitude, {latitude}, {longitude}) le {radius_miles}"
-
-        if additional_filters:
-            filter_query = f"{geo_filter} and {additional_filters}"
-        else:
-            filter_query = geo_filter
-
-        return self.get_properties(filter_query=filter_query, **kwargs)
+        raise ValidationError(
+            "Geospatial radius search is not supported by the WFRMLS API. "
+            "Property records do not contain latitude/longitude coordinates. "
+            "Use city-based searches like get_properties_by_city() instead."
+        )
 
     def search_properties_by_polygon(
         self,
@@ -233,9 +230,10 @@ class PropertyClient(BaseClient):
     ) -> Dict[str, Any]:
         """Search properties within a polygon area.
 
-        Uses geospatial polygon intersection to find properties within
-        a defined boundary. Useful for searching within specific
-        neighborhoods, districts, or custom geographic areas.
+        WARNING: This method is not supported by the WFRMLS API as property records
+        do not contain latitude/longitude coordinates. This method will always fail.
+
+        Use city-based or address-based searches instead.
 
         Args:
             polygon_coordinates: List of coordinate dicts with 'lat' and 'lng' keys.
@@ -247,40 +245,25 @@ class PropertyClient(BaseClient):
             Dictionary containing property data within the polygon
 
         Raises:
-            ValidationError: If polygon coordinates are invalid
+            ValidationError: Always raised as geospatial data is not available
             WFRMLSError: If the API request fails
 
         Example:
             ```python
-            # Define polygon around downtown area
-            polygon = [
-                {"lat": 40.7608, "lng": -111.8910},
-                {"lat": 40.7708, "lng": -111.8810},
-                {"lat": 40.7508, "lng": -111.8710},
-                {"lat": 40.7608, "lng": -111.8910}  # Close polygon
-            ]
-
-            properties = client.property.search_properties_by_polygon(
-                polygon_coordinates=polygon,
+            # This method will not work with WFRMLS API
+            # Use get_properties_by_city() instead:
+            properties = client.property.get_properties_by_city(
+                city="Salt Lake City",
                 additional_filters="PropertyType eq 'Residential'",
                 top=100
             )
             ```
         """
-        # Build polygon string for geo.intersects function
-        coords_str = ",".join(
-            [f"{coord['lat']} {coord['lng']}" for coord in polygon_coordinates]
+        raise ValidationError(
+            "Geospatial polygon search is not supported by the WFRMLS API. "
+            "Property records do not contain latitude/longitude coordinates. "
+            "Use city-based searches like get_properties_by_city() instead."
         )
-        geo_filter = (
-            f"geo.intersects(Latitude, Longitude, geography'POLYGON(({coords_str}))')"
-        )
-
-        if additional_filters:
-            filter_query = f"{geo_filter} and {additional_filters}"
-        else:
-            filter_query = geo_filter
-
-        return self.get_properties(filter_query=filter_query, **kwargs)
 
     def get_properties_with_media(self, **kwargs: Any) -> Dict[str, Any]:
         """Get properties with their associated media/photos.
@@ -449,25 +432,26 @@ class PropertyClient(BaseClient):
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             # Get properties modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=15)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
             updates = client.property.get_modified_properties(
-                since=cutoff_time.isoformat() + "Z"
+                since=cutoff_time.isoformat().replace('+00:00', 'Z')
             )
 
             # Get properties modified since yesterday
-            yesterday = datetime.utcnow() - timedelta(days=1)
+            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
             updates = client.property.get_modified_properties(
-                since=yesterday.isoformat() + "Z"
+                since=yesterday.isoformat().replace('+00:00', 'Z')
             )
             ```
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"
         else:
-            since_str = since
+            # Ensure proper Z format (remove +00:00 if present to avoid double timezone)
+            since_str = since.replace("+00:00", "").rstrip("Z") + "Z"
 
         filter_query = f"ModificationTimestamp gt {since_str}"
         return self.get_properties(filter_query=filter_query, **kwargs)
@@ -779,16 +763,19 @@ class PropertyClient(BaseClient):
             new_listings = client.property.get_new_listings(
                 days_back=3,
                 filter_query="StandardStatus eq 'Active'",
-                orderby="ListingContractDate desc"
+                orderby="OnMarketDate desc"
             )
             ```
         """
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
-        cutoff_str = cutoff_date.isoformat() + "Z"
+        # Use timezone-aware datetime to avoid deprecation warning
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
+        # API expects date-only format (YYYY-MM-DD), not datetime format
+        cutoff_str = cutoff_date.strftime("%Y-%m-%d")
 
-        filter_query = f"ListingContractDate gt {cutoff_str}"
+        # Use OnMarketDate for when property went on market
+        filter_query = f"OnMarketDate gt {cutoff_str}"
 
         # If additional filter_query provided, combine them
         existing_filter = kwargs.get("filter_query")

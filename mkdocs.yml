@@ -70,13 +70,14 @@ nav:
     - Properties: api/properties.md
     - Members: api/members.md
     - Offices: api/offices.md
-    - Open Houses: api/openhouses.md
+    - Open House: api/openhouse.md
     - Lookup: api/lookup.md
     - ADU: api/adu.md
-    - Analytics: api/analytics.md
+    - Property Unit Types: api/property-unit-types.md
     - Deleted Records: api/deleted.md
+    - Resource: api/resource.md
     - Data System: api/data-system.md
-    - Exceptions: api/exceptions.md
+    - Live API Updates: api/live-api-updates.md
   - Examples:
     - examples/index.md
     - Basic Usage: examples/basic-usage.md
