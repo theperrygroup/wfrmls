@@ -105,6 +105,24 @@ class WFRMLSClient:
             )
         return self._base_client
 
+    @property_decorator
+    def bearer_token(self) -> Optional[str]:
+        """Get the configured bearer token.
+
+        Returns:
+            The bearer token configured for this client.
+        """
+        return self._bearer_token
+
+    @property_decorator
+    def base_url(self) -> Optional[str]:
+        """Get the configured base URL.
+
+        Returns:
+            The configured base URL, or None when the default API URL is used.
+        """
+        return self._base_url
+
     def get_service_document(self) -> Dict[str, Any]:
         """Get the OData service document.
 
@@ -289,6 +307,15 @@ class WFRMLSClient:
                 bearer_token=self._bearer_token, base_url=self._base_url
             )
         return self._openhouse
+
+    @property_decorator
+    def open_house(self) -> "OpenHouseClient":
+        """Access to open house schedule endpoints via legacy name.
+
+        Returns:
+            OpenHouseClient instance for open house operations.
+        """
+        return self.openhouse
 
     @property_decorator
     def data_system(self) -> "DataSystemClient":

@@ -256,6 +256,17 @@ class DeletedClient(BaseClient):
         """
         return self.get_deleted_by_resource(ResourceName.PROPERTY, **kwargs)
 
+    def get_deleted_properties(self, **kwargs: Any) -> Dict[str, Any]:
+        """Get deleted Property records via legacy method name.
+
+        Args:
+            **kwargs: Additional OData parameters.
+
+        Returns:
+            Dictionary containing deleted property records.
+        """
+        return self.get_deleted_property_records(**kwargs)
+
     def get_deleted_member_records(self, **kwargs: Any) -> Dict[str, Any]:
         """Get deleted Member records.
 
@@ -275,6 +286,17 @@ class DeletedClient(BaseClient):
         """
         return self.get_deleted_by_resource(ResourceName.MEMBER, **kwargs)
 
+    def get_deleted_members(self, **kwargs: Any) -> Dict[str, Any]:
+        """Get deleted Member records via legacy method name.
+
+        Args:
+            **kwargs: Additional OData parameters.
+
+        Returns:
+            Dictionary containing deleted member records.
+        """
+        return self.get_deleted_member_records(**kwargs)
+
     def get_deleted_office_records(self, **kwargs: Any) -> Dict[str, Any]:
         """Get deleted Office records.
 
@@ -293,6 +315,28 @@ class DeletedClient(BaseClient):
             ```
         """
         return self.get_deleted_by_resource(ResourceName.OFFICE, **kwargs)
+
+    def get_deleted_offices(self, **kwargs: Any) -> Dict[str, Any]:
+        """Get deleted Office records via legacy method name.
+
+        Args:
+            **kwargs: Additional OData parameters.
+
+        Returns:
+            Dictionary containing deleted office records.
+        """
+        return self.get_deleted_office_records(**kwargs)
+
+    def get_deleted_open_houses(self, **kwargs: Any) -> Dict[str, Any]:
+        """Get deleted OpenHouse records via legacy method name.
+
+        Args:
+            **kwargs: Additional OData parameters.
+
+        Returns:
+            Dictionary containing deleted open house records.
+        """
+        return self.get_deleted_by_resource(ResourceName.OPENHOUSE, **kwargs)
 
     def get_deleted_media_records(self, **kwargs: Any) -> Dict[str, Any]:
         """Get deleted Media records.
