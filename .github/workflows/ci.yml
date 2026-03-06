@@ -168,7 +168,7 @@ jobs:
         python -c "import sys; print(f'Python: {sys.version}')"
         
         # Verify all key modules can be imported
-        python -c "import wfrmls; from wfrmls import WFRMLSClient; from wfrmls.exceptions import WFRMLSError; print('✓ All key modules imported successfully')"
+        python -c "import wfrmls; from wfrmls import WFRMLSClient; from wfrmls.exceptions import WFRMLSError; print('All key modules imported successfully')"
 
     - name: Lint with flake8
       run: |
@@ -199,7 +199,7 @@ jobs:
         echo "PYTHONPATH: $PYTHONPATH"
         
         # Verify installation and imports work
-        python -c "import wfrmls; print(f'✓ wfrmls {wfrmls.__version__} imported successfully')"
+        python -c "import wfrmls; print(f'wfrmls {wfrmls.__version__} imported successfully')"
         
         # Debug test environment
         echo "=== Environment Debug ==="
