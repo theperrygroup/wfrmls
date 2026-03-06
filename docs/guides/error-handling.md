@@ -463,7 +463,7 @@ def logged_property_search(listing_id: str):
         wfrmls_logger.log_api_success(
             method='GET',
             endpoint='/Property',
-            result_count=1 if result else 0,
+            result_count=1,
             duration=duration
         )
         

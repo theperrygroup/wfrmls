@@ -1,7 +1,7 @@
 """Main WFRMLS client."""
 
 from builtins import property as property_decorator
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, cast
 
 from .exceptions import WFRMLSError
 
@@ -46,6 +46,7 @@ class WFRMLSClient:
         # Use service endpoints
         properties = client.property.get_properties(top=10)
         property_detail = client.property.get_property("12345678")
+        print(property_detail["ParcelNumber"])
 
         # Search properties by location
         properties = client.property.search_properties_by_radius(
@@ -160,19 +161,17 @@ class WFRMLSClient:
         """
         base_client = self._get_base_client()
         # For metadata, we need to handle the raw response since it's XML
-        import requests
-
         url = f"{base_client.base_url}/$metadata"
         headers = {
             "Authorization": f"Bearer {base_client.bearer_token}",
             "Accept": "application/xml",
         }
-        response = requests.get(url, headers=headers, timeout=30)
+        response = base_client.session.get(url, headers=headers, timeout=30)
 
         if response.status_code != 200:
             raise WFRMLSError(f"Failed to fetch metadata: {response.status_code}")
 
-        return response.text
+        return cast(str, response.text)
 
     @property_decorator
     def property(self) -> "PropertyClient":

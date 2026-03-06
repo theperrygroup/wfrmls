@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from .base_client import BaseClient
-from .exceptions import ValidationError
+from .exceptions import NotFoundError, ValidationError, WFRMLSError
 
 
 class PropertyStatus(Enum):
@@ -47,6 +47,45 @@ class PropertyClient(BaseClient):
             base_url: Base URL for the API
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
+
+    def _normalize_property_response(
+        self, response_data: Dict[str, Any], listing_id: str
+    ) -> Dict[str, Any]:
+        """Normalize single-property lookups to one property dictionary.
+
+        Args:
+            response_data: Raw API response from the property lookup endpoint.
+            listing_id: Listing ID requested by the caller.
+
+        Returns:
+            A single property entity dictionary.
+
+        Raises:
+            NotFoundError: If the API returns an empty OData wrapper.
+            WFRMLSError: If the API returns an unexpected response shape.
+        """
+        if "value" not in response_data:
+            return response_data
+
+        properties = response_data["value"]
+        if not isinstance(properties, list):
+            raise WFRMLSError(
+                "Unexpected Property lookup response shape: 'value' must be a list."
+            )
+
+        if not properties:
+            raise NotFoundError(
+                f"Resource not found: Property {listing_id} was not found."
+            )
+
+        property_record = properties[0]
+        if not isinstance(property_record, dict):
+            raise WFRMLSError(
+                "Unexpected Property lookup response shape: "
+                "first 'value' item must be an object."
+            )
+
+        return property_record
 
     def get_properties(
         self,
@@ -146,26 +185,32 @@ class PropertyClient(BaseClient):
 
         Retrieves a single property record by its unique listing ID.
         This is the most efficient way to get detailed information about
-        a specific property.
+        a specific property. This method always returns a single property
+        dictionary, even if the upstream API responds with an OData wrapper
+        shaped like `{"value": [...]}`.
 
         Args:
             listing_id: Listing ID to retrieve (must be numeric)
 
         Returns:
-            Dictionary containing property data for the specified listing
+            Dictionary containing property data for the specified listing.
+            Property fields such as `ParcelNumber`, `ListPrice`, and
+            `UnparsedAddress` are returned as top-level keys on this dictionary.
 
         Raises:
             NotFoundError: If the property with the given ID is not found
             WFRMLSError: If the API request fails
-            ValidationError: If the listing_id is not a valid numeric value
+            ValidationError: If the listing_id is not a valid numeric value or
+                the response shape is invalid
 
         Example:
             ```python
             # Get specific property by listing ID
-            property = client.property.get_property("12345678")
+            property_data = client.property.get_property("12345678")
 
-            print(f"Property: {property['ListPrice']}")
-            print(f"Address: {property['UnparsedAddress']}")
+            print(f"Parcel: {property_data['ParcelNumber']}")
+            print(f"Property: {property_data['ListPrice']}")
+            print(f"Address: {property_data['UnparsedAddress']}")
             ```
         """
         # Ensure listing_id is numeric (API requires numeric keys without quotes)
@@ -174,7 +219,10 @@ class PropertyClient(BaseClient):
         except ValueError:
             raise ValidationError(f"Listing ID must be numeric, got: {listing_id}")
 
-        return self.get(f"Property({numeric_id})")
+        response_data = self.get(f"Property({numeric_id})")
+        return self._normalize_property_response(
+            response_data=response_data, listing_id=str(numeric_id)
+        )
 
     def search_properties_by_radius(
         self,

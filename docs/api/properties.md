@@ -111,20 +111,36 @@ total_properties = result_with_count.get("@odata.count", 0)
 Retrieve detailed information for a specific property by listing ID.
 
 ```python
-def get_property(listing_id: str) -> Optional[Dict[str, Any]]
+def get_property(listing_id: str) -> Dict[str, Any]
 ```
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `listing_id` | `str` | Unique property listing identifier |
+| Parameter | Type | Required | Description | Default |
+|-----------|------|----------|-------------|---------|
+| **listing_id** | `str` | Yes | Unique numeric property listing identifier | None |
 
 **Returns:**
-- `Optional[Dict[str, Any]]` - Property dictionary or `None` if not found
+- `Dict[str, Any]` - A single property dictionary
+
+`get_property()` always returns one normalized property entity. If the upstream API
+responds with an OData-style payload such as `{"value": [{...}]}`, the client
+unwraps that payload internally and returns the first property object.
+
+Fields such as `ParcelNumber`, `ListPrice`, `ListingId`, and `UnparsedAddress`
+are top-level keys on the returned dictionary:
+
+```python
+property_detail = client.property.get_property("1611952")
+parcel_number = property_detail["ParcelNumber"]
+```
+
+If the listing is missing, the client raises `NotFoundError`. This includes both
+HTTP `404` responses and empty OData wrapper responses such as `{"value": []}`.
 
 **Raises:**
 - `ValidationError` - Invalid listing ID format
+- `NotFoundError` - Listing was not found
 - `AuthenticationError` - Invalid API credentials
 - `WFRMLSError` - Other API errors
 
@@ -134,10 +150,10 @@ def get_property(listing_id: str) -> Optional[Dict[str, Any]]
 # Get specific property
 property_detail = client.property.get_property("1611952")
 
-if property_detail:
-    print(f"Address: {property_detail['UnparsedAddress']}")
-    print(f"Price: ${property_detail['ListPrice']:,}")
-    print(f"Bedrooms: {property_detail.get('BedroomsTotal', 'N/A')}")
+print(f"Parcel: {property_detail['ParcelNumber']}")
+print(f"Address: {property_detail['UnparsedAddress']}")
+print(f"Price: ${property_detail['ListPrice']:,}")
+print(f"Bedrooms: {property_detail.get('BedroomsTotal', 'N/A')}")
 ```
 
 ---

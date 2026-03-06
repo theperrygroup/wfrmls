@@ -41,6 +41,7 @@ if properties:
     property_detail = client.property.get_property(listing_id)
     
     print(f"\nProperty Details for {listing_id}:")
+    print(f"Parcel Number: {property_detail.get('ParcelNumber', 'N/A')}")
     print(f"Address: {property_detail.get('StreetName', 'N/A')}")
     print(f"Price: ${property_detail.get('ListPrice', 0):,}")
     print(f"Bedrooms: {property_detail.get('BedroomsTotal', 'N/A')}")

@@ -461,8 +461,7 @@ class BatchProcessor:
         for listing_id in listing_ids:
             try:
                 property_data = self.client.property.get_property(listing_id)
-                if property_data:
-                    results.append(property_data)
+                results.append(property_data)
                     
             except Exception as e:
                 print(f"Error processing {listing_id}: {e}")
@@ -650,7 +649,7 @@ class OptimizedPropertyClient:
             **kwargs
         )
     
-    def get_detailed_property(self, listing_id: str) -> Optional[Dict[str, Any]]:
+    def get_detailed_property(self, listing_id: str) -> Dict[str, Any]:
         """Get detailed property info (only when needed)."""
         
         self.request_count += 1

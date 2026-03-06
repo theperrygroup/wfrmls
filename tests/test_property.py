@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 import responses
 
-from wfrmls.exceptions import NotFoundError, ServerError, ValidationError
+from wfrmls.exceptions import NotFoundError, ServerError, ValidationError, WFRMLSError
 from wfrmls.properties import PropertyClient, PropertyStatus, PropertyType
 
 
@@ -144,6 +144,7 @@ class TestPropertyClient:
         """Test successful get single property by ID."""
         mock_response = {
             "ListingId": "12345678",
+            "ParcelNumber": "16-12-345-678",
             "ListPrice": 250000,
             "StandardStatus": "Active",
             "UnparsedAddress": "123 Main St, Salt Lake City, UT",
@@ -158,7 +159,80 @@ class TestPropertyClient:
 
         result = self.client.get_property("12345678")
         assert result == mock_response
+        assert result["ParcelNumber"] == "16-12-345-678"
         assert len(responses.calls) == 1
+
+    @responses.activate
+    def test_get_property_normalizes_odata_wrapper(self) -> None:
+        """Test get_property normalizes OData wrapper responses."""
+        mock_response = {
+            "@odata.context": "test",
+            "value": [
+                {
+                    "ListingId": "12345678",
+                    "ParcelNumber": "16-12-345-678",
+                    "ListPrice": 250000,
+                    "StandardStatus": "Active",
+                }
+            ],
+        }
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Property(12345678)",
+            json=mock_response,
+            status=200,
+        )
+
+        result = self.client.get_property("12345678")
+
+        assert result == mock_response["value"][0]
+        assert result["ParcelNumber"] == "16-12-345-678"
+
+    @responses.activate
+    def test_get_property_empty_odata_wrapper_raises_not_found(self) -> None:
+        """Test get_property raises NotFoundError for empty OData wrappers."""
+        mock_response = {"@odata.context": "test", "value": []}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Property(12345678)",
+            json=mock_response,
+            status=200,
+        )
+
+        with pytest.raises(NotFoundError, match="Property 12345678 was not found"):
+            self.client.get_property("12345678")
+
+    @responses.activate
+    def test_get_property_invalid_odata_wrapper_raises_error(self) -> None:
+        """Test get_property rejects wrappers with non-list value payloads."""
+        mock_response = {"@odata.context": "test", "value": {"ListingId": "12345678"}}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Property(12345678)",
+            json=mock_response,
+            status=200,
+        )
+
+        with pytest.raises(WFRMLSError, match="'value' must be a list"):
+            self.client.get_property("12345678")
+
+    @responses.activate
+    def test_get_property_invalid_odata_item_raises_error(self) -> None:
+        """Test get_property rejects wrappers with non-dict property records."""
+        mock_response = {"@odata.context": "test", "value": ["12345678"]}
+
+        responses.add(
+            responses.GET,
+            "https://resoapi.utahrealestate.com/reso/odata/Property(12345678)",
+            json=mock_response,
+            status=200,
+        )
+
+        with pytest.raises(WFRMLSError, match="first 'value' item must be an object"):
+            self.client.get_property("12345678")
 
     def test_get_property_invalid_id(self) -> None:
         """Test get property with invalid (non-numeric) ID."""

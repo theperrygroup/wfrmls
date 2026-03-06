@@ -322,13 +322,7 @@ def get_openhouse_with_property(openhouse_key):
         openhouse = client.openhouse.get_openhouse(openhouse_key)
         
         # Get associated property details
-        property_data = client.property.get_property(
-            openhouse['PropertyKey'],
-            select=[
-                "PropertyKey", "ListPrice", "BedroomsTotal", "BathroomsTotalInteger",
-                "LivingArea", "PropertyAddress", "PropertyCity", "PropertyStateOrProvince"
-            ]
-        )
+        property_data = client.property.get_property(openhouse['PropertyKey'])
         
         return {
             'openhouse': openhouse,

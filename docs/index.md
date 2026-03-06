@@ -83,6 +83,7 @@ A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, 
 
     try:
         property_data = client.property.get_property("12345678")
+        print(property_data["ParcelNumber"])
     except NotFoundError:
         print("Property not found")
     except WFRMLSError as e:
