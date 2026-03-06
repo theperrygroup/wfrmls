@@ -217,15 +217,7 @@ jobs:
         
         # Run tests with proper error handling
         echo "=== Running Unit Tests ==="
-        python -m pytest tests/ --ignore=tests/test_integration.py \
-               --cov=wfrmls \
-               --cov-report=xml \
-               --cov-report=term-missing \
-               --cov-report=html \
-               --cov-fail-under=15 \
-               --tb=short \
-               -x \
-               -v
+        python -m pytest tests/ --ignore=tests/test_integration.py --cov=wfrmls --cov-report=xml --cov-report=term-missing --cov-report=html --cov-fail-under=15 --tb=short -x -v
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
