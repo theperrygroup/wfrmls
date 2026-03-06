@@ -2,6 +2,10 @@
 
 A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to all RESO-certified endpoints.
 
+## Release Note
+
+`property.get_property()` now returns one normalized response shape: a single property dictionary. If the upstream API responds with an OData wrapper such as `{"value": [...]}`, the library unwraps it internally so callers can always read fields like `ParcelNumber` directly from the returned property object.
+
 ## ⚠️ Important Notice
 
 **Media, History, and Green Verification endpoints are currently unavailable** due to server-side issues (504 Gateway Timeouts and missing entity types). These features have been temporarily disabled until the server issues are resolved.
@@ -25,6 +29,7 @@ properties = client.property.get_properties(
 
 # Get property details
 property_detail = client.property.get_property("12345678")
+print(property_detail["ParcelNumber"])
 
 # Get member information
 members = client.member.get_active_members(top=10)
@@ -180,7 +185,8 @@ from wfrmls.exceptions import (
 )
 
 try:
-    property = client.property.get_property("12345678")
+    property_data = client.property.get_property("12345678")
+    print(property_data["ParcelNumber"])
 except NotFoundError:
     print("Property not found")
 except RateLimitError:
@@ -190,6 +196,8 @@ except AuthenticationError:
 except WFRMLSError as e:
     print(f"API error: {e}")
 ```
+
+`client.property.get_property(listing_id)` returns a single property dictionary, not an OData wrapper. Fields such as `ParcelNumber`, `ListPrice`, and `UnparsedAddress` are top-level keys on the returned object. Missing listings raise `NotFoundError`.
 
 ## 📊 Utah Grid Address System
 

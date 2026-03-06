@@ -233,11 +233,9 @@ class PropertyChangeTracker:
         
         for listing_id in listing_ids:
             try:
-                # Get current property data
-                current_property = self.client.property.get_property(
-                    listing_id,
-                    select=self.tracked_fields + ["ModificationTimestamp"]
-                )
+                # Get current property data. get_property() returns a single
+                # property dictionary with top-level fields like ParcelNumber.
+                current_property = self.client.property.get_property(listing_id)
                 
                 # Load previous data
                 previous_property = self.load_previous_property_data(listing_id)
