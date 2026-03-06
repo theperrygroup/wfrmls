@@ -224,6 +224,44 @@ class PropertyClient(BaseClient):
             response_data=response_data, listing_id=str(numeric_id)
         )
 
+    def search_properties(
+        self,
+        top: Optional[int] = None,
+        skip: Optional[int] = None,
+        filter_query: Optional[str] = None,
+        select: Optional[Union[List[str], str]] = None,
+        orderby: Optional[str] = None,
+        expand: Optional[Union[List[str], str]] = None,
+        count: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Search properties using the standard property collection endpoint.
+
+        This legacy alias preserves compatibility with callers that expect a
+        `search_properties()` method name. It delegates to `get_properties()`.
+
+        Args:
+            top: Number of results to return (OData $top, max 200).
+            skip: Number of results to skip (OData $skip).
+            filter_query: OData filter query string.
+            select: Fields to select as a list or comma-separated string.
+            orderby: Order by clause for result sorting.
+            expand: Related resources to include.
+            count: Include total count in results.
+
+        Returns:
+            Dictionary containing property search results with an OData `value`
+            list and optional metadata fields.
+        """
+        return self.get_properties(
+            top=top,
+            skip=skip,
+            filter_query=filter_query,
+            select=select,
+            orderby=orderby,
+            expand=expand,
+            count=count,
+        )
+
     def search_properties_by_radius(
         self,
         latitude: float,
