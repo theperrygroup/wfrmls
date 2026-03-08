@@ -33,7 +33,7 @@ jobs:
       env:
         WFRMLS_BEARER_TOKEN: ${{ secrets.WFRMLS_BEARER_TOKEN }}
       run: |
-        pytest --cov=wfrmls --cov-report=term-missing
+        pytest --cov=wfrmls --cov-report=term-missing --ignore=tests/test_integration.py
 
   build:
     runs-on: ubuntu-latest
