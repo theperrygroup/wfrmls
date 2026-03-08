@@ -204,10 +204,10 @@ jobs:
         # Debug test environment
         echo "=== Environment Debug ==="
         echo "Files in current directory:"
-        ls -la
+        python -c "import os; print('\n'.join(sorted(os.listdir('.'))))"
         echo "Files in tests directory:"
-        ls -la tests/ || echo "tests directory not found!"
-        echo "Current working directory: $(pwd)"
+        python -c "import os; print('\n'.join(sorted(os.listdir('tests')))) if os.path.isdir('tests') else print('tests directory not found!')"
+        python -c "import os; print(f'Current working directory: {os.getcwd()}')"
         echo "Python path:"
         python -c "import sys; print('\n'.join(sys.path))"
         
