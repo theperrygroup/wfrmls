@@ -98,6 +98,12 @@ nav:
     - Testing: development/testing.md
     - Release Process: development/releases.md
     - Style Guide: development/style-guide.md
+    - Consistency Runbooks: development/consistency/index.md
+    - Shared Standard: development/consistency/shared-standard.md
+    - Phase 1 - Foundation: development/consistency/phase-1-foundation.md
+    - Phase 2 - Docs: development/consistency/phase-2-docs.md
+    - Phase 3 - GitHub Actions: development/consistency/phase-3-github-actions.md
+    - Repo Gap Map: development/consistency/repo-gap-map.md
   - Legal:
     - legal/index.md
     - License: legal/license.md
