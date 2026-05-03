@@ -361,8 +361,8 @@ pip cache purge
 3. **[Explore examples](../examples/index.md)** - See real-world usage patterns
 
 **For Developers**:
-- **[Contributing Guide](../development/contributing.md)** - Set up development environment
-- **[Testing Guide](../development/testing.md)** - Run tests and quality checks
+- **[Contributing Guide](../development/index.md)** - Set up development environment
+- **[Testing Guide](../development/index.md)** - Run tests and quality checks
 - **[API Reference](../api/index.md)** - Detailed method documentation
 
 ---

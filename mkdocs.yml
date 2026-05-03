@@ -43,8 +43,6 @@ theme:
     - toc.follow
     - toc.integrate
   language: en
-  favicon: assets/favicon.ico
-  logo: assets/logo.png
   icon:
     repo: fontawesome/brands/github
     edit: material/pencil
@@ -71,6 +69,7 @@ nav:
     - Members: api/members.md
     - Offices: api/offices.md
     - Open House: api/openhouse.md
+    - Analytics: api/analytics.md
     - Lookup: api/lookup.md
     - ADU: api/adu.md
     - Property Unit Types: api/property-unit-types.md
@@ -78,26 +77,15 @@ nav:
     - Resource: api/resource.md
     - Data System: api/data-system.md
     - Live API Updates: api/live-api-updates.md
+    - Exceptions: api/exceptions.md
   - Examples:
     - examples/index.md
-    - Basic Usage: examples/basic-usage.md
-    - Advanced Queries: examples/advanced-queries.md
-    - Real Estate Apps: examples/real-estate-apps.md
-    - Data Integration: examples/data-integration.md
-    - Monitoring & Analytics: examples/monitoring.md
   - Reference:
     - reference/index.md
-    - Data Types: reference/data-types.md
-    - Field Reference: reference/fields.md
-    - Status Codes: reference/status-codes.md
-    - Utah Grid System: reference/utah-grid.md
-    - RESO Standards: reference/reso-standards.md
   - Development:
     - development/index.md
-    - Contributing: development/contributing.md
-    - Testing: development/testing.md
-    - Release Process: development/releases.md
-    - Style Guide: development/style-guide.md
+    - Code Style Guide: development/style-guide.md
+    - Documentation Style Guide: STYLE_GUIDE.md
     - Consistency Runbooks: development/consistency/index.md
     - Shared Standard: development/consistency/shared-standard.md
     - Phase 1 - Foundation: development/consistency/phase-1-foundation.md
@@ -107,7 +95,9 @@ nav:
   - Legal:
     - legal/index.md
     - License: legal/license.md
-    - Terms of Service: legal/terms.md
+
+not_in_nav: |
+  includes/abbreviations.md
 
 plugins:
   - search:
@@ -218,20 +208,9 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/wfrmls/
       name: PyPI Package
-  analytics:
-    provider: google
-    property: G-XXXXXXXXXX
   generator: false
-
-extra_css:
-  - assets/extra.css
-
-extra_javascript:
-  - assets/extra.js
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 validation:
   omitted_files: warn
   absolute_links: warn
-  unrecognized_links: warn 
+  unrecognized_links: warn

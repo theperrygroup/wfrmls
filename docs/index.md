@@ -140,7 +140,7 @@ Complete access to primary MLS data:
 - **[Properties](api/properties.md)** - Residential and commercial listings with full details
 - **[Members](api/members.md)** - Real estate agent profiles and contact information
 - **[Offices](api/offices.md)** - Brokerage data and office locations
-- **[Open Houses](api/openhouses.md)** - Scheduled showings and events
+- **[Open Houses](api/openhouse.md)** - Scheduled showings and events
 
 ### **🔍 Advanced Queries**
 Powerful search and filtering capabilities:
@@ -187,10 +187,10 @@ Built for production use:
 
 !!! tip "Additional Resources"
 
-    - **[RESO Standards](reference/reso-standards.md)** - Industry standards compliance
-    - **[Utah Grid System](reference/utah-grid.md)** - Local address conventions
-    - **[Field Reference](reference/fields.md)** - Complete data dictionary
-    - **[Status Codes](reference/status-codes.md)** - API response reference
+    - **[RESO Standards](reference/index.md)** - Industry standards compliance
+    - **[Utah Grid System](reference/index.md)** - Local address conventions
+    - **[Field Reference](reference/index.md)** - Complete data dictionary
+    - **[Status Codes](reference/index.md)** - API response reference
 
 ---
 
@@ -215,7 +215,7 @@ New to the WFRMLS API? Start here:
 
 ### Contributing
 
-We welcome contributions! See our **[Contributing Guide](development/contributing.md)** for details on:
+We welcome contributions! See the **[Development Guide](development/index.md)** for details on:
 
 - Setting up the development environment
 - Running tests and quality checks

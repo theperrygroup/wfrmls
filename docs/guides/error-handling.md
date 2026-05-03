@@ -827,8 +827,8 @@ def safe_operation_with_health_check():
 - **[Data Synchronization Guide](data-sync.md)** - Error recovery in data pipelines
 
 ### **Development Resources**
-- **[Testing Guide](../development/testing.md)** - Testing error handling scenarios
-- **[Contributing Guide](../development/contributing.md)** - Error handling standards for contributors
+- **[Testing Guide](../development/index.md)** - Testing error handling scenarios
+- **[Contributing Guide](../development/index.md)** - Error handling standards for contributors
 
 ### **API Reference**
 - **[Exceptions API](../api/exceptions.md)** - Complete exception class documentation

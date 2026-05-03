@@ -1,160 +1,75 @@
 # API Reference
 
-Comprehensive API documentation for the WFRMLS Python client.
+Reference pages for the public WFRMLS Python client surface, generated helpers, and support modules documented in this repository.
 
 ---
 
-## 📚 Available Endpoints
+## Quick Navigation
 
-### Core Resources
+<div class="grid cards" markdown>
 
-- **[Properties](properties.md)** - Search and retrieve property listings
-- **[Members](members.md)** - Access real estate agent and broker information
-- **[Offices](offices.md)** - Get brokerage and office details
-- **[OpenHouse](openhouse.md)** - Find scheduled open house events
+-   :material-application-brackets:{ .lg .middle } **Client**
 
-### Specialized Endpoints
+    ---
 
-- **[ADU](adu.md)** - Accessory Dwelling Unit information
-- **[Property Unit Types](property-unit-types.md)** - Multi-unit property details
-- **[Lookup](lookup.md)** - Enumeration values and reference data
-- **[Deleted](deleted.md)** - Track deleted records for synchronization
+    Start with the main client and service access pattern.
 
-### System Endpoints
+    [:octicons-arrow-right-24: Client](client.md)
 
-- **[Resource](resource.md)** - Discover available API endpoints
-- **[Data System](data-system.md)** - API version and configuration information
+-   :material-home-city:{ .lg .middle } **Core Resources**
 
----
+    ---
 
-## � Quick Start
+    Properties, members, offices, and open houses.
 
-```python
-from wfrmls import WFRMLSClient
+    [:octicons-arrow-right-24: Properties](properties.md)
 
-# Initialize client
-client = WFRMLSClient(bearer_token="your_token_here")
+-   :material-chart-line:{ .lg .middle } **Analytics**
 
-# Search properties
-properties = client.property.get_properties(
-    filter_query="ListPrice ge 500000 and ListPrice le 750000",
-    select=["ListingKey", "UnparsedAddress", "ListPrice"],
-    top=10
-)
+    ---
 
-# Get agent information
-member = client.member.get_member_by_mls_id("123456")
+    Higher-level analytics helpers built on top of the client.
 
-# Find open houses
-open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-```
+    [:octicons-arrow-right-24: Analytics](analytics.md)
+
+-   :material-alert-circle:{ .lg .middle } **Exceptions**
+
+    ---
+
+    Review the custom exception classes raised by the library.
+
+    [:octicons-arrow-right-24: Exceptions](exceptions.md)
+
+</div>
 
 ---
 
-## 📊 Common Patterns
+## Core API Pages
 
-### Pagination
+- **[Client](client.md)** - Main entry point and shared usage patterns.
+- **[Properties](properties.md)** - Listing search and property details.
+- **[Members](members.md)** - Member and agent lookups.
+- **[Offices](offices.md)** - Office and brokerage records.
+- **[Open House](openhouse.md)** - Open house schedules and convenience helpers.
 
-All endpoints support pagination using `top` and `skip` parameters:
+## Supporting API Pages
 
-```python
-# Get results in pages of 50
-page_size = 50
-page = 0
-
-while True:
-    results = client.property.get_properties(
-        top=page_size,
-        skip=page * page_size
-    )
-    
-    if not results["value"]:
-        break
-        
-    # Process results
-    for property in results["value"]:
-        process_property(property)
-    
-    page += 1
-```
-
-### Field Selection
-
-Use the `select` parameter to request only needed fields:
-
-```python
-# Get only specific fields
-results = client.property.get_properties(
-    select=["ListingKey", "UnparsedAddress", "ListPrice", "BedroomsTotal"]
-)
-```
-
-### Filtering
-
-Use OData filter syntax for complex queries:
-
-```python
-# Complex filter example
-filter_query = (
-    "StandardStatus eq 'Active' and "
-    "BedroomsTotal ge 3 and "
-    "ListPrice ge 400000 and ListPrice le 600000"
-)
-
-results = client.property.get_properties(filter_query=filter_query)
-```
-
-### Sorting
-
-Control result order with the `orderby` parameter:
-
-```python
-# Sort by price descending
-results = client.property.get_properties(
-    orderby="ListPrice desc"
-)
-
-# Multiple sort fields
-results = client.property.get_properties(
-    orderby="City asc, ListPrice desc"
-)
-```
+- **[Analytics](analytics.md)** - Market-analysis utilities that compose core endpoints.
+- **[Lookup](lookup.md)** - Lookup tables and supporting values.
+- **[ADU](adu.md)** - Accessory dwelling unit-related endpoints.
+- **[Property Unit Types](property-unit-types.md)** - Property unit-type resources.
+- **[Deleted Records](deleted.md)** - Deleted-record synchronization support.
+- **[Resource](resource.md)** - API resource discovery.
+- **[Data System](data-system.md)** - System and configuration information.
+- **[Live API Updates](live-api-updates.md)** - Notes related to live-update behavior.
+- **[Exceptions](exceptions.md)** - Custom exception hierarchy.
 
 ---
 
-## �️ Response Structure
+## Shared Guides
 
-All endpoints return a consistent OData response format:
-
-```json
-{
-    "@odata.context": "$metadata#EntityType",
-    "value": [
-        // Array of results
-    ],
-    "@odata.count": 12345,  // When count=true
-    "@odata.nextLink": "https://..."  // When more pages available
-}
-```
-
-The actual data is always in the `value` array.
-
----
-
-## ⚡ Best Practices
-
-1. **Use field selection** - Only request fields you need to reduce payload size
-2. **Implement pagination** - Always paginate large result sets
-3. **Cache lookup values** - Store enumeration values locally
-4. **Handle rate limits** - Implement retry logic with exponential backoff
-5. **Monitor deletions** - Regularly sync deleted records
-6. **Validate data** - Always validate critical fields exist before use
-
----
-
-## � Related Documentation
-
-- [Authentication Guide](../guides/authentication.md)
-- [OData Query Syntax](../reference/odata-syntax.md)
-- [Error Handling](../guides/error-handling.md)
-- [Examples](../examples/index.md) 
+- **[Authentication Guide](../getting-started/authentication.md)** - Configure credentials.
+- **[Quick Start](../getting-started/quickstart.md)** - Make the first request.
+- **[OData Queries Guide](../guides/odata-queries.md)** - Build filters and sort expressions.
+- **[Error Handling Guide](../guides/error-handling.md)** - Work with the exception types documented here.
+- **[Examples](../examples/index.md)** - Practical usage patterns.

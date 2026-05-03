@@ -686,14 +686,14 @@ property_detail = safe_property_lookup("12345678")
 - **[Error Handling Guide](../guides/error-handling.md)** - Robust error handling patterns
 
 ### **Reference**
-- **[Field Reference](../reference/fields.md)** - Complete field documentation
-- **[Status Codes](../reference/status-codes.md)** - API response codes
-- **[Data Types](../reference/data-types.md)** - Field types and formats
+- **[Field Reference](../reference/index.md)** - Complete field documentation
+- **[Status Codes](../reference/index.md)** - API response codes
+- **[Data Types](../reference/index.md)** - Field types and formats
 
 ### **Examples**
-- **[Basic Usage](../examples/basic-usage.md)** - Simple property query examples
-- **[Advanced Queries](../examples/advanced-queries.md)** - Complex search patterns
-- **[Real Estate Apps](../examples/real-estate-apps.md)** - Complete application examples
+- **[Basic Usage](../examples/index.md)** - Simple property query examples
+- **[Advanced Queries](../examples/index.md)** - Complex search patterns
+- **[Real Estate Apps](../examples/index.md)** - Complete application examples
 
 ---
 

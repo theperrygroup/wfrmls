@@ -180,7 +180,7 @@ print(f"Retrieved {len(data)} resources")
 
 ## Next Steps
 
-- [Authentication Guide](auth.md) - Detailed authentication setup
+- [Authentication Guide](getting-started/authentication.md) - Detailed authentication setup
 - [API Reference](api/index.md) - Complete method documentation
 ```
 
@@ -776,9 +776,9 @@ Conclusion, next steps, or additional resources.
 
 !!! tip "Additional Resources"
 
-    - **[Data Types & Enums](../reference/data-types.md)** - Type definitions and constants
-    - **[Exception Reference](../reference/exceptions.md)** - Error handling guide
-    - **[Examples & Guides](../guides/examples.md)** - Practical usage examples
+    - **[Data Types & Enums](../reference/index.md)** - Type definitions and constants
+    - **[Exception Reference](../api/exceptions.md)** - Error handling guide
+    - **[Examples & Guides](../examples/index.md)** - Practical usage examples
     - **[Authentication Setup](../getting-started/authentication.md)** - Client configuration
 
 ---
@@ -790,7 +790,7 @@ New to the API? Start here:
 1. **[Install the client](../getting-started/installation.md)** - Get up and running
 2. **[Configure authentication](../getting-started/authentication.md)** - Set up your API key
 3. **[Try the quick start](../getting-started/quickstart.md)** - Make your first API call
-4. **[Explore examples](../guides/examples.md)** - See real-world use cases
+4. **[Explore examples](../examples/index.md)** - See real-world use cases
 ```
 
 **In-Content Cross-References**:
@@ -1132,7 +1132,7 @@ See the documentation [here](link.md) for details.
 
 **✅ Do: Descriptive Link Patterns**
 ```markdown
-Learn more in the [Authentication Setup Guide](auth.md).
+Learn more in the [Authentication Setup Guide](getting-started/authentication.md).
 
 Download the [latest Python client](downloads.md).
 
@@ -1308,7 +1308,7 @@ def get_active_resources(self, **kwargs) -> Dict[str, Any]:
 3. Ensure there are no extra spaces or characters
 4. Generate a new token if necessary
 
-**See Also**: [Authentication Guide](../guides/authentication.md)
+**See Also**: [Authentication Guide](../getting-started/authentication.md)
 ```
 
 ---

@@ -635,8 +635,8 @@ print(f"Average request time: {stats['average_time']:.2f}s")
 - **[Exceptions API](exceptions.md)** - Error handling reference
 
 ### **Examples**
-- **[Basic Usage](../examples/basic-usage.md)** - Simple client usage patterns
-- **[Advanced Queries](../examples/advanced-queries.md)** - Complex search examples
+- **[Basic Usage](../examples/index.md)** - Simple client usage patterns
+- **[Advanced Queries](../examples/index.md)** - Complex search examples
 
 ---
 

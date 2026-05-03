@@ -1007,8 +1007,8 @@ def monitoring_loop():
 - **[Exceptions API](../api/exceptions.md)** - RateLimitError details
 
 ### **Examples**
-- **[Advanced Queries](../examples/advanced-queries.md)** - Efficient query patterns
-- **[Monitoring Examples](../examples/monitoring.md)** - Production monitoring setups
+- **[Advanced Queries](../examples/index.md)** - Efficient query patterns
+- **[Monitoring Examples](../examples/index.md)** - Production monitoring setups
 
 ---
 
