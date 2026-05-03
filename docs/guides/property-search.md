@@ -562,14 +562,14 @@ for city in cities:
 - **[Data Synchronization](data-sync.md)** - Keep your data up to date
 
 ### **Related Examples**
-- **[Advanced Queries](../examples/advanced-queries.md)** - Complex search examples
-- **[Real Estate Apps](../examples/real-estate-apps.md)** - Complete applications
-- **[Data Integration](../examples/data-integration.md)** - Database integration
+- **[Advanced Queries](../examples/index.md)** - Complex search examples
+- **[Real Estate Apps](../examples/index.md)** - Complete applications
+- **[Data Integration](../examples/index.md)** - Database integration
 
 ### **API Reference**
 - **[Properties API](../api/properties.md)** - Complete method documentation
-- **[Field Reference](../reference/fields.md)** - Available property fields
-- **[Status Codes](../reference/status-codes.md)** - Response codes and meanings
+- **[Field Reference](../reference/index.md)** - Available property fields
+- **[Status Codes](../reference/index.md)** - Response codes and meanings
 
 ---
 

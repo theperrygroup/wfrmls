@@ -317,9 +317,9 @@ properties = fetch_with_retry(
 - **[API Reference](../api/index.md)** - Complete method documentation
 
 ### **Build Something**
-- **[Real Estate Apps](../examples/real-estate-apps.md)** - Complete application examples
-- **[Data Integration](../examples/data-integration.md)** - Sync with your systems
-- **[Advanced Queries](../examples/advanced-queries.md)** - Complex search examples
+- **[Real Estate Apps](../examples/index.md)** - Complete application examples
+- **[Data Integration](../examples/index.md)** - Sync with your systems
+- **[Advanced Queries](../examples/index.md)** - Complex search examples
 
 ### **Get Help**
 - **[GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)** - Report bugs

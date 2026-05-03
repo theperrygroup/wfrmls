@@ -947,11 +947,11 @@ def investor_queries():
 
 ### **API Reference**
 - **[Properties API](../api/properties.md)** - Complete property API documentation
-- **[Field Reference](../reference/fields.md)** - All available fields for queries
+- **[Field Reference](../reference/index.md)** - All available fields for queries
 
 ### **Examples**
-- **[Advanced Queries](../examples/advanced-queries.md)** - Real-world query examples
-- **[Basic Usage](../examples/basic-usage.md)** - Simple query patterns
+- **[Advanced Queries](../examples/index.md)** - Real-world query examples
+- **[Basic Usage](../examples/index.md)** - Simple query patterns
 
 ---
 

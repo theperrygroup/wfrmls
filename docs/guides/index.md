@@ -170,13 +170,13 @@ Ready for more advanced features? Try these:
 
 ### **Reference**
 - **[API Reference](../api/index.md)** - Complete method documentation
-- **[Field Reference](../reference/fields.md)** - Available data fields
-- **[Status Codes](../reference/status-codes.md)** - Response codes and meanings
+- **[Field Reference](../reference/index.md)** - Available data fields
+- **[Status Codes](../reference/index.md)** - Response codes and meanings
 
 ### **Examples**
 - **[Code Examples](../examples/index.md)** - Working code samples
-- **[Real Estate Apps](../examples/real-estate-apps.md)** - Complete applications
-- **[Data Integration](../examples/data-integration.md)** - Integration patterns
+- **[Real Estate Apps](../examples/index.md)** - Complete applications
+- **[Data Integration](../examples/index.md)** - Integration patterns
 
 ---
 
