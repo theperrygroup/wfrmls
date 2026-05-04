@@ -16,7 +16,7 @@ mkdocs-glightbox>=0.5.2
 mkdocs-swagger-ui-tag>=0.8.0
 
 # Image processing dependencies
-pillow>=11.3.0
+pillow>=12.2.0
 cairosvg>=2.8.2
 
 # Additional dependencies for Google-style docstrings
