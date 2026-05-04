@@ -17,7 +17,7 @@ mkdocs-swagger-ui-tag>=0.8.0
 
 # Image processing dependencies
 pillow>=11.3.0
-cairosvg>=2.8.2
+cairosvg>=2.9.0
 
 # Additional dependencies for Google-style docstrings
 griffe>=1.14.0 
