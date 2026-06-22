@@ -20,4 +20,4 @@ pillow>=11.3.0
 cairosvg>=2.9.0
 
 # Additional dependencies for Google-style docstrings
-griffe>=2.0.2 
+griffe>=2.1.0 
