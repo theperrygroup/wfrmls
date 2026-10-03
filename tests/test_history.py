@@ -236,12 +236,12 @@ class TestHistoryTransactionalClient:
             filter_query=expected_filter, orderby="CloseDate desc"
         )
 
+    @patch.dict("os.environ", {"WFRMLS_BEARER_TOKEN": "test_token"})
     def test_init_default_params(self) -> None:
         """Test HistoryTransactionalClient initialization with default parameters."""
         client = HistoryTransactionalClient()
-        # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, "bearer_token")
-        assert hasattr(client, "base_url")
+        assert client.bearer_token == "test_token"
+        assert client.base_url == "https://resoapi.utahrealestate.com/reso/odata"
 
     def test_init_with_params(self) -> None:
         """Test HistoryTransactionalClient initialization with custom parameters."""
