@@ -80,4 +80,10 @@ testpaths = ["tests"]
 markers = [
     "integration: marks tests as integration tests that hit live APIs",
     "unit: marks tests as unit tests (mocked/isolated)",
-] 
+]
+
+[tool.coverage.report]
+# Older coverage.py versions include type-only imports in the denominator.
+exclude_also = [
+    '^[ \t]*if TYPE_CHECKING:[ \t]*$',
+]
