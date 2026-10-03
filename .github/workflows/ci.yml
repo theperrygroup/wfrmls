@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch: # Allow manual triggering
-    inputs:
-      coverage_base_sha:
-        description: "Optional exact main commit to test and upload as Codecov baseline"
-        required: false
-        type: string
 
 env:
   PYTHON_VERSION_DEFAULT: "3.11"
@@ -144,19 +139,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.coverage_base_sha || github.sha }}
-        fetch-depth: 0
-
-    - name: Validate requested coverage baseline
-      if: inputs.coverage_base_sha != ''
-      shell: bash
-      env:
-        COVERAGE_BASE_SHA: ${{ inputs.coverage_base_sha }}
-      run: |
-        [[ "$COVERAGE_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-        test "$(git rev-parse HEAD)" = "$COVERAGE_BASE_SHA"
-        git merge-base --is-ancestor "$COVERAGE_BASE_SHA" origin/main
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -246,8 +228,6 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         use_oidc: true
-        override_commit: ${{ inputs.coverage_base_sha }}
-        override_branch: ${{ inputs.coverage_base_sha && 'main' || '' }}
 
   security:
     runs-on: ubuntu-latest
