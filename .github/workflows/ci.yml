@@ -119,6 +119,9 @@ jobs:
     name: Test Suite
     runs-on: ${{ matrix.os }}
     needs: [code-quality]  # Depend on code quality job completion
+    permissions:
+      contents: read
+      id-token: write  # Authenticate Codecov uploads without a stored token
     strategy:
       fail-fast: false
       matrix:
@@ -222,9 +225,10 @@ jobs:
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v6
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
+        use_oidc: true
 
   security:
     runs-on: ubuntu-latest
@@ -269,4 +273,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dist
-        path: dist/ 
+        path: dist/
