@@ -1,87 +1,61 @@
-# Shared Standard
+---
+title: "Shared Python-client consistency standard"
+description: "Review shared Python-client goals for WFRMLS packaging, types, documentation, validation, release parity, and explicit repository exceptions."
+---
 
-Set the shell variables from `index.md` before running any command in this
-document.
+# Shared Python-client consistency standard
 
-## What Must Match Across All Four Repositories
+This standard defines review goals. It does not imply that every goal is
+already enforced in WFRMLS or in the other Perry Group clients. Verify current
+behavior using the [repository gap map](repo-gap-map.md) and source workflows.
 
-- One top-level package, `tests/`, `docs/`, and `examples/`.
-- `pyproject.toml` as the canonical place for package metadata and tool
-  configuration.
-- Google-style docstrings, strong type hints, and a shipped `py.typed` marker.
-- MkDocs Material plus `mkdocstrings` for docs.
-- A GitHub Actions baseline that covers formatting, linting, typing, tests,
-  docs, builds, release checks, and security.
-- One explicit dependency automation strategy for root dependencies, docs
-  dependencies, and GitHub Actions.
+## Keep packaging and dependencies explicit
 
-## Packaging And Metadata
+Use `pyproject.toml` for package metadata and tool configuration. Keep its
+version synchronized with `wfrmls/__init__.py` and the intended release tag.
+Check the actual license, ownership, supported Python versions, project URLs,
+and the built wheel's `py.typed` marker.
 
-- Keep version data in exactly two places: `pyproject.toml` and
-  `$PACKAGE_TARGET/__init__.py`.
-- Ensure `license`, authors/maintainers, `requires-python`, classifiers, and
-  `[project.urls]` are present and accurate.
-- Ship `py.typed` and verify it is included in built artifacts.
-- If `requirements.txt`, `requirements-dev.txt`, or `docs/requirements.txt`
-  exist, document which file is authoritative and how the others stay in sync.
-- If the repo is intentionally `pyproject.toml`-only, document that choice
-  instead of carrying stale duplicate manifests.
+Document the purpose of every dependency manifest. WFRMLS defines runtime
+dependencies and the `dev` extra in `pyproject.toml`, has companion root
+requirements files, and maintains docs tooling in `docs/requirements.txt`.
+Inspect all of them when changing a shared dependency; do not imply that a
+docs extra or generated lockfile exists.
 
-## Tooling And Local Quality Gates
+## Make validation claims match enforcement
 
-- Standard baseline: Black, isort, flake8, mypy, pytest with coverage,
-  `build`, and `twine`.
-- Optional tools such as `pylint`, `pydocstyle`, `bandit`, `pip-audit`, or
-  `pre-commit` are allowed only when the repo also documents and enforces them.
-- If a tool is configured but never run locally or in CI, either add the
-  enforcement step or remove the dead configuration.
-- Local contributor instructions should match the exact commands that CI uses.
+The shared baseline includes Black, isort, flake8, mypy, pytest with coverage,
+strict MkDocs builds, `build`, and `twine`. See the
+[development commands](../index.md) for the current WFRMLS forms.
 
-## Docs And Contributor Guidance
+Verify which lint categories and coverage threshold fail CI. An installed tool
+or a nonblocking report is different from an enforced gate. Tools such as
+Pylint or pre-commit must not be advertised as required checks unless the
+repository actually provides and runs them.
 
-- Keep a real MkDocs nav: every nav entry should map to an existing markdown
-  file.
-- Keep a single source of truth for style guidance. If a second copy exists
-  inside `docs/`, cross-link it and explicitly state which file owns updates.
-- Ensure README, docs guides, contributing instructions, release docs, and
-  changelog all agree on Python support, install commands, quality commands,
-  and release flow.
-- If docs recommend `pre-commit install`, `make quality`, or other helper
-  commands, the supporting files must exist.
+## Keep documentation useful and verifiable
 
-## GitHub Actions Baseline
+Maintain real navigation entries, distinct task guides, and accurate response
+and exception descriptions. Exercise examples with synthetic mocked responses.
+Separate implemented library behavior from provider permissions and protocol
+guidance. Keep the root code-style guide and docs writing guide authoritative
+for their respective subjects.
 
-- CI should fail on formatting, import order, lint, typing, tests, and build
-  errors.
-- Docs should be built with `mkdocs build --strict` before deploy.
-- Releases should check tag-to-version parity before publishing.
-- Security automation should cover dependency audits and static analysis on a
-  schedule or in CI.
-- Dependency automation should update root pip dependencies, docs dependencies,
-  and GitHub Actions with one consistent tool across the repo set.
+## Review delivery and security boundaries
 
-## Recommended Validation Session
+Require tag/version parity and successful artifact checks before publishing.
+Review whether the release workflow depends on all checks the project intends
+to require. Strict docs validation and a successful deployment are separate
+evidence. Document the publishing mechanism actually configured; WFRMLS's
+release workflow currently uses a PyPI API token.
 
-```bash
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-python -m pip install -r docs/requirements.txt
-python -m pip install build twine
-black --check .
-isort --check-only .
-flake8 .
-mypy "$PACKAGE_TARGET"
-pytest --cov="$PACKAGE_TARGET"
-mkdocs build --strict
-python -m build
-python -m twine check dist/*
-```
+Check static analysis, dependency audits, and dependency-update configuration
+for root Python, docs, and GitHub Actions dependencies. Preserve protected
+environments and permissions when changing delivery workflows.
 
-## Decision Rules For Exceptions
+## Record intentional differences
 
-- Keep API-specific modules, examples, and workflow file names repo-specific.
-- Keep behavior consistent even when implementation differs. A single unified
-  deployment workflow is acceptable if it covers the same gates as separate
-  `ci.yml`, `docs.yml`, and `release.yml` files.
-- When a repo cannot match the standard yet, write the gap, the owning file,
-  and the next command in `repo-gap-map.md`.
+Keep service-specific modules, examples, and workflow names when they make the
+client clearer. A shared goal does not require identical file trees. Record
+the reason and verification for an exception rather than silently asserting
+that all four repositories are equivalent.

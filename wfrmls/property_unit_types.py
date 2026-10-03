@@ -1,4 +1,4 @@
-"""PropertyUnitTypes client for WFRMLS API."""
+"""PropertyUnitTypes query helpers for the WFRMLS client."""
 
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Union
@@ -7,21 +7,25 @@ from .base_client import BaseClient
 
 
 class PropertyUnitTypesClient(BaseClient):
-    """Client for property unit types API endpoints.
+    """Query the PropertyUnitTypes resource with optional OData parameters.
 
-    The PropertyUnitTypes resource contains information about different types
-    of property units such as condos, townhomes, apartments, etc. This is useful
-    for understanding property classification and unit-specific details.
+    The client preserves provider JSON. It does not establish unit classifications,
+    rental fields, or the complete provider schema. Access it through the lazy
+    WFRMLSClient.property_unit_types service property or construct it directly.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the property unit types client.
+        """Initialize a service client and require credentials immediately.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token, or None to read WFRMLS_BEARER_TOKEN.
+            base_url: API base URL. None uses
+                https://resoapi.utahrealestate.com/reso/odata.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -35,48 +39,41 @@ class PropertyUnitTypesClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get property unit types with optional OData filtering.
+        """Query one page of PropertyUnitTypes records.
 
-        This method retrieves property unit type information with full OData v4.0 query support.
-        Provides information about different unit types and their characteristics.
+        Query expressions, fields, and relationships are sent to the provider without
+        local schema validation. No default $count is sent.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Page size; the client sends min(top, 200) when provided.
+            skip: Number of records to skip, passed unchanged.
+            filter_query: OData filter string, passed unchanged.
+            select: Field list or comma-separated string; lists are joined with commas.
+            orderby: OData ordering string, passed unchanged.
+            expand: Relationship list or string; lists are joined with commas.
+            count: True or False sends the corresponding $count value. None omits it.
 
         Returns:
-            Dictionary containing property unit type data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of property unit type records
+            The server's JSON dictionary unchanged. Collection responses usually
+            contain value; OData metadata is included only when supplied by the server.
+            This method neither follows pagination links nor retries requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: For request failures through the shared HTTP client.
 
         Example:
             ```python
-            # Get all unit types
-            unit_types = client.property_unit_types.get_property_unit_types()
+            from wfrmls import WFRMLSClient
 
-            # Get specific unit types
-            unit_types = client.property_unit_types.get_property_unit_types(
-                filter_query="UnitType eq 'Condo'",
-                select=["UnitTypeKey", "UnitType", "Description"]
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            response = client.property_unit_types.get_property_unit_types(
+                top=25,
+                filter_query="ListingKey eq '1611952'",
+                select=["UnitTypeKey", "ListingKey", "UnitType"],
+                count=True,
             )
-
-            # Get unit types with property relationships
-            unit_types = client.property_unit_types.get_property_unit_types(
-                expand="Properties",
-                top=10
-            )
+            for record in response.get("value", []):
+                print(record.get("UnitTypeKey"), record.get("UnitType"))
             ```
         """
         params: Dict[str, Any] = {}
@@ -108,55 +105,33 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get("PropertyUnitTypes", params=params)
 
     def get_property_unit_type(self, unit_type_key: str) -> Dict[str, Any]:
-        """Get property unit type by unit type key.
-
-        Retrieves a single property unit type record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific unit type.
+        """Request a single record at PropertyUnitTypes('<unit_type_key>').
 
         Args:
-            unit_type_key: Unit type key to retrieve (unique identifier)
+            unit_type_key: Trusted key string, interpolated without escaping.
 
         Returns:
-            Dictionary containing unit type data for the specified record
+            The server's single-record JSON dictionary; no value wrapper is added.
 
         Raises:
-            NotFoundError: If the unit type with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific unit type by key
-            unit_type = client.property_unit_types.get_property_unit_type("CONDO")
-
-            print(f"Unit Type: {unit_type['UnitType']}")
-            print(f"Description: {unit_type.get('Description', 'No description')}")
-            ```
+            NotFoundError: For a 404 response.
+            WFRMLSError: For other request failures.
         """
         return self.get(f"PropertyUnitTypes('{unit_type_key}')")
 
     def get_unit_types_for_property(
         self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get unit types for a specific property.
-
-        Convenience method to retrieve unit type information for a property.
-        Useful for understanding what types of units a property contains.
+        """Query one page with the filter ListingKey eq '<listing_key>'.
 
         Args:
-            listing_key: Property listing key to filter by
-            **kwargs: Additional OData parameters
+            listing_key: Trusted listing key string, interpolated without escaping.
+            **kwargs: Query options for get_property_unit_types. A supplied filter_query
+                is appended with and without extra parentheses. Group expressions
+                containing or when they should apply together.
 
         Returns:
-            Dictionary containing unit types for the specified property
-
-        Example:
-            ```python
-            # Get unit types for a property
-            property_units = client.property_unit_types.get_unit_types_for_property(
-                listing_key="1611952"
-            )
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         property_filter = f"ListingKey eq '{listing_key}'"
 
@@ -170,29 +145,16 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get_property_unit_types(**kwargs)
 
     def get_unit_types_by_type(self, unit_type: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get properties by unit type.
-
-        Convenience method to filter unit types by type name.
-        Useful for finding all instances of a specific unit type.
+        """Query one page with the filter UnitType eq '<unit_type>'.
 
         Args:
-            unit_type: Unit type to filter by (e.g., "Condo", "Townhome")
-            **kwargs: Additional OData parameters
+            unit_type: Trusted unit type string, interpolated without escaping.
+            **kwargs: Query options for get_property_unit_types. A supplied filter_query
+                is appended with and without extra parentheses. Group expressions
+                containing or when they should apply together.
 
         Returns:
-            Dictionary containing unit types matching the specified type
-
-        Example:
-            ```python
-            # Get all condo unit types
-            condos = client.property_unit_types.get_unit_types_by_type(
-                unit_type="Condo",
-                expand="Properties"
-            )
-
-            # Get all townhome unit types
-            townhomes = client.property_unit_types.get_unit_types_by_type("Townhome")
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         type_filter = f"UnitType eq '{unit_type}'"
 
@@ -206,25 +168,18 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get_property_unit_types(**kwargs)
 
     def get_residential_unit_types(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get residential unit types.
+        """Query one page using a fixed list of unit-type filters.
 
-        Convenience method to filter for common residential unit types.
-        Excludes commercial and other non-residential unit types.
+        The parenthesized or expression includes Condo, Townhome, Apartment,
+        Single Family, Duplex, Triplex, and Fourplex. It is not a provider-validated
+        classification of all residential records.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_property_unit_types. An additional
+                filter_query is appended with and without grouping that expression.
 
         Returns:
-            Dictionary containing residential unit types
-
-        Example:
-            ```python
-            # Get all residential unit types
-            residential_units = client.property_unit_types.get_residential_unit_types()
-
-            for unit in residential_units.get('value', []):
-                print(f"Residential Unit: {unit['UnitType']}")
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         # Common residential unit type filters
         residential_types = [
@@ -250,65 +205,51 @@ class PropertyUnitTypesClient(BaseClient):
         return self.get_property_unit_types(**kwargs)
 
     def get_unit_types_with_properties(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get unit types with their property information expanded.
+        """Query one page with expand="Properties".
 
-        This is a convenience method that automatically expands property
-        relationships to include property details in the response.
-        More efficient than making separate requests for unit types and properties.
+        The provider determines whether the Properties relationship is supported.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Query options for get_property_unit_types, excluding expand.
+                Passing expand also raises TypeError because the helper supplies it.
 
         Returns:
-            Dictionary containing unit type data with expanded property relationships
-
-        Example:
-            ```python
-            # Get unit types with property information
-            units_with_props = client.property_unit_types.get_unit_types_with_properties(
-                top=10
-            )
-
-            # Access property info for first unit type
-            first_unit = units_with_props['value'][0]
-            if 'Properties' in first_unit:
-                properties = first_unit['Properties']
-                print(f"Unit type {first_unit['UnitType']} has {len(properties)} properties")
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_property_unit_types(expand="Properties", **kwargs)
 
     def get_modified_unit_types(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get unit types modified since a specific date/time.
+        """Query one page of records modified after a cutoff.
 
-        Used for incremental data synchronization to get only unit type records
-        that have been updated since the last sync. Useful for maintaining
-        up-to-date unit type information.
+        The generated filter is ModificationTimestamp gt '<timestamp>'. String
+        inputs are used unchanged. A date becomes YYYY-MM-DDT00:00:00Z; a datetime
+        becomes isoformat() + "Z" without time-zone conversion. An aware datetime
+        therefore produces an offset-plus-Z combination. Prefer a normalized UTC
+        string, as in the example.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: Cutoff string, date, or datetime.
+            **kwargs: Query options for get_property_unit_types. Do not pass filter_query:
+                the helper supplies it and a duplicate raises TypeError.
 
         Returns:
-            Dictionary containing unit types modified since the specified time
+            One server response page unchanged, without automatic pagination.
 
         Example:
             ```python
             from datetime import datetime, timedelta, timezone
 
-            # Get unit types modified in last week
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
-            updates = client.property_unit_types.get_modified_unit_types(
-                since=cutoff_time
-            )
+            from wfrmls import WFRMLSClient
 
-            # Get unit types modified since a specific date
-            updates = client.property_unit_types.get_modified_unit_types(
-                since="2023-01-01T00:00:00Z",
-                orderby="ModificationTimestamp desc"
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+            cutoff_utc = cutoff.isoformat().replace("+00:00", "Z")
+            response = client.property_unit_types.get_modified_unit_types(
+                since=cutoff_utc, top=200, orderby="ModificationTimestamp asc"
             )
+            print(len(response.get("value", [])))
             ```
         """
         if isinstance(since, datetime):

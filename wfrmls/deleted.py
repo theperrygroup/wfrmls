@@ -1,4 +1,4 @@
-"""Deleted records client for WFRMLS API."""
+"""Deletion-record query and page-summary helpers for the WFRMLS client."""
 
 from datetime import date, timezone
 from enum import Enum
@@ -8,7 +8,10 @@ from .base_client import BaseClient
 
 
 class ResourceName(Enum):
-    """Resource name options for tracking deletions."""
+    """Filter string constants for deletion records.
+
+    A constant does not verify provider availability of the corresponding resource.
+    """
 
     PROPERTY = "Property"
     MEMBER = "Member"
@@ -22,21 +25,25 @@ class ResourceName(Enum):
 
 
 class DeletedClient(BaseClient):
-    """Client for deleted records API endpoints.
+    """Read the Deleted resource and summarize returned pages.
 
-    The Deleted resource tracks records that have been removed from the MLS system.
-    This is essential for data synchronization to ensure local databases properly
-    handle deletions and maintain data integrity.
+    Helpers use ResourceName, ResourceRecordKey, and DeletedDateTime. Provider
+    JSON is not renamed or normalized. The client does not remove local records,
+    restore deleted records, or implement a complete synchronization workflow.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the deleted records client.
+        """Initialize a service client and require credentials immediately.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token, or None to read WFRMLS_BEARER_TOKEN.
+            base_url: API base URL. None uses
+                https://resoapi.utahrealestate.com/reso/odata.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -50,50 +57,42 @@ class DeletedClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get deleted records with optional OData filtering.
+        """Query one page of Deleted records.
 
-        This method retrieves records that have been deleted from the MLS system.
-        Essential for maintaining data synchronization and integrity in applications
-        that replicate MLS data.
+        Query expressions, fields, and relationships are sent to the provider without
+        local schema validation. No default $count is sent. Examples and mocked tests
+        should not be treated as a guarantee of the current provider schema.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Page size; the client sends min(top, 200) when provided.
+            skip: Number of records to skip, passed unchanged.
+            filter_query: OData filter string, passed unchanged.
+            select: Field list or comma-separated string; lists are joined with commas.
+            orderby: OData ordering string, passed unchanged.
+            expand: Relationship list or string; lists are joined with commas.
+            count: True or False sends the corresponding $count value. None omits it.
 
         Returns:
-            Dictionary containing deleted record data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of deleted record entries
+            The server's JSON dictionary unchanged. Collection responses usually
+            contain value; OData metadata is included only when supplied by the server.
+            This method neither follows pagination links nor retries requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: For request failures through the shared HTTP client.
 
         Example:
             ```python
-            # Get all deleted records
-            deleted = client.deleted.get_deleted(top=50)
+            from wfrmls import WFRMLSClient
 
-            # Get deleted Property records only
-            deleted_properties = client.deleted.get_deleted(
-                filter_query="ResourceName eq 'Property'"
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            response = client.deleted.get_deleted(
+                top=25,
+                filter_query="ResourceName eq 'Property'",
+                select=["ResourceName", "ResourceRecordKey", "DeletedDateTime"],
+                orderby="DeletedDateTime asc",
             )
-
-            # Get recent deletions (last 24 hours)
-            from datetime import datetime, timedelta
-            cutoff = datetime.now(timezone.utc) - timedelta(days=1)
-            recent_deletions = client.deleted.get_deleted(
-                filter_query=f"DeletedDateTime gt {cutoff.isoformat()}Z",
-                orderby="DeletedDateTime desc"
-            )
+            for record in response.get("value", []):
+                print(record.get("ResourceName"), record.get("ResourceRecordKey"))
             ```
         """
         params: Dict[str, Any] = {}
@@ -127,32 +126,16 @@ class DeletedClient(BaseClient):
     def get_deleted_by_resource(
         self, resource_name: Union[ResourceName, str], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get deleted records for a specific resource type.
-
-        Convenience method to filter deleted records by resource type.
-        Useful for synchronizing specific types of data.
+        """Query one page using ResourceName eq '<resource_name>'.
 
         Args:
-            resource_name: Resource type to filter by (Property, Member, etc.)
-            **kwargs: Additional OData parameters (top, orderby, etc.)
+            resource_name: ResourceName enum member or trusted string. Enum values
+                are unwrapped; strings are interpolated without escaping.
+            **kwargs: Query options for get_deleted. A supplied filter_query is
+                appended with and without extra parentheses.
 
         Returns:
-            Dictionary containing deleted records for the specified resource
-
-        Example:
-            ```python
-            # Get deleted properties
-            deleted_properties = client.deleted.get_deleted_by_resource(
-                resource_name=ResourceName.PROPERTY,
-                top=100
-            )
-
-            # Get deleted members with ordering
-            deleted_members = client.deleted.get_deleted_by_resource(
-                resource_name="Member",
-                orderby="DeletedDateTime desc"
-            )
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         if isinstance(resource_name, ResourceName):
             resource_value = resource_name.value
@@ -176,36 +159,38 @@ class DeletedClient(BaseClient):
         resource_name: Optional[Union[ResourceName, str]] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get records deleted since a specific date/time.
+        """Query one page deleted after a cutoff, optionally for one resource.
 
-        Used for incremental data synchronization to identify records that have
-        been deleted since the last sync. Essential for maintaining data integrity
-        in replicated systems.
+        The filter is DeletedDateTime gt <timestamp>, without timestamp quotes.
+        Strings are used unchanged. A date becomes YYYY-MM-DDZ without midnight.
+        Datetime is not a declared input type, but date-subclass handling would append
+        Z to its isoformat() value without time-zone conversion. Prefer a full UTC
+        string normalized to one trailing Z.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            resource_name: Optional resource type to filter by
-            **kwargs: Additional OData parameters
+            since: Timestamp string or date.
+            resource_name: Optional ResourceName enum member or trusted string.
+                Adds ResourceName eq '<value>'; strings are not escaped.
+            **kwargs: Query options for get_deleted. A supplied filter_query is
+                appended with and without grouping that expression.
 
         Returns:
-            Dictionary containing records deleted since the specified time
+            The server response page unchanged, without automatic pagination.
 
         Example:
             ```python
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
-            # Get records deleted in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            recent_deletions = client.deleted.get_deleted_since(
-                since=cutoff_time.isoformat() + "Z"
-            )
+            from wfrmls import ResourceName, WFRMLSClient
 
-            # Get properties deleted since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            deleted_properties = client.deleted.get_deleted_since(
-                since=yesterday.isoformat() + "Z",
-                resource_name=ResourceName.PROPERTY
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+            cutoff_utc = cutoff.isoformat().replace("+00:00", "Z")
+            response = client.deleted.get_deleted_since(
+                since=cutoff_utc, resource_name=ResourceName.PROPERTY, top=200
             )
+            print(len(response.get("value", [])))
+            print(response.get("@odata.nextLink"))
             ```
         """
         if isinstance(since, date):
@@ -234,130 +219,95 @@ class DeletedClient(BaseClient):
         return self.get_deleted(**kwargs)
 
     def get_deleted_property_records(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Property records.
-
-        Convenience method specifically for deleted property records.
-        Most commonly used deletion tracking for real estate applications.
+        """Query one deletion page for Property records.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_deleted, forwarded through get_deleted_by_resource.
+                A supplied filter_query is appended to the resource filter with and.
 
         Returns:
-            Dictionary containing deleted property records
-
-        Example:
-            ```python
-            # Get recent deleted properties
-            deleted_properties = client.deleted.get_deleted_property_records(
-                orderby="DeletedDateTime desc",
-                top=50
-            )
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_by_resource(ResourceName.PROPERTY, **kwargs)
 
     def get_deleted_properties(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Property records via legacy method name.
+        """Call get_deleted_property_records using a legacy method name.
 
         Args:
-            **kwargs: Additional OData parameters.
+            **kwargs: Arguments forwarded unchanged to get_deleted_property_records.
 
         Returns:
-            Dictionary containing deleted property records.
+            One server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_property_records(**kwargs)
 
     def get_deleted_member_records(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Member records.
-
-        Convenience method specifically for deleted member (agent/broker) records.
+        """Query one deletion page for Member records.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_deleted, forwarded through get_deleted_by_resource.
+                A supplied filter_query is appended to the resource filter with and.
 
         Returns:
-            Dictionary containing deleted member records
-
-        Example:
-            ```python
-            # Get deleted members
-            deleted_members = client.deleted.get_deleted_member_records(top=25)
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_by_resource(ResourceName.MEMBER, **kwargs)
 
     def get_deleted_members(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Member records via legacy method name.
+        """Call get_deleted_member_records using a legacy method name.
 
         Args:
-            **kwargs: Additional OData parameters.
+            **kwargs: Arguments forwarded unchanged to get_deleted_member_records.
 
         Returns:
-            Dictionary containing deleted member records.
+            One server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_member_records(**kwargs)
 
     def get_deleted_office_records(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Office records.
-
-        Convenience method specifically for deleted office/brokerage records.
+        """Query one deletion page for Office records.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_deleted, forwarded through get_deleted_by_resource.
+                A supplied filter_query is appended to the resource filter with and.
 
         Returns:
-            Dictionary containing deleted office records
-
-        Example:
-            ```python
-            # Get deleted offices
-            deleted_offices = client.deleted.get_deleted_office_records(top=25)
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_by_resource(ResourceName.OFFICE, **kwargs)
 
     def get_deleted_offices(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Office records via legacy method name.
+        """Call get_deleted_office_records using a legacy method name.
 
         Args:
-            **kwargs: Additional OData parameters.
+            **kwargs: Arguments forwarded unchanged to get_deleted_office_records.
 
         Returns:
-            Dictionary containing deleted office records.
+            One server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_office_records(**kwargs)
 
     def get_deleted_open_houses(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted OpenHouse records via legacy method name.
+        """Query one deletion page for OpenHouse records.
 
         Args:
-            **kwargs: Additional OData parameters.
+            **kwargs: Query options for get_deleted, forwarded through get_deleted_by_resource.
+                A supplied filter_query is appended to the resource filter with and.
 
         Returns:
-            Dictionary containing deleted open house records.
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_by_resource(ResourceName.OPENHOUSE, **kwargs)
 
     def get_deleted_media_records(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get deleted Media records.
-
-        Convenience method specifically for deleted media/photo records.
-        Useful for cleaning up orphaned media references.
+        """Query one deletion page for Media records.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_deleted, forwarded through get_deleted_by_resource.
+                A supplied filter_query is appended to the resource filter with and.
 
         Returns:
-            Dictionary containing deleted media records
-
-        Example:
-            ```python
-            # Get recently deleted media
-            deleted_media = client.deleted.get_deleted_media_records(
-                orderby="DeletedDateTime desc",
-                top=100
-            )
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_deleted_by_resource(ResourceName.MEDIA, **kwargs)
 
@@ -367,35 +317,27 @@ class DeletedClient(BaseClient):
         resource_types: Optional[List[Union[ResourceName, str]]] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get all deleted records for comprehensive data synchronization.
+        """Aggregate one deletion page per requested resource.
 
-        Retrieves deleted records across multiple resource types for a complete
-        sync operation. Essential for maintaining data integrity in replicated systems.
+        The default resource list is Property, Member, Office, Media, and OpenHouse.
+        Despite the method name, this is not a complete sync: it ignores pagination
+        and count metadata. Every per-resource exception is suppressed and represented
+        by an empty list, without an error indicator. Use get_deleted_since directly
+        when request failures must be distinguishable from no deletions.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            resource_types: List of resource types to include (all if None)
-            **kwargs: Additional OData parameters
+            since: Timestamp string or date; date becomes YYYY-MM-DDZ.
+            resource_types: List of ResourceName members or strings. None uses the
+                five defaults; an empty list makes no requests.
+            **kwargs: Query options passed to each get_deleted_since call. Do not
+                pass resource_name, which the helper supplies itself.
 
         Returns:
-            Dictionary containing comprehensive deleted record data organized by resource type
-
-        Example:
-            ```python
-            from datetime import datetime, timedelta
-
-            # Get all deletions in last hour for comprehensive sync
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-            all_deletions = client.deleted.get_all_deleted_for_sync(
-                since=cutoff.isoformat() + "Z",
-                resource_types=[ResourceName.PROPERTY, ResourceName.MEMBER, ResourceName.MEDIA]
-            )
-
-            # Process by resource type
-            for resource_type in all_deletions['by_resource']:
-                records = all_deletions['by_resource'][resource_type]
-                print(f"Found {len(records)} deleted {resource_type} records")
-            ```
+            Dictionary with @odata.context='Comprehensive deletion sync', concatenated
+            value records, and by_resource page lists. sync_info contains the local
+            total_deleted_records, resource_types_checked, since_timestamp, and
+            resources_with_deletions. These counts do not establish provider totals
+            or successful completion of every resource request.
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"
@@ -457,32 +399,24 @@ class DeletedClient(BaseClient):
     def get_deletion_summary(
         self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get a summary of deletion activity by resource type.
-
-        Provides overview statistics for deletion monitoring and reporting.
-        Useful for understanding deletion patterns and data management needs.
+        """Summarize one page returned by get_deleted_since.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            **kwargs: Additional OData parameters
+            since: Timestamp string or date; date becomes YYYY-MM-DDZ.
+            **kwargs: Arguments forwarded to get_deleted_since, including optional
+                resource_name and query options for get_deleted.
 
         Returns:
-            Dictionary containing deletion summary statistics
+            Dictionary with @odata.context='Deletion summary', value records, and
+            summary. The summary includes total_deletions, resource_types_affected,
+            by_resource_count, by_resource_latest, and analysis_period. Missing
+            ResourceName defaults to Unknown. DeletedDateTime values are compared as
+            strings, not parsed dates. analysis_period contains since and the local
+            date with an appended Z as analysis_timestamp. Pagination metadata is
+            discarded; totals describe only the returned page.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta
-
-            # Get deletion summary for last 24 hours
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            summary = client.deleted.get_deletion_summary(
-                since=yesterday.isoformat() + "Z"
-            )
-
-            print(f"Total deletions: {summary['summary']['total_deletions']}")
-            for resource, count in summary['summary']['by_resource_count'].items():
-                print(f"  {resource}: {count} deletions")
-            ```
+        Raises:
+            WFRMLSError: For request failures; they are not suppressed here.
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"
@@ -533,32 +467,27 @@ class DeletedClient(BaseClient):
     def monitor_deletion_activity(
         self, hours_back: int = 24, alert_threshold: int = 100, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Monitor deletion activity and identify unusual patterns.
+        """Compute synchronous alerts from one deletion-page summary.
 
-        Analyzes recent deletion activity to identify potential issues or
-        unusual deletion patterns that might require attention.
+        This method does not schedule monitoring, send messages, retry, or paginate.
+        It currently appends Z to timezone-aware ISO values, producing offset-plus-Z
+        cutoff and monitoring timestamps. The provider may reject the generated
+        cutoff. Use get_deletion_summary with a normalized UTC string when an explicit
+        valid cutoff is required.
 
         Args:
-            hours_back: Number of hours to analyze (default: 24)
-            alert_threshold: Number of deletions that triggers alerts (default: 100)
-            **kwargs: Additional OData parameters
+            hours_back: Hours subtracted from the current UTC time, default 24.
+            alert_threshold: Total-count alert threshold, default 100. The method
+                also compares each resource count against this threshold divided by
+                the number of resource types, using integer division. Comparisons
+                are strictly greater than their thresholds.
+            **kwargs: Arguments forwarded through get_deletion_summary.
 
         Returns:
-            Dictionary containing monitoring results and alerts
-
-        Example:
-            ```python
-            # Monitor for unusual deletion activity
-            monitoring = client.deleted.monitor_deletion_activity(
-                hours_back=6,
-                alert_threshold=50
-            )
-
-            if monitoring['alerts']:
-                print("ALERTS DETECTED:")
-                for alert in monitoring['alerts']:
-                    print(f"  - {alert}")
-            ```
+            Dictionary with @odata.context='Deletion monitoring', monitoring_period,
+            summary, alerts, recommendations, status, and monitoring_timestamp.
+            Status is ALERT if any alert string exists, otherwise NORMAL.
+            Recommendations are strings and do not execute cleanup.
         """
         from datetime import datetime, timedelta
 

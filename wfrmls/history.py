@@ -27,21 +27,23 @@ class HistoryStatus(Enum):
 
 
 class HistoryTransactionalClient(BaseClient):
-    """Client for historical transaction data API endpoints.
+    """Standalone compatibility interface for HistoryTransactional requests.
 
-    The HistoryTransactional resource contains historical property transaction
-    information including sale prices, dates, and other transaction details.
-    This is valuable for market analysis, comparable sales, and pricing trends.
+    WFRMLSClient has no history attribute. Exported methods and mocked tests
+    establish request behavior, not current provider availability or permissions.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the history transactional client.
+        """Initialize a service client and resolve its credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Explicit token, or None to use WFRMLS_BEARER_TOKEN.
+            base_url: OData service root, or None for the package default.
+
+        Raises:
+            AuthenticationError: If neither an explicit nor environment token exists.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -55,54 +57,23 @@ class HistoryTransactionalClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get historical transactions with optional OData filtering.
-
-        This method retrieves historical transaction data with full OData v4.0 query support.
-        Useful for market analysis, comparable sales research, and pricing trends.
+        """Request one HistoryTransactional page with named OData parameters.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional $top; values above 200 are clamped to 200.
+            skip: Optional $skip offset, passed unchanged.
+            filter_query: Optional raw $filter expression.
+            select: Optional field list or comma-separated $select string.
+            orderby: Optional raw $orderby expression.
+            expand: Optional relationship list or comma-separated $expand string.
+            count: Optional $count, converted to lowercase true or false.
 
         Returns:
-            Dictionary containing history transaction data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of transaction records
+            Parsed JSON dictionary from one request, commonly containing value.
+            Counts, next links, and individual fields are server-provided and optional.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
-
-        Example:
-            ```python
-            # Get recent sales transactions
-            recent_sales = client.history.get_history_transactions(
-                filter_query="TransactionType eq 'Sale' and CloseDate gt '2023-01-01'",
-                orderby="CloseDate desc",
-                top=50
-            )
-
-            # Get transactions with property info
-            transactions = client.history.get_history_transactions(
-                expand="Property",
-                top=25
-            )
-
-            # Get specific transaction fields
-            transactions = client.history.get_history_transactions(
-                select=["ListingKey", "ClosePrice", "CloseDate", "TransactionType"],
-                filter_query="ClosePrice gt 500000",
-                orderby="ClosePrice desc"
-            )
-            ```
+            WFRMLSError: For shared HTTP or transport failures.
         """
         params: Dict[str, Any] = {}
 
@@ -133,64 +104,27 @@ class HistoryTransactionalClient(BaseClient):
         return self.get("HistoryTransactional", params=params)
 
     def get_history_transaction(self, transaction_key: str) -> Dict[str, Any]:
-        """Get historical transaction by transaction key.
-
-        Retrieves a single historical transaction record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific transaction.
+        """Request HistoryTransactional('<key>') without response normalization.
 
         Args:
-            transaction_key: Transaction key to retrieve (unique identifier)
+            transaction_key: String inserted without escaping into a quoted key URL.
 
         Returns:
-            Dictionary containing transaction data for the specified record
-
-        Raises:
-            NotFoundError: If the transaction with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific transaction by key
-            transaction = client.history.get_history_transaction("TXN123456")
-
-            print(f"Sale Price: ${transaction['ClosePrice']:,}")
-            print(f"Close Date: {transaction['CloseDate']}")
-            print(f"Property: {transaction['ListingKey']}")
-            ```
+            Handled provider JSON.
         """
         return self.get(f"HistoryTransactional('{transaction_key}')")
 
     def get_transactions_for_property(
         self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get historical transactions for a specific property.
-
-        Convenience method to retrieve all historical transactions for a property.
-        Useful for getting the complete transaction history of a property.
+        """Filter a history collection by quoted ListingKey.
 
         Args:
-            listing_key: Property listing key to filter by
-            **kwargs: Additional OData parameters
+            listing_key: String inserted without escaping into a quoted literal.
+            **kwargs: get_history_transactions parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing transactions for the specified property
-
-        Example:
-            ```python
-            # Get all transactions for a property
-            property_history = client.history.get_transactions_for_property(
-                listing_key="1611952",
-                orderby="CloseDate desc"
-            )
-
-            # Get sales only for a property
-            property_sales = client.history.get_transactions_for_property(
-                listing_key="1611952",
-                filter_query="TransactionType eq 'Sale'",
-                orderby="CloseDate desc"
-            )
-            ```
+            Provider collection JSON; additional filters are joined with and.
         """
         property_filter = f"ListingKey eq '{listing_key}'"
 
@@ -209,35 +143,15 @@ class HistoryTransactionalClient(BaseClient):
         max_price: Optional[int] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get sales transactions within a price range.
-
-        Convenience method to filter sales transactions by price range.
-        Useful for market analysis and comparable sales research.
+        """Filter Sale transactions by optional inclusive ClosePrice bounds.
 
         Args:
-            min_price: Minimum sale price filter
-            max_price: Maximum sale price filter
-            **kwargs: Additional OData parameters
+            min_price: Inclusive minimum, default None.
+            max_price: Inclusive maximum, default None.
+            **kwargs: Collection parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing sales within the specified price range
-
-        Example:
-            ```python
-            # Get sales between $400K and $600K
-            mid_range_sales = client.history.get_sales_by_price_range(
-                min_price=400000,
-                max_price=600000,
-                orderby="CloseDate desc",
-                top=100
-            )
-
-            # Get luxury sales above $1M
-            luxury_sales = client.history.get_sales_by_price_range(
-                min_price=1000000,
-                orderby="ClosePrice desc"
-            )
-            ```
+            Provider JSON from one page; combines an existing filter with and.
         """
         filters = ["TransactionType eq 'Sale'"]
 
@@ -263,39 +177,15 @@ class HistoryTransactionalClient(BaseClient):
         end_date: Union[str, date, datetime],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get sales transactions within a date range.
-
-        Convenience method to filter sales transactions by close date range.
-        Useful for analyzing market activity in specific time periods.
+        """Filter Sale transactions by inclusive quoted CloseDate bounds.
 
         Args:
-            start_date: Start date for filtering (inclusive)
-            end_date: End date for filtering (inclusive)
-            **kwargs: Additional OData parameters
+            start_date: String or date/datetime serialized with isoformat().
+            end_date: String or date/datetime serialized with isoformat().
+            **kwargs: Collection parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing sales within the specified date range
-
-        Example:
-            ```python
-            from datetime import date, timezone
-
-            # Get sales from Q1 2023
-            q1_sales = client.history.get_sales_by_date_range(
-                start_date=date(2023, 1, 1),
-                end_date=date(2023, 3, 31),
-                orderby="CloseDate desc"
-            )
-
-            # Get sales from last 30 days
-            from datetime import datetime, timedelta, timezone
-            recent_sales = client.history.get_sales_by_date_range(
-                start_date=datetime.now() - timedelta(days=30),
-                end_date=datetime.now(),
-                orderby="ClosePrice desc",
-                top=100
-            )
-            ```
+            Provider JSON from one page; no timezone conversion or date validation occurs.
         """
         # Convert dates to ISO format
         if isinstance(start_date, (date, datetime)):
@@ -320,34 +210,14 @@ class HistoryTransactionalClient(BaseClient):
         return self.get_history_transactions(**kwargs)
 
     def get_recent_sales(self, days_back: int = 30, **kwargs: Any) -> Dict[str, Any]:
-        """Get recent sales transactions.
-
-        Convenience method to get sales from the last N days.
-        Useful for current market activity analysis.
+        """Filter Sale transactions since a local naive datetime cutoff.
 
         Args:
-            days_back: Number of days back to search (default: 30)
-            **kwargs: Additional OData parameters
+            days_back: Number of days subtracted from datetime.now(), default 30.
+            **kwargs: Collection parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing recent sales transactions
-
-        Example:
-            ```python
-            # Get sales from last 7 days
-            recent_week = client.history.get_recent_sales(
-                days_back=7,
-                orderby="CloseDate desc",
-                top=50
-            )
-
-            # Get recent luxury sales
-            recent_luxury = client.history.get_recent_sales(
-                days_back=30,
-                filter_query="ClosePrice gt 1000000",
-                orderby="ClosePrice desc"
-            )
-            ```
+            Provider JSON from one page; this does not retrieve all sales or use UTC.
         """
         from datetime import datetime, timedelta
 
@@ -366,28 +236,14 @@ class HistoryTransactionalClient(BaseClient):
         return self.get_history_transactions(**kwargs)
 
     def get_transactions_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get transactions in a specific city.
-
-        Convenience method to filter transactions by city name.
-        Useful for location-specific market analysis.
+        """Filter City and combine optional filter_query with and.
 
         Args:
-            city: City name to filter by
-            **kwargs: Additional OData parameters
+            city: City text interpolated without escaping into a quoted literal.
+            **kwargs: Collection parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing transactions in the specified city
-
-        Example:
-            ```python
-            # Get Salt Lake City sales
-            slc_sales = client.history.get_transactions_by_city(
-                city="Salt Lake City",
-                filter_query="TransactionType eq 'Sale'",
-                orderby="CloseDate desc",
-                top=100
-            )
-            ```
+            Provider collection JSON from one page.
         """
         city_filter = f"City eq '{city}'"
 
@@ -401,101 +257,41 @@ class HistoryTransactionalClient(BaseClient):
         return self.get_history_transactions(**kwargs)
 
     def get_closed_transactions(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get transactions with Closed status.
-
-        Convenience method to retrieve only closed transactions.
-        Filters out pending, withdrawn, or other non-closed transactions.
+        """Filter Status eq 'Closed' on a history collection page.
 
         Args:
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            **kwargs: Collection parameters, excluding filter_query.
 
         Returns:
-            Dictionary containing closed transaction listings
-
-        Example:
-            ```python
-            # Get all closed transactions
-            closed_transactions = client.history.get_closed_transactions(
-                orderby="CloseDate desc",
-                top=100
-            )
-
-            # Get closed sales with price info
-            closed_sales = client.history.get_closed_transactions(
-                filter_query="TransactionType eq 'Sale'",
-                select=["ListingKey", "ClosePrice", "CloseDate"],
-                orderby="ClosePrice desc"
-            )
-            ```
+            Provider JSON; use the collection method for a combined custom filter.
         """
         return self.get_history_transactions(
             filter_query="Status eq 'Closed'", **kwargs
         )
 
     def get_transactions_with_property(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get transactions with their property information expanded.
-
-        This is a convenience method that automatically expands the Property
-        relationship to include property details in the response. More efficient
-        than making separate requests for transactions and their properties.
+        """Query history with $expand=Property.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Collection parameters, excluding expand.
 
         Returns:
-            Dictionary containing transaction data with expanded Property relationships
-
-        Example:
-            ```python
-            # Get recent transactions with property info
-            transactions_with_props = client.history.get_transactions_with_property(
-                filter_query="CloseDate gt '2023-01-01' and TransactionType eq 'Sale'",
-                orderby="CloseDate desc",
-                top=25
-            )
-
-            # Access property info for first transaction
-            first_transaction = transactions_with_props['value'][0]
-            if 'Property' in first_transaction:
-                property_info = first_transaction['Property']
-                print(f"Sold: {property_info['UnparsedAddress']}")
-            ```
+            Provider JSON if the server accepts the relationship.
         """
         return self.get_history_transactions(expand="Property", **kwargs)
 
     def get_modified_transactions(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get transactions modified since a specific date/time.
-
-        Used for incremental data synchronization to get only transaction records
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date historical transaction information.
+        """Filter ModificationTimestamp after a quoted cutoff.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: String sent unchanged; date becomes midnight Z; datetime becomes
+                isoformat() plus Z without converting its timezone.
+            **kwargs: Collection parameters, excluding filter_query.
 
         Returns:
-            Dictionary containing transactions modified since the specified time
-
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get transactions modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.history.get_modified_transactions(
-                since=cutoff_time
-            )
-
-            # Get transactions modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.history.get_modified_transactions(
-                since=yesterday,
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+            Provider JSON from one page. Prefer a normalized UTC string.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"

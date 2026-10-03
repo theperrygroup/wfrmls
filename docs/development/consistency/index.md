@@ -1,44 +1,35 @@
-# Consistency Runbooks
+---
+title: "Repository consistency runbooks"
+description: "Use WFRMLS consistency runbooks to review package metadata, documentation, GitHub Actions, dependency ownership, and evidence of completion."
+---
 
-Use this directory to align `wfrmls` with the shared Perry Group Python client
-standard used across `vestaboard`, `rezen`, `flex_mls`, and `wfrmls`. Run
-every command from the repository root.
+# Repository consistency runbooks
 
-## Local Variables
+These runbooks describe the shared review approach for The Perry Group's Python
+clients (`vestaboard`, `rezen`, `flex_mls`, and `wfrmls`). The commands and
+repository observations here are specific to `wfrmls`; they do not certify the
+state of the other projects.
 
-```bash
-export PACKAGE_TARGET="wfrmls"
-export CI_WORKFLOW=".github/workflows/ci.yml"
-export RELEASE_WORKFLOW=".github/workflows/release.yml"
-export DOCS_WORKFLOW=".github/workflows/docs.yml"
-export DEPENDENCY_AUTOMATION_FILE=".github/dependabot.yml"
-```
+## Choose a review phase
 
-## Runbooks
+1. [Shared standard](shared-standard.md): goals and rules for documented exceptions.
+2. [Foundation](phase-1-foundation.md): metadata, versions, dependencies, and artifacts.
+3. [Documentation](phase-2-docs.md): truthful examples, navigation, and local builds.
+4. [GitHub Actions](phase-3-github-actions.md): actual gates, releases, security, and deployment.
+5. [Repository gap map](repo-gap-map.md): implementation differences and review questions.
 
-- [`shared-standard.md`](shared-standard.md)
-- [`phase-1-foundation.md`](phase-1-foundation.md)
-- [`phase-2-docs.md`](phase-2-docs.md)
-- [`phase-3-github-actions.md`](phase-3-github-actions.md)
-- [`repo-gap-map.md`](repo-gap-map.md)
+Read phases in that order when auditing the whole repository. A focused change
+only needs the relevant phase and its dependencies. Use the
+[development guide](../index.md) for environment setup and the exact local
+quality commands; run them from the repository root.
 
-## Working Rules
+## Record a reviewable result
 
-- Read `shared-standard.md` before changing files.
-- Finish the phases in order so metadata and docs stop drifting before
-  workflows are updated.
-- Treat missing files or missing workflow steps as gaps to close, not as
-  reasons to skip a phase.
-- Record intentional exceptions in `repo-gap-map.md` so this repo does not
-  silently diverge from the other libraries.
+Capture the inspected commit, affected files, checks actually run, and their
+results. Distinguish a recommendation from an enforced gate and a successful
+build from a published release or docs deployment.
 
-## Definition Of Done
-
-- `pyproject.toml`, `wfrmls/__init__.py`, and the release workflow all
-  describe the same version story.
-- Tooling advertised in docs or config is either enforced in CI or removed
-  from the published standard.
-- The docs nav matches real files and the consistency runbooks are first-class
-  docs pages.
-- CI, release, security, and dependency automation cover the same baseline
-  outcomes as the other libraries even if the implementation details differ.
+A review closes when metadata and runtime versions agree, examples match the
+implemented API, navigation resolves, required checks pass, and any remaining
+exceptions have a concrete owner and rationale. Do not replace failed checks
+with unverified completion claims.

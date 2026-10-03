@@ -29,22 +29,24 @@ class PropertyType(Enum):
 
 
 class PropertyClient(BaseClient):
-    """Client for property API endpoints.
+    """Build Property collection queries and numeric-key lookups.
 
-    The Property resource is the primary resource in the WFRMLS API, containing
-    real estate listing data including property details, pricing, and location
-    information. This client provides access to all property-related endpoints
-    with comprehensive OData query support.
+    Collection queries return provider JSON without pagination or schema validation.
+    Single-property lookups normalize a wrapped value array to its first object.
+    Radius/polygon methods are disabled; address search only extracts a city.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the property client.
+        """Initialize a service client and resolve its credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Explicit token, or None to use WFRMLS_BEARER_TOKEN.
+            base_url: OData service root, or None for the package default.
+
+        Raises:
+            AuthenticationError: If neither an explicit nor environment token exists.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -97,60 +99,23 @@ class PropertyClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get properties with optional OData filtering.
-
-        This method retrieves property listings with full OData v4.0 query support.
-        It's the primary method for accessing property data in the WFRMLS system.
+        """Request one Property collection page with named OData parameters.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets,
-                prefer NextLink pagination instead
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional $top; values above 200 are clamped to 200.
+            skip: Optional $skip offset, passed unchanged.
+            filter_query: Optional raw $filter expression.
+            select: Optional field list or comma-separated $select string.
+            orderby: Optional raw $orderby expression.
+            expand: Optional relationship list or comma-separated $expand string.
+            count: Optional $count, converted to lowercase true or false.
 
         Returns:
-            Dictionary containing property data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of property records
+            Parsed JSON dictionary from one request, commonly containing value.
+            Counts, next links, and individual fields are server-provided and optional.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
-
-        Example:
-            ```python
-            # Get first 10 active properties
-            properties = client.property.get_properties(
-                top=10,
-                filter_query="StandardStatus eq 'Active'"
-            )
-
-            # Get properties with photos and agent info
-            properties = client.property.get_properties(
-                expand=["Media", "Member"],
-                top=50
-            )
-
-            # Get properties in price range with sorting
-            properties = client.property.get_properties(
-                filter_query="ListPrice ge 200000 and ListPrice le 500000",
-                orderby="ListPrice desc",
-                top=100
-            )
-
-            # Get properties with specific fields only
-            properties = client.property.get_properties(
-                select=["ListingId", "ListPrice", "StandardStatus", "City"],
-                top=50
-            )
-            ```
+            WFRMLSError: For shared HTTP or transport failures.
         """
         params: Dict[str, Any] = {}
 
@@ -181,37 +146,18 @@ class PropertyClient(BaseClient):
         return self.get("Property", params=params)
 
     def get_property(self, listing_id: str) -> Dict[str, Any]:
-        """Get property by listing ID.
-
-        Retrieves a single property record by its unique listing ID.
-        This is the most efficient way to get detailed information about
-        a specific property. This method always returns a single property
-        dictionary, even if the upstream API responds with an OData wrapper
-        shaped like `{"value": [...]}`.
+        """Retrieve one Property record using a numeric key URL.
 
         Args:
-            listing_id: Listing ID to retrieve (must be numeric)
+            listing_id: Numeric string converted with int() for Property(<number>).
 
         Returns:
-            Dictionary containing property data for the specified listing.
-            Property fields such as `ParcelNumber`, `ListPrice`, and
-            `UnparsedAddress` are returned as top-level keys on this dictionary.
+            Direct object response, or the first object in a wrapped value array.
 
         Raises:
-            NotFoundError: If the property with the given ID is not found
-            WFRMLSError: If the API request fails
-            ValidationError: If the listing_id is not a valid numeric value or
-                the response shape is invalid
-
-        Example:
-            ```python
-            # Get specific property by listing ID
-            property_data = client.property.get_property("12345678")
-
-            print(f"Parcel: {property_data['ParcelNumber']}")
-            print(f"Property: {property_data['ListPrice']}")
-            print(f"Address: {property_data['UnparsedAddress']}")
-            ```
+            ValidationError: If listing_id is a nonnumeric string.
+            NotFoundError: If the provider returns 404 or a wrapped empty array.
+            WFRMLSError: For HTTP failures or malformed wrapped response shapes.
         """
         # Ensure listing_id is numeric (API requires numeric keys without quotes)
         try:
@@ -234,23 +180,23 @@ class PropertyClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Search properties using the standard property collection endpoint.
-
-        This legacy alias preserves compatibility with callers that expect a
-        `search_properties()` method name. It delegates to `get_properties()`.
+        """Alias of get_properties with the same explicit OData parameters.
 
         Args:
-            top: Number of results to return (OData $top, max 200).
-            skip: Number of results to skip (OData $skip).
-            filter_query: OData filter query string.
-            select: Fields to select as a list or comma-separated string.
-            orderby: Order by clause for result sorting.
-            expand: Related resources to include.
-            count: Include total count in results.
+            top: Optional $top; values above 200 are clamped to 200.
+            skip: Optional $skip offset, passed unchanged.
+            filter_query: Optional raw $filter expression.
+            select: Optional field list or comma-separated $select string.
+            orderby: Optional raw $orderby expression.
+            expand: Optional relationship list or comma-separated $expand string.
+            count: Optional $count, converted to lowercase true or false.
 
         Returns:
-            Dictionary containing property search results with an OData `value`
-            list and optional metadata fields.
+            Parsed JSON dictionary from one request, commonly containing value.
+            Counts, next links, and individual fields are server-provided and optional.
+
+        Raises:
+            WFRMLSError: For shared HTTP or transport failures.
         """
         return self.get_properties(
             top=top,
@@ -270,37 +216,22 @@ class PropertyClient(BaseClient):
         additional_filters: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Search properties within a radius of given coordinates.
-
-        WARNING: This method is not supported by the WFRMLS API as property records
-        do not contain latitude/longitude coordinates. This method will always fail.
-
-        Use city-based or address-based searches instead.
+        """Reject unsupported geospatial radius searches locally.
 
         Args:
-            latitude: Latitude coordinate for center point
-            longitude: Longitude coordinate for center point
-            radius_miles: Search radius in miles
-            additional_filters: Additional OData filter query to combine with geo filter
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
-
-        Returns:
-            Dictionary containing property data within the specified radius
+            latitude: Compatibility latitude argument.
+            longitude: Compatibility longitude argument.
+            radius_miles: Compatibility distance argument.
+            additional_filters: Compatibility argument; no filter is sent.
+            **kwargs: Compatibility arguments; no request is made.
 
         Raises:
-            ValidationError: Always raised as geospatial data is not available
-            WFRMLSError: If the API request fails
+            ValidationError: Always, before an HTTP request.
 
-        Example:
-            ```python
-            # This method will not work with WFRMLS API
-            # Use get_properties_by_city() instead:
-            properties = client.property.get_properties_by_city(
-                city="Salt Lake City",
-                additional_filters="StandardStatus eq 'Active'",
-                top=50
-            )
-            ```
+        Note:
+            Use get_properties_by_city(city, filter_query=...) for supported
+            server-side field filtering. This method does not verify current
+            provider coordinate fields or calculate geographic matches.
         """
         raise ValidationError(
             "Geospatial radius search is not supported by the WFRMLS API. "
@@ -314,36 +245,20 @@ class PropertyClient(BaseClient):
         additional_filters: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Search properties within a polygon area.
-
-        WARNING: This method is not supported by the WFRMLS API as property records
-        do not contain latitude/longitude coordinates. This method will always fail.
-
-        Use city-based or address-based searches instead.
+        """Reject unsupported geospatial polygon searches locally.
 
         Args:
-            polygon_coordinates: List of coordinate dicts with 'lat' and 'lng' keys.
-                Must have at least 3 points and should be closed (first == last).
-            additional_filters: Additional OData filter query to combine with geo filter
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
-
-        Returns:
-            Dictionary containing property data within the polygon
+            polygon_coordinates: Compatibility polygon coordinate argument.
+            additional_filters: Compatibility argument; no filter is sent.
+            **kwargs: Compatibility arguments; no request is made.
 
         Raises:
-            ValidationError: Always raised as geospatial data is not available
-            WFRMLSError: If the API request fails
+            ValidationError: Always, before an HTTP request.
 
-        Example:
-            ```python
-            # This method will not work with WFRMLS API
-            # Use get_properties_by_city() instead:
-            properties = client.property.get_properties_by_city(
-                city="Salt Lake City",
-                additional_filters="PropertyType eq 'Residential'",
-                top=100
-            )
-            ```
+        Note:
+            Use get_properties_by_city(city, filter_query=...) for supported
+            server-side field filtering. This method does not verify current
+            provider coordinate fields or calculate geographic matches.
         """
         raise ValidationError(
             "Geospatial polygon search is not supported by the WFRMLS API. "
@@ -352,58 +267,24 @@ class PropertyClient(BaseClient):
         )
 
     def get_properties_with_media(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get properties with their associated media/photos.
-
-        This is a convenience method that automatically expands the Media
-        relationship to include property photos in the response. More efficient
-        than making separate requests for properties and their media.
+        """Request a Property collection page with $expand=Media.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: get_properties parameters, excluding expand.
 
         Returns:
-            Dictionary containing property data with expanded Media relationships
-
-        Example:
-            ```python
-            # Get active properties with photos
-            properties = client.property.get_properties_with_media(
-                filter_query="StandardStatus eq 'Active'",
-                top=25
-            )
-
-            # Access photos for first property
-            first_property = properties['value'][0]
-            if 'Media' in first_property:
-                photos = first_property['Media']
-                print(f"Property has {len(photos)} photos")
-            ```
+            Provider JSON from one page; acceptance of Media expansion is server-specific.
         """
         return self.get_properties(expand="Media", **kwargs)
 
     def get_active_properties(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get properties with Active status.
-
-        Convenience method to retrieve only active property listings.
-        This is one of the most common queries for real estate applications.
+        """Request a Property page filtered by StandardStatus eq 'Active'.
 
         Args:
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            **kwargs: get_properties parameters, excluding filter_query.
 
         Returns:
-            Dictionary containing active property listings
-
-        Example:
-            ```python
-            # Get all active properties
-            active_properties = client.property.get_active_properties(top=100)
-
-            # Get active properties with specific fields
-            active_properties = client.property.get_active_properties(
-                select=["ListingId", "ListPrice", "UnparsedAddress"],
-                orderby="ListPrice"
-            )
-            ```
+            Provider collection JSON. Use get_properties for a combined custom filter.
         """
         return self.get_properties(filter_query="StandardStatus eq 'Active'", **kwargs)
 
@@ -413,38 +294,15 @@ class PropertyClient(BaseClient):
         max_price: Optional[float] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get properties within a price range.
-
-        Convenience method to filter properties by listing price range.
-        Commonly used for buyer searches and market analysis.
+        """Filter ListPrice by optional inclusive lower and upper bounds.
 
         Args:
-            min_price: Minimum listing price (inclusive)
-            max_price: Maximum listing price (inclusive)
-            **kwargs: Additional OData parameters
+            min_price: Inclusive minimum, or None to omit it.
+            max_price: Inclusive maximum, or None to omit it.
+            **kwargs: get_properties parameters. Do not supply filter_query when a bound is set.
 
         Returns:
-            Dictionary containing properties within the price range
-
-        Example:
-            ```python
-            # Properties between $200K and $500K
-            properties = client.property.get_properties_by_price_range(
-                min_price=200000,
-                max_price=500000,
-                top=50
-            )
-
-            # Properties under $300K
-            properties = client.property.get_properties_by_price_range(
-                max_price=300000
-            )
-
-            # Properties over $1M
-            properties = client.property.get_properties_by_price_range(
-                min_price=1000000
-            )
-            ```
+            Provider JSON from one page. With no bounds, forwards kwargs unchanged.
         """
         filters = []
 
@@ -461,32 +319,24 @@ class PropertyClient(BaseClient):
         return self.get_properties(filter_query=filter_query, **kwargs)
 
     def get_properties_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get properties in a specific city.
-
-        Convenience method to filter properties by city name.
-        Useful for location-specific searches.
+        """Filter by City and combine an optional filter_query with and.
 
         Args:
-            city: City name to filter by
-            **kwargs: Additional OData parameters
+            city: City text inserted without escaping into a quoted OData literal.
+            **kwargs: get_properties parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing properties in the specified city
+            Provider collection JSON. The combined filter adds no grouping parentheses.
 
         Example:
             ```python
-            # Get properties in Salt Lake City
-            properties = client.property.get_properties_by_city(
-                city="Salt Lake City",
-                top=100
-            )
+            from wfrmls import WFRMLSClient
 
-            # Get active properties in Provo
-            properties = client.property.get_properties_by_city(
-                city="Provo",
-                filter_query="StandardStatus eq 'Active'",
-                orderby="ListPrice"
+            client = WFRMLSClient()
+            response = client.property.get_properties_by_city(
+                "Salt Lake City", filter_query="StandardStatus eq 'Active'", top=25
             )
+            print(len(response.get("value", [])))
             ```
         """
         city_filter = f"City eq '{city}'"
@@ -503,35 +353,18 @@ class PropertyClient(BaseClient):
     def get_modified_properties(
         self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get properties modified since a specific date/time.
-
-        Used for incremental data synchronization to get only properties
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date property data.
+        """Filter ModificationTimestamp with a strict greater-than cutoff.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            **kwargs: Additional OData parameters
+            since: UTC datetime string or date. Strings strip +00:00/trailing Z and append Z.
+            **kwargs: get_properties parameters, excluding filter_query.
 
         Returns:
-            Dictionary containing properties modified since the specified time
+            Provider collection JSON from one page.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get properties modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.property.get_modified_properties(
-                since=cutoff_time.isoformat().replace('+00:00', 'Z')
-            )
-
-            # Get properties modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.property.get_modified_properties(
-                since=yesterday.isoformat().replace('+00:00', 'Z')
-            )
-            ```
+        Note:
+            A date becomes date-only text followed by Z. Other timezone offsets are
+            not converted to UTC; prefer an explicit normalized UTC datetime string.
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"
@@ -545,36 +378,23 @@ class PropertyClient(BaseClient):
     def get_all_properties_paginated(
         self, page_size: int = 200, max_pages: Optional[int] = None, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get all properties using efficient pagination.
-
-        This method automatically handles pagination to retrieve large datasets
-        efficiently. Uses the recommended approach of fetching in chunks rather
-        than using large skip values.
+        """Accumulate Property pages with repeated $top and $skip requests.
 
         Args:
-            page_size: Number of records per request (max 200, default 200)
-            max_pages: Maximum number of pages to fetch (None for all)
-            **kwargs: Additional OData parameters
+            page_size: Positive page size; values above 200 are clamped to 200.
+            max_pages: Positive page limit, or None/0 for no limit.
+            **kwargs: get_properties parameters; supplied top and skip are replaced.
 
         Returns:
-            Dictionary containing all paginated results combined:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - value: Combined list of all property records
-                - pagination_info: Metadata about pagination
+            Dictionary with combined value, @odata.context, and pagination_info containing
+            pages_fetched, total_records, page_size, and last_skip. A count is copied
+            only when present in the last response.
 
-        Example:
-            ```python
-            # Get all active properties in chunks
-            all_properties = client.property.get_all_properties_paginated(
-                filter_query="StandardStatus eq 'Active'",
-                page_size=200,
-                max_pages=10  # Limit to first 2000 records
-            )
-
-            print(f"Retrieved {len(all_properties['value'])} properties")
-            print(f"Pages fetched: {all_properties['pagination_info']['pages_fetched']}")
-            ```
+        Note:
+            Any request exception stops pagination and returns accumulated records
+            without an error marker. Empty or partial results do not prove a complete
+            sync. The helper uses offsets, does not follow next links, and keeps all
+            records in memory. Use explicit error-checked pages when completeness matters.
         """
         all_results = []
         pages_fetched = 0
@@ -638,51 +458,19 @@ class PropertyClient(BaseClient):
     def search_properties_by_multiple_criteria(
         self, criteria: Dict[str, Any], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Search properties using multiple criteria with intelligent filtering.
-
-        Convenience method that builds complex OData filters from a criteria dictionary.
-        Supports common search patterns used in real estate applications.
+        """Build a filter from the supported criteria dictionary keys.
 
         Args:
-            criteria: Dictionary of search criteria:
-                - status: Property status (Active, Pending, etc.)
-                - min_price: Minimum listing price
-                - max_price: Maximum listing price
-                - city: City name
-                - property_type: Property type (Residential, Commercial, etc.)
-                - min_bedrooms: Minimum number of bedrooms
-                - max_bedrooms: Maximum number of bedrooms
-                - min_bathrooms: Minimum number of bathrooms
-                - max_bathrooms: Maximum number of bathrooms
-                - min_sqft: Minimum square footage
-                - max_sqft: Maximum square footage
-                - zip_code: Postal code
-                - school_district: School district name
-            **kwargs: Additional OData parameters
+            criteria: status, min/max_price, city, zip_code, school_district,
+                property_type, min/max_bedrooms, min/max_bathrooms, and min/max_sqft.
+            **kwargs: get_properties parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing filtered property results
+            Provider JSON from one filtered Property page.
 
-        Example:
-            ```python
-            # Complex property search
-            criteria = {
-                'status': 'Active',
-                'min_price': 300000,
-                'max_price': 600000,
-                'city': 'Salt Lake City',
-                'property_type': 'Residential',
-                'min_bedrooms': 3,
-                'min_bathrooms': 2,
-                'min_sqft': 1500
-            }
-
-            properties = client.property.search_properties_by_multiple_criteria(
-                criteria=criteria,
-                top=50,
-                orderby='ListPrice'
-            )
-            ```
+        Note:
+            Unknown keys and falsey values, including zero, are ignored. Text values
+            are not escaped; filters are joined with and without extra parentheses.
         """
         filters = []
 
@@ -741,33 +529,20 @@ class PropertyClient(BaseClient):
     def search_properties_near_address(
         self, address: str, radius_miles: float = 5.0, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Search properties near a specific address.
-
-        This method would typically geocode the address to coordinates and then
-        search within a radius. For now, it provides a framework for address-based
-        searching that can be enhanced with geocoding services.
+        """Extract a city from a comma-delimited address and query that city.
 
         Args:
-            address: Street address to search near
-            radius_miles: Search radius in miles (default: 5.0)
-            **kwargs: Additional OData parameters
+            address: Text whose second-to-last comma component is treated as the city.
+            radius_miles: Compatibility parameter; no distance calculation is performed.
+            **kwargs: get_properties parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing properties near the address
+            Provider collection JSON for the city fallback, or an empty value list
+            with an error string if the address has no comma.
 
         Note:
-            This is a framework method. In production, you would integrate with
-            a geocoding service to convert the address to coordinates first.
-
-        Example:
-            ```python
-            # Search near a specific address
-            properties = client.property.search_properties_near_address(
-                address="123 Main St, Salt Lake City, UT",
-                radius_miles=2.0,
-                additional_filters="StandardStatus eq 'Active'"
-            )
-            ```
+            This helper does not geocode or perform a radius search. Use
+            get_properties_by_city(city, filter_query=...) for an explicit city query.
         """
         # This is a framework method that would need geocoding integration
         # For now, we'll search by address components if the address is structured
@@ -798,27 +573,14 @@ class PropertyClient(BaseClient):
     def get_luxury_properties(
         self, min_price: float = 1000000, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get luxury properties above a price threshold.
-
-        Convenience method for finding high-end properties with additional
-        luxury-focused filtering options.
+        """Filter active properties with ListPrice at or above min_price.
 
         Args:
-            min_price: Minimum price for luxury properties (default: $1M)
-            **kwargs: Additional OData parameters
+            min_price: Inclusive price threshold, default 1000000.
+            **kwargs: get_properties parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing luxury property listings
-
-        Example:
-            ```python
-            # Get luxury properties over $2M
-            luxury_homes = client.property.get_luxury_properties(
-                min_price=2000000,
-                top=25,
-                orderby="ListPrice desc"
-            )
-            ```
+            Provider collection JSON from one page; additional filters are joined with and.
         """
         filter_query = f"ListPrice ge {min_price} and StandardStatus eq 'Active'"
 
@@ -832,26 +594,14 @@ class PropertyClient(BaseClient):
         return self.get_properties(**kwargs)
 
     def get_new_listings(self, days_back: int = 7, **kwargs: Any) -> Dict[str, Any]:
-        """Get properties listed within the last N days.
-
-        Useful for finding fresh inventory and new market entries.
+        """Filter OnMarketDate after a UTC date computed from days_back.
 
         Args:
-            days_back: Number of days to look back (default: 7)
-            **kwargs: Additional OData parameters
+            days_back: Number of days subtracted from the current UTC datetime, default 7.
+            **kwargs: get_properties parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing recently listed properties
-
-        Example:
-            ```python
-            # Get properties listed in last 3 days
-            new_listings = client.property.get_new_listings(
-                days_back=3,
-                filter_query="StandardStatus eq 'Active'",
-                orderby="OnMarketDate desc"
-            )
-            ```
+            Provider collection JSON from one page. The cutoff is date-only text.
         """
         from datetime import datetime, timedelta, timezone
 

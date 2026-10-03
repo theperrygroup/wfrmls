@@ -1,357 +1,150 @@
-# ADU (Accessory Dwelling Units) API
-
-Complete reference for the ADU endpoint of the WFRMLS Python client.
-
+---
+description: Query accessory dwelling unit records with AduClient, including exact OData parameters, type and status filters, and timestamp helper limitations.
 ---
 
-## 🏘️ Overview
+# Accessory dwelling unit API
 
-The ADU API provides access to Accessory Dwelling Unit information associated with properties. ADUs include secondary housing units like basement apartments, mother-in-law suites, garage apartments, and other additional dwelling spaces.
+`AduClient` queries the `Adu` resource and returns the server's JSON response. Access it through `WFRMLSClient.adu` or construct it directly.
 
-### Key Features
+## Configure the client
 
-- **ADU details** - Access information about additional dwelling units
-- **Unit specifications** - Get bedroom/bathroom counts and square footage
-- **Rental information** - View rental status and rates
-- **Property associations** - Link ADUs to primary properties
-- **Utility separation** - Check for separate meters
-
----
-
-## 📚 Methods
-
-### `get_adus()`
-
-Retrieve multiple ADU records with optional filtering and pagination.
-
-```python
-def get_adus(
-    top: Optional[int] = None,
-    skip: Optional[int] = None,
-    filter_query: Optional[str] = None,
-    select: Optional[List[str]] = None,
-    orderby: Optional[str] = None,
-    count: bool = False
-) -> Dict[str, Any]
+```text
+AduClient(bearer_token=None, base_url=None)
 ```
 
-**Parameters:**
+The constructor accepts a bearer token or reads `WFRMLS_BEARER_TOKEN`. Its default base URL is `https://resoapi.utahrealestate.com/reso/odata`.
+Direct construction requires a token immediately. `WFRMLSClient` creates the ADU client lazily, so missing credentials raise `AuthenticationError` on first `.adu` access.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
-| `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
-| `filter_query` | `Optional[str]` | `None` | OData filter expression |
-| `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
-| `orderby` | `Optional[str]` | `None` | Field(s) to sort by with optional direction |
-| `count` | `bool` | `False` | Include total count in response metadata |
+The examples require a configured `WFRMLS_BEARER_TOKEN`. Replace illustrative keys with keys from your data.
+Use [service discovery](client.md) to inspect the provider's schema and available resources before choosing fields or relationships.
 
-**Returns:**
-- `Dict[str, Any]` - Response dictionary containing:
-  - `@odata.context`: OData context URL
-  - `value`: List of ADU dictionaries
-  - `@odata.count`: Total count (if requested)
-  - `@odata.nextLink`: URL for next page of results
+## Query one page of ADUs
 
-**Examples:**
+```text
+get_adus(top=None, skip=None, filter_query=None, select=None,
+         orderby=None, expand=None, count=None) -> Dict[str, Any]
+```
+
+| Parameter | Accepted type | Request behavior |
+| --- | --- | --- |
+| `top` | `int` or `None` | Sends `$top=min(top, 200)` when provided. |
+| `skip` | `int` or `None` | Sends `$skip` unchanged. |
+| `filter_query` | `str` or `None` | Sends the expression as `$filter`. |
+| `select` | `list[str]`, `str`, or `None` | Joins lists with commas for `$select`. |
+| `orderby` | `str` or `None` | Sends `$orderby` unchanged. |
+| `expand` | `list[str]`, `str`, or `None` | Joins lists with commas for `$expand`. |
+| `count` | `bool` or `None` | Sends `$count=true` or `$count=false`; `None` omits it. |
+
+The client does not validate field names, filter syntax, or negative pagination values. Supported fields and relationships depend on the provider.
 
 ```python
-from wfrmls import WFRMLSClient
+from wfrmls import AduStatus, WFRMLSClient
 
 client = WFRMLSClient()
-
-# Get first 10 ADUs
-response = client.adu.get_adus(top=10)
-adus = response["value"]
-
-# Get ADUs with specific features
-attached_adus = client.adu.get_adus(
-    filter_query="AttachedYN eq true and KitchenYN eq true",
-    select=["AduKeyNumeric", "BedroomsTotal", "SquareFeet", "Rent"]
+response = client.adu.get_adus(
+    top=25,
+    filter_query=f"AduStatus eq '{AduStatus.EXISTING.value}'",
+    select=["AduKey", "ListingKey", "AduType", "AduStatus"],
+    orderby="AduKey asc",
+    count=True,
 )
 
-# Get currently rented ADUs
-rented_adus = client.adu.get_adus(
-    filter_query="CurrentlyRentedYN eq true",
-    select=["AduKeyNumeric", "Rent", "BedroomsTotal", "BathroomsTotal"]
-)
+for adu in response.get("value", []):
+    print(adu.get("AduKey"), adu.get("ListingKey"), adu.get("AduType"))
+print("Count supplied by the server:", response.get("@odata.count"))
+print("Next page supplied by the server:", response.get("@odata.nextLink"))
 ```
 
-### `get_existing_adus()`
+The method returns one response page, usually with a `value` list.
+`@odata.context`, `@odata.count`, and `@odata.nextLink` are present only when the server supplies them.
+The client preserves fields and values; it does not convert records into model objects or follow pagination links automatically.
 
-Retrieve ADUs that are marked as existing (helper method).
+`AduKey`, `ListingKey`, `AduType`, and `AduStatus` appear in client examples and mocked tests.
+Those fixtures do not establish an exhaustive provider schema, rental data availability, or field types.
 
-```python
-def get_existing_adus(
-    top: Optional[int] = None,
-    select: Optional[List[str]] = None
-) -> Dict[str, Any]
+## Retrieve an ADU by key
+
+```text
+get_adu(adu_key: str) -> Dict[str, Any]
 ```
 
-**Examples:**
+This method requests `Adu('<adu_key>')` and returns the single-record JSON dictionary directly, without a `value` wrapper added by the client.
+A 404 response raises `NotFoundError`. The key is interpolated without escaping; use a trusted key.
 
-```python
-# Get existing ADUs
-existing = client.adu.get_existing_adus(top=20)
+## Use filters and relationship helpers
 
-# Get existing ADUs with selected fields
-existing_minimal = client.adu.get_existing_adus(
-    select=["AduKeyNumeric", "BedroomsTotal", "AttachedYN"]
-)
+All helpers below return the same response shape as `get_adus()` and accept its query keywords through `**kwargs`.
+
+| Method signature | Generated query |
+| --- | --- |
+| `get_adus_for_property(listing_key: str, **kwargs)` | `ListingKey eq '<listing_key>'` |
+| `get_adus_by_type(adu_type: str, **kwargs)` | `AduType eq '<adu_type>'` |
+| `get_adus_by_status(adu_status: str, **kwargs)` | `AduStatus eq '<adu_status>'` |
+| `get_existing_adus(**kwargs)` | `AduStatus eq 'Existing'` |
+| `get_permitted_adus(**kwargs)` | `AduStatus eq 'Permitted'` |
+| `get_adus_with_property(**kwargs)` | Sets `expand="Property"`. |
+
+The filter helpers append a supplied `filter_query` with `and` without adding parentheses.
+Parenthesize your expression if it contains `or` and should apply as a group.
+Keys, type names, and status names are interpolated without escaping; use trusted values or construct an escaped expression for `get_adus()`.
+
+Pass `.value` when using an enum with the type or status helpers. These helpers expect strings and do not unwrap enum members.
+
+| Enum | Members and string values |
+| --- | --- |
+| `AduType` | `DETACHED`: `Detached`; `ATTACHED`: `Attached`; `GARAGE_CONVERSION`: `Garage Conversion`; `BASEMENT`: `Basement`; `INTERIOR`: `Interior` |
+| `AduStatus` | `EXISTING`: `Existing`; `PERMITTED`: `Permitted`; `PLANNED`: `Planned`; `UNDER_CONSTRUCTION`: `Under Construction` |
+
+These constants describe the library's filters; they do not restrict values returned by the provider.
+`get_adus_with_property()` fixes `expand`, so passing another `expand` raises `TypeError`. Use `get_adus()` to choose relationships yourself.
+
+## Query modified ADUs
+
+```text
+get_modified_adus(since: Union[str, date, datetime], **kwargs) -> Dict[str, Any]
 ```
 
-### `get_adus_for_property()`
+This method sets `filter_query="ModificationTimestamp gt '<timestamp>'"` and forwards other query keywords to `get_adus()`.
+Passing `filter_query` also raises `TypeError`; use `get_adus()` when combining a timestamp with another filter.
 
-Retrieve ADUs associated with a specific property.
+| `since` input | Conversion performed by the helper |
+| --- | --- |
+| `str` | Used unchanged inside the quoted filter literal. |
+| `date` | Converted to `YYYY-MM-DDT00:00:00Z`. |
+| `datetime` | Converted with `isoformat()`, then appended with `Z`. |
+
+The helper does not convert time zones. An aware datetime produces an offset followed by `Z`, such as `+00:00Z`.
+Pass a normalized UTC string to avoid that malformed combination.
 
 ```python
-def get_adus_for_property(listing_id: str) -> Dict[str, Any]
+from datetime import datetime, timedelta, timezone
+
+from wfrmls import AduType, WFRMLSClient
+
+client = WFRMLSClient()
+property_adus = client.adu.get_adus_for_property(
+    listing_key="1611952",
+    filter_query="(AduStatus eq 'Existing' or AduStatus eq 'Permitted')",
+    top=25,
+)
+detached_adus = client.adu.get_adus_by_type(AduType.DETACHED.value, top=25)
+cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+cutoff_utc = cutoff.isoformat().replace("+00:00", "Z")
+updates = client.adu.get_modified_adus(
+    since=cutoff_utc,
+    orderby="ModificationTimestamp asc",
+    top=200,
+)
+
+print("Property page:", len(property_adus.get("value", [])))
+print("Detached page:", len(detached_adus.get("value", [])))
+print("Modified page:", len(updates.get("value", [])))
 ```
 
-**Parameters:**
+## Handle request failures
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `listing_id` | `str` | Property listing ID |
+These methods use the shared HTTP client. It maps HTTP 400, 401, 404, 429, and 5xx responses to `ValidationError`, `AuthenticationError`, `NotFoundError`, `RateLimitError`, and `ServerError`.
+Request exceptions raise `NetworkError`; other unsuccessful statuses raise `WFRMLSError`.
+There is no automatic retry or pagination in these helpers.
 
-**Returns:**
-- `Dict[str, Any]` - Response with ADUs for the property
-
-**Examples:**
-
-```python
-# Get ADUs for a specific property
-property_adus = client.adu.get_adus_for_property("1611952")
-
-if property_adus["value"]:
-    for adu in property_adus["value"]:
-        print(f"ADU: {adu['BedroomsTotal']} bed, {adu['BathroomsTotal']} bath")
-        print(f"Size: {adu['SquareFeet']} sq ft")
-```
-
----
-
-## 🏷️ Field Reference
-
-### Core Identification
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **AduKeyNumeric** | `integer` | Unique ADU identifier | `1777403` |
-| **OriginatingSystemName** | `string` | Source system | `"UtahRealEstate.com"` |
-
-### Unit Details
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **BedroomsTotal** | `integer` | Number of bedrooms | `3` |
-| **BathroomsTotal** | `integer` | Number of bathrooms | `2` |
-| **SquareFeet** | `decimal` | Unit square footage | `1491.0` |
-
-### Rental Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **Rent** | `decimal` | Monthly rent amount | `null` |
-| **CurrentlyRentedYN** | `boolean` | Is currently rented | `false` |
-| **Remarks** | `string` | Additional notes | `"This attached casita has..."` |
-
-### Physical Characteristics
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **AttachedYN** | `boolean` | Is attached to main house | `true` |
-| **SeparateEntranceYN** | `boolean` | Has separate entrance | `true` |
-| **KitchenYN** | `boolean` | Has kitchen | `true` |
-
-### Utilities
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **SeparateGasMeterYN** | `boolean` | Has separate gas meter | `false` |
-| **SeparateElectricMeterYN** | `boolean` | Has separate electric meter | `false` |
-| **WaterYN** | `boolean` | Has water access | `false` |
-
-### System Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **ModificationTimestamp** | `datetime` | Last modified | `"2023-04-20T17:19:45Z"` |
-
----
-
-## 🔍 Common Query Patterns
-
-### ADU Types
-
-```python
-# Attached ADUs only
-attached = client.adu.get_adus(
-    filter_query="AttachedYN eq true"
-)
-
-# Detached ADUs with separate entrance
-detached_separate = client.adu.get_adus(
-    filter_query="AttachedYN eq false and SeparateEntranceYN eq true"
-)
-```
-
-### Size and Features
-
-```python
-# ADUs by size
-large_adus = client.adu.get_adus(
-    filter_query="SquareFeet ge 800",
-    orderby="SquareFeet desc"
-)
-
-# ADUs with specific bedroom count
-two_bedroom_adus = client.adu.get_adus(
-    filter_query="BedroomsTotal eq 2"
-)
-
-# Full apartments (kitchen + separate entrance)
-full_apartments = client.adu.get_adus(
-    filter_query="KitchenYN eq true and SeparateEntranceYN eq true"
-)
-```
-
-### Rental Searches
-
-```python
-# Currently rented ADUs
-rented = client.adu.get_adus(
-    filter_query="CurrentlyRentedYN eq true",
-    select=["AduKeyNumeric", "Rent", "BedroomsTotal", "SquareFeet"]
-)
-
-# ADUs with rent information
-with_rent = client.adu.get_adus(
-    filter_query="Rent ne null",
-    orderby="Rent asc"
-)
-```
-
-### Utility Independence
-
-```python
-# ADUs with separate utilities
-independent_adus = client.adu.get_adus(
-    filter_query=(
-        "SeparateElectricMeterYN eq true or "
-        "SeparateGasMeterYN eq true"
-    )
-)
-
-# Fully independent units
-fully_independent = client.adu.get_adus(
-    filter_query=(
-        "SeparateEntranceYN eq true and "
-        "KitchenYN eq true and "
-        "(SeparateElectricMeterYN eq true or SeparateGasMeterYN eq true)"
-    )
-)
-```
-
----
-
-## 📊 Analysis Examples
-
-### ADU Inventory Summary
-
-```python
-def analyze_adu_inventory():
-    """Analyze ADU inventory by type and features."""
-    
-    # Get all ADUs with key fields
-    response = client.adu.get_adus(
-        select=[
-            "AduKeyNumeric", "AttachedYN", "BedroomsTotal", 
-            "SquareFeet", "KitchenYN", "CurrentlyRentedYN"
-        ]
-    )
-    
-    adus = response["value"]
-    
-    # Calculate statistics
-    total_adus = len(adus)
-    attached = sum(1 for a in adus if a.get("AttachedYN"))
-    with_kitchen = sum(1 for a in adus if a.get("KitchenYN"))
-    rented = sum(1 for a in adus if a.get("CurrentlyRentedYN"))
-    
-    avg_size = sum(a.get("SquareFeet", 0) for a in adus) / total_adus if total_adus > 0 else 0
-    
-    return {
-        "total_adus": total_adus,
-        "attached_percentage": (attached / total_adus * 100) if total_adus > 0 else 0,
-        "with_kitchen_percentage": (with_kitchen / total_adus * 100) if total_adus > 0 else 0,
-        "rented_percentage": (rented / total_adus * 100) if total_adus > 0 else 0,
-        "average_size": avg_size
-    }
-```
-
-### Rental Market Analysis
-
-```python
-def analyze_adu_rentals():
-    """Analyze ADU rental market."""
-    
-    # Get rented ADUs with rent amounts
-    rented = client.adu.get_adus(
-        filter_query="CurrentlyRentedYN eq true and Rent ne null",
-        select=["Rent", "BedroomsTotal", "BathroomsTotal", "SquareFeet"]
-    )
-    
-    rentals = rented["value"]
-    
-    if rentals:
-        # Group by bedroom count
-        by_bedrooms = {}
-        for rental in rentals:
-            beds = rental.get("BedroomsTotal", 0)
-            if beds not in by_bedrooms:
-                by_bedrooms[beds] = []
-            by_bedrooms[beds].append(rental.get("Rent", 0))
-        
-        # Calculate average rent by bedroom count
-        avg_rents = {}
-        for beds, rents in by_bedrooms.items():
-            avg_rents[f"{beds}_bedroom"] = sum(rents) / len(rents)
-        
-        return avg_rents
-    
-    return {}
-```
-
----
-
-## ⚡ Performance Tips
-
-### Efficient ADU Queries
-
-```python
-# ❌ Inefficient - gets all fields for counting
-count_query = client.adu.get_adus()
-total = len(count_query["value"])
-
-# ✅ Efficient - use count parameter
-count_response = client.adu.get_adus(top=0, count=True)
-total = count_response["@odata.count"]
-```
-
-### Selective Field Loading
-
-```python
-# For listing displays
-list_fields = client.adu.get_adus(
-    select=["AduKeyNumeric", "BedroomsTotal", "BathroomsTotal", "Rent"],
-    top=50
-)
-
-# For detailed views
-detail_fields = client.adu.get_adus(
-    filter_query=f"AduKeyNumeric eq {adu_id}",
-    select=["AduKeyNumeric", "BedroomsTotal", "BathroomsTotal", 
-            "SquareFeet", "Rent", "Remarks", "AttachedYN", 
-            "SeparateEntranceYN", "KitchenYN"]
-)
+See [error handling](../guides/error-handling.md) and the [main client reference](client.md) for shared behavior.

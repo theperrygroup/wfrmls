@@ -21,9 +21,11 @@ from wfrmls.exceptions import AuthenticationError, WFRMLSError
 @pytest.fixture
 def client() -> WFRMLSClient:
     """Create a test client with real API credentials."""
-    # Set the bearer token from environment or use test token
-    os.environ["WFRMLS_BEARER_TOKEN"] = "REMOVED_WFRMLS_BEARER_TOKEN"
-    return WFRMLSClient()
+    # Live integration tests require an explicitly configured token.
+    bearer_token = os.environ.get("WFRMLS_BEARER_TOKEN")
+    if not bearer_token:
+        pytest.skip("Set WFRMLS_BEARER_TOKEN to run live integration tests")
+    return WFRMLSClient(bearer_token=bearer_token)
 
 
 class TestIntegration:
@@ -550,7 +552,10 @@ def test_mock_client_integration(mock_client: Callable[[], Any]) -> None:
 
 if __name__ == "__main__":
     # Run a quick test to verify all endpoints are working
-    client = WFRMLSClient(bearer_token="REMOVED_WFRMLS_BEARER_TOKEN")
+    bearer_token = os.environ.get("WFRMLS_BEARER_TOKEN")
+    if not bearer_token:
+        raise SystemExit("Set WFRMLS_BEARER_TOKEN before running live API checks")
+    client = WFRMLSClient(bearer_token=bearer_token)
 
     print("Testing all available endpoints...")
 

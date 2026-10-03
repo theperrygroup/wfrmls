@@ -1,23 +1,31 @@
-# Code Style Guide
-
-The canonical coding standards for this repository live in the repository root `STYLE_GUIDE.md`.
-
+---
+title: "WFRMLS code style and documentation rules"
+description: "Find the canonical WFRMLS Python style rules for type hints, docstrings, formatting, testing, and the separate documentation writing guide."
 ---
 
-## What To Follow
+# WFRMLS code style and documentation rules
 
-Use the root style guide as the source of truth for:
+The repository root
+[STYLE_GUIDE.md](https://github.com/theperrygroup/wfrmls/blob/master/STYLE_GUIDE.md)
+is the canonical code-style document. This page points to it rather than
+maintaining a second copy.
 
-- Comprehensive type hints on public APIs.
-- Google-style docstrings for public modules, classes, and methods.
-- Consistent imports, naming, and module structure.
-- Focused tests with strong coverage expectations.
-- Clear exception handling and API parameter validation.
+## Apply the code standards
 
----
+Use typed public interfaces, Google-style docstrings, clear exception handling,
+and focused tests. Check formatting with Black, import order with isort, and
+typing with mypy using the commands in the [development guide](index.md).
 
-## Related Guides
+Treat aspirational coverage goals as goals. The actual enforced coverage floor
+and blocking lint categories are described in that guide and the CI workflow;
+do not infer them from a broader style recommendation.
 
-- **[Documentation Style Guide](../STYLE_GUIDE.md)** - Writing guidance for docs pages.
-- **[Development Overview](index.md)** - Local setup, quality checks, and docs build commands.
-- **[Repository Root Style Guide](https://github.com/theperrygroup/wfrmls/blob/master/STYLE_GUIDE.md)** - Canonical source document.
+## Follow the writing standards
+
+[docs/STYLE_GUIDE.md](../STYLE_GUIDE.md) owns the documentation writing and
+formatting guidance. When an API changes, update its reference and task examples
+together. Keep setup commands, supported methods, response shapes, and provider
+claims verifiable against source, tests, or linked primary documentation.
+
+For a coordinated repository audit, use the
+[consistency runbooks](consistency/index.md).

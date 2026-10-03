@@ -1,99 +1,53 @@
-# wfrmls Gap Map
+---
+title: "WFRMLS implementation differences and review gaps"
+description: "Compare WFRMLS implementation facts with consistency goals, including dependency files, CI gates, publishing, documentation, and API limitations."
+---
 
-Use this file with the phase docs. The commands below assume the variables
-from `index.md` are already exported.
+# WFRMLS implementation differences and review gaps
 
-## Snapshot
+This map separates implementation facts from review goals. Recheck the source
+at the commit being reviewed before treating a historical observation as current.
+Use [development commands](../index.md) for local validation.
 
-| Area | Current state |
-| --- | --- |
-| Package target | `wfrmls` |
-| Python floor | `>=3.8` in `pyproject.toml` |
-| Release flow | `.github/workflows/release.yml` |
-| Docs flow | `.github/workflows/docs.yml` |
-| Security flow | Mostly inside `.github/workflows/ci.yml`, plus Dependabot |
-| Dependency automation | Dependabot via `.github/dependabot.yml` |
-| Style guides | Root `STYLE_GUIDE.md` and `docs/STYLE_GUIDE.md` both exist |
-
-## Phase 1 Priorities
-
-- `pyproject.toml` and `LICENSE`: verify the maintainer and legal story are
-  consistent, because authorship and copyright wording point at different
-  names.
-- `pyproject.toml`: verify the built wheel includes `py.typed`, since package
-  data is not declared as explicitly as it is in the other repos.
-- `pyproject.toml`: `pylint` is part of the dev toolchain, but the workflows do
-  not enforce it.
-- `pyproject.toml`, `requirements.txt`, `requirements-dev.txt`, and
-  `docs/requirements.txt`: document the dependency source of truth.
-
-## Phase 1 Commands
+## Inspect the relevant files
 
 ```bash
-rg 'authors|license|requires-python|Homepage|Documentation|Repository' pyproject.toml
-rg --files -g 'LICENSE' .
-rg --files -g 'requirements*.txt' -g 'docs/requirements.txt' .
-rg 'pylint|py.typed|Typing :: Typed' pyproject.toml .github/workflows/ci.yml README.md
-python -m build
-python -m twine check dist/*
+rg --files -g 'pyproject.toml' -g '*requirements*.txt' -g 'STYLE_GUIDE.md' -g 'mkdocs.yml'
+rg 'cov-fail-under|exit-zero|Type checking failed|needs:|mkdocs build|PYPI_API_TOKEN' .github/workflows
+rg --files wfrmls tests docs .github
 ```
 
-## Phase 2 Priorities
+## Review repository-specific differences
 
-- `mkdocs.yml`: the nav references missing files under `docs/development/`,
-  `docs/examples/`, `docs/reference/`, and `docs/legal/`.
-- `docs/development/index.md`: contributor instructions mention
-  `pre-commit install` and `make quality`, but neither a
-  `.pre-commit-config.yaml` file nor a `Makefile` exists.
-- `docs/api/openhouse.md` and `docs/api/openhouses.md`: decide which page name
-  is canonical and remove the duplicate drift.
-- `STYLE_GUIDE.md` and `docs/STYLE_GUIDE.md`: define which copy owns updates.
-- `mkdocs.yml`: replace the analytics placeholder or remove it.
+| Area | Implemented behavior to verify | Review question |
+| --- | --- | --- |
+| Versions | `pyproject.toml` and `wfrmls/__init__.py` carry the package version. | Do both match the intended `v*` release tag? |
+| Dependencies | Root requirements files coexist with `pyproject.toml`; docs have a separate dependency file. | Are companion manifests synchronized and their roles explicit? |
+| Python support | Library CI tests 3.8–3.12; docs tooling uses 3.11. | Are runtime and tooling requirements described separately? |
+| Coverage | The CI floor is 15 percent, below the broader style-guide goal. | Is the enforced floor documented accurately, with useful tests for changed behavior? |
+| Lint and typing | Critical flake8 categories and the dedicated mypy job block; broader lint and matrix mypy include nonblocking paths. | Do docs identify the blocking checks rather than promise all warnings are enforced? |
+| Artifacts | The CI build job depends on security; the release build depends on tests. | Does each dependency graph meet the project's intended readiness policy? |
+| Docs | Navigation includes these runbooks; strict local builds validate links and generated API docs. | Do deployment builds enforce the desired strict mode and install the package? |
+| Publishing | Release configuration uses a PyPI API token and a protected environment. | Does the documented mechanism match the actual workflow? |
+| Optional tools | Pylint is installed as a development tool but has no required invocation in CI. | Is it described as optional rather than a passing required gate? |
 
-## Phase 2 Commands
+## Retain API-contract gaps explicitly
 
-```bash
-rg --files docs
-rg '^nav:' -A 220 mkdocs.yml
-rg 'pre-commit|make quality|Style Guide|Contributing|Testing|Release Process' docs/development/index.md docs
-python -m pip install -e .
-python -m pip install -r docs/requirements.txt
-mkdocs build --strict
-```
+- Radius and polygon helpers reject calls locally. Do not advertise spatial
+  search implementation based on the existence of a method name.
+- The property pagination convenience method returns partial results after
+  failures. A complete replication requires failure-preserving pagination.
+- The copied deletion examples and `DeletedClient` helpers use different field
+  names. Current provider schema and retention need independent verification.
+- Provider access, numeric quotas, and image/display rights are separate from
+  package installation and the MIT license.
 
-## Phase 3 Priorities
+The [task guides](../../guides/index.md) document these boundaries. If resolving
+one requires source or provider changes, assign that concrete work separately
+and preserve its acceptance evidence.
 
-- `.github/workflows/ci.yml`: raise the coverage gate so CI matches the 100
-  percent standard advertised in docs.
-- `.github/workflows/ci.yml`: remove the soft-fail `mypy` step from the test
-  job or make it match the hard gate in the code-quality job.
-- `.github/workflows/ci.yml`: stop letting the build job depend only on the
-  security job if release artifacts are meant to imply a green test suite.
-- `.github/workflows/ci.yml`: either run `pylint` or remove it from the
-  documented toolchain.
-- `.github/workflows/release.yml` and `.github/workflows/docs.yml`: keep the
-  split flow only if it remains clearer than a unified deployment path.
+## Record a resolved or intentional gap
 
-## Phase 3 Commands
-
-```bash
-rg 'cov-fail-under|Type checking failed but continuing|needs: \[security\]|pylint|safety' .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/docs.yml
-rg --files .github | rg 'dependabot|renovate'
-black --check .
-isort --check-only .
-flake8 .
-mypy "$PACKAGE_TARGET"
-pytest --cov="$PACKAGE_TARGET"
-mkdocs build --strict
-python -m build
-python -m twine check dist/*
-```
-
-## Recommended Order
-
-1. Clarify metadata ownership, package data, and dependency source of truth.
-2. Fix the docs nav and contributor command drift so `mkdocs build --strict`
-   becomes meaningful.
-3. Tighten the CI coverage and typing gates to match the written standard.
-4. Decide whether the current split docs and release workflows still earn their
-   complexity.
+For each actual gap found, record the affected file, observed behavior,
+desired result, owner, next action, and proof of closure. Do not retain obsolete
+missing-navigation or tooling claims after the source has been corrected.

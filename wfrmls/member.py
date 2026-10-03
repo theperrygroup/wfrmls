@@ -8,7 +8,7 @@ from .base_client import BaseClient
 
 
 class MemberStatus(Enum):
-    """Member status options."""
+    """Library constants; these do not validate service lookup values."""
 
     ACTIVE = "Active"
     INACTIVE = "Inactive"
@@ -16,7 +16,7 @@ class MemberStatus(Enum):
 
 
 class MemberType(Enum):
-    """Member type options."""
+    """Library constants; these do not validate service lookup values."""
 
     AGENT = "Agent"
     BROKER = "Broker"
@@ -24,21 +24,23 @@ class MemberType(Enum):
 
 
 class MemberClient(BaseClient):
-    """Client for member (real estate agent) API endpoints.
+    """Client for HTTP queries on the Member resource.
 
-    The Member resource contains information about real estate agents,
-    brokers, and other MLS participants. This includes contact information,
-    license details, and office affiliations.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the member client.
+        """Initialize the Member resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -52,51 +54,34 @@ class MemberClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get members with optional OData filtering.
-
-        This method retrieves member (agent/broker) information with full OData v4.0 query support.
+        """Request one page from the Member collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing member data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of member records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get first 10 active members
-            members = client.member.get_members(
-                top=10,
-                filter_query="MemberStatus eq 'Active'"
-            )
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get members with office info
-            members = client.member.get_members(
-                expand="Office",
-                top=50
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get members with specific fields only
-            members = client.member.get_members(
-                select=["MemberKey", "MemberFirstName", "MemberLastName", "MemberEmail"],
-                top=100
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.member.get_members(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -127,58 +112,39 @@ class MemberClient(BaseClient):
         return self.get("Member", params=params)
 
     def get_member(self, member_key: str) -> Dict[str, Any]:
-        """Get member by member key.
+        """Request one Member record by key.
 
-        Retrieves a single member record by its unique member key.
-        This is the most efficient way to get detailed information about
-        a specific agent or broker.
+        Requests Member('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            member_key: Member key to retrieve (unique identifier)
+            member_key: Record key string.
 
         Returns:
-            Dictionary containing member data for the specified member
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the member with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific member by key
-            member = client.member.get_member("12345")
-
-            print(f"Agent: {member['MemberFirstName']} {member['MemberLastName']}")
-            print(f"Email: {member['MemberEmail']}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"Member('{member_key}')")
 
     def get_member_by_mls_id(self, mls_id: str) -> Dict[str, Any]:
-        """Get member by MLS ID.
+        """Return the first member matching an MLS ID.
 
-        Retrieves a single member record by their MLS ID.
-        This method is useful when you have the MLS ID rather than the member key.
+        Requests get_members(filter_query="MemberMlsId eq '<id>'", expand="Office",
+        top=1). It does not verify uniqueness or flatten the Office relationship.
+        MLS IDs are interpolated directly; escape apostrophes as doubled quotes.
 
         Args:
-            mls_id: MLS ID of the member to retrieve
+            mls_id: MLS ID string to filter on.
 
         Returns:
-            Dictionary containing member data for the specified MLS ID
+            Dictionary copied from the first record in the collection response.
 
         Raises:
-            NotFoundError: If no member with the given MLS ID is found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get agent details by MLS ID
-            agent = client.member.get_member_by_mls_id("4020986")
-
-            print(f"Agent: {agent['MemberFirstName']} {agent['MemberLastName']}")
-            print(f"Email: {agent['MemberEmail']}")
-            print(f"Office: {agent['OfficeName']}")
-            ```
+            NotFoundError: If the response has no member records.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         results = self.get_members(
             filter_query=f"MemberMlsId eq '{mls_id}'", expand="Office", top=1
@@ -193,59 +159,38 @@ class MemberClient(BaseClient):
         return dict(values[0])
 
     def get_active_members(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get members with Active status.
+        """Request one page of members with MemberStatus equal to Active.
 
-        Convenience method to retrieve only active members.
-        This filters out inactive, suspended, or terminated agents/brokers.
+        Do not pass filter_query: this helper supplies it and a duplicate raises
+        TypeError. Use get_members for additional compound filters.
 
         Args:
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            **kwargs: Other get_members collection options.
 
         Returns:
-            Dictionary containing active member listings
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all active members
-            active_members = client.member.get_active_members(top=100)
-
-            # Get active members with specific fields
-            active_members = client.member.get_active_members(
-                select=["MemberKey", "MemberFirstName", "MemberLastName", "MemberPhone"],
-                orderby="MemberLastName"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_members(filter_query="MemberStatus eq 'Active'", **kwargs)
 
     def get_members_by_office(self, office_key: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get members affiliated with a specific office.
+        """Request members filtered by OfficeKey.
 
-        Convenience method to filter members by their office affiliation.
-        Useful for getting all agents/brokers in a particular brokerage.
+        An additional filter_query is appended with and without grouping.
+        Parenthesize expressions containing or. Escape apostrophes in office_key
+        as doubled quotes; the helper interpolates the string directly.
 
         Args:
-            office_key: Office key to filter by
-            **kwargs: Additional OData parameters
+            office_key: Office key string.
+            **kwargs: get_members collection options, including an additional filter.
 
         Returns:
-            Dictionary containing members affiliated with the specified office
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all members in a specific office
-            office_members = client.member.get_members_by_office(
-                office_key="12345",
-                top=100
-            )
-
-            # Get active members in an office
-            active_office_members = client.member.get_members_by_office(
-                office_key="12345",
-                filter_query="MemberStatus eq 'Active'",
-                orderby="MemberLastName"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         office_filter = f"OfficeKey eq '{office_key}'"
 
@@ -264,33 +209,23 @@ class MemberClient(BaseClient):
         last_name: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Search members by first name and/or last name.
+        """Search MemberFirstName and MemberLastName with contains expressions.
 
-        Convenience method to find agents/brokers by name using partial matching.
-        Uses OData string functions for flexible name searching.
+        Supplied names are combined with and. With neither name supplied, the
+        helper calls get_members without adding a name filter. With a name supplied,
+        do not also pass filter_query; duplicate keywords raise TypeError. Escape
+        apostrophes in names as doubled quotes before passing them.
 
         Args:
-            first_name: First name to search for (partial matching)
-            last_name: Last name to search for (partial matching)
-            **kwargs: Additional OData parameters
+            first_name: Optional first-name substring.
+            last_name: Optional last-name substring.
+            **kwargs: Other get_members collection options.
 
         Returns:
-            Dictionary containing members matching the name criteria
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Search by last name only
-            smiths = client.member.search_members_by_name(
-                last_name="Smith",
-                top=50
-            )
-
-            # Search by first and last name
-            johns = client.member.search_members_by_name(
-                first_name="John",
-                last_name="Smith"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         filters = []
 
@@ -307,67 +242,44 @@ class MemberClient(BaseClient):
         return self.get_members(filter_query=filter_query, **kwargs)
 
     def get_members_with_office(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get members with their office information expanded.
+        """Request members with expand set to Office.
 
-        This is a convenience method that automatically expands the Office
-        relationship to include office details in the response. More efficient
-        than making separate requests for members and their offices.
+        The service determines the relationship schema and availability.
+        Do not pass expand in kwargs; duplicate keywords raise TypeError.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Other get_members collection options.
 
         Returns:
-            Dictionary containing member data with expanded Office relationships
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get active members with office info
-            members = client.member.get_members_with_office(
-                filter_query="MemberStatus eq 'Active'",
-                top=25
-            )
-
-            # Access office info for first member
-            first_member = members['value'][0]
-            if 'Office' in first_member:
-                office_info = first_member['Office']
-                print(f"Member works at: {office_info['OfficeName']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_members(expand="Office", **kwargs)
 
     def get_modified_members(
         self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get members modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only member records
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date agent/broker information.
+        Builds ModificationTimestamp gt <timestamp>. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDZ; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string or date.
+            **kwargs: Other get_members collection options.
 
         Returns:
-            Dictionary containing members modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get members modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.member.get_modified_members(
-                since=cutoff_time.isoformat() + "Z"
-            )
-
-            # Get members modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.member.get_modified_members(
-                since=yesterday.isoformat() + "Z"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"

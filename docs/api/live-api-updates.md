@@ -1,166 +1,46 @@
-# Live API Testing Updates
-
-This document summarizes the key updates made to the WFRMLS API documentation based on live API testing performed on January 31, 2025.
-
+---
+description: Distinguish verified WFRMLS package behavior from provider schema, endpoint availability, authorization, historical observations, and mocked test evidence.
 ---
 
-## 🔍 Overview
+# Implementation behavior and provider verification
 
-The documentation has been updated to reflect the actual response structures and field names returned by the live WFRMLS API. Testing revealed several important differences between the expected and actual API responses.
+This reference describes what the package implements and what requires verification against your provider account. It replaces historical testing claims with explicit evidence boundaries.
 
----
+## What source and mocked tests establish
 
-## 📊 Key Findings
+- `WFRMLSClient` exposes ten service clients plus the `open_house` alias.
+- Collection methods translate named arguments into OData parameters and return parsed JSON.
+- `PropertyClient.get_property()` converts a numeric string to a numeric key URL and normalizes a wrapped result to one object.
+- Radius and polygon helpers raise `ValidationError`; address search is a city fallback.
+- The facade does not expose Media, History, or Green Verification clients. Their classes remain importable separately.
 
-### Response Structure
+Mocked tests validate request construction and response handling. They do not establish live authorization, current entity counts, server uptime, complete field schemas, or endpoint availability.
 
-All API endpoints return a consistent OData response structure:
+## Verify the schema for your account
 
-```json
-{
-  "@odata.context": "$metadata#EntityType",
-  "value": [...],
-  "@odata.count": 12345,  // When count=true
-  "@odata.nextLink": "https://..."  // When more pages available
-}
+After configuring `WFRMLS_BEARER_TOKEN`, discover entity sets and inspect metadata:
+
+```python
+from wfrmls import WFRMLSClient
+
+client = WFRMLSClient()
+document = client.get_service_document()
+entity_names = [item.get("name") for item in document.get("value", [])]
+print(entity_names)
+metadata_xml = client.get_metadata()
+print(metadata_xml[:100])
 ```
 
-**Important**: The main data is always in the `value` array, not returned directly as a list.
+Use that schema to choose fields, key types, lookup values, and expansion relationships. Availability in a service document does not guarantee that every requested filter or expansion is accepted.
 
-### Field Naming Conventions
+## Read method-specific return shapes
 
-The API uses several naming patterns:
-- **Numeric Keys**: Most entities have both string and numeric key fields (e.g., `ListingKey` and `ListingKeyNumeric`)
-- **YN Suffix**: Boolean fields use `YN` suffix (e.g., `AttachedGarageYN`, `FireplaceYN`)
-- **Full Names**: Many fields include full descriptive names (e.g., `CountyOrParish` not just `County`)
+Collection responses commonly contain `value`; single-key methods and extraction helpers return different shapes. Metadata is XML. Do not assume every result contains `value` or that every response includes a count or next link. The [response reference](../reference/index.md) lists the concrete differences.
 
----
+## Treat historical observations as historical
 
-## 🏠 Property Endpoint Updates
+Previous documentation reported provider errors, special IDs, a member count, and a testing date. Those statements did not include reproducible current evidence and have been removed. The package's stale endpoint comments do not establish a current provider outage or a restoration date.
 
-### Corrected Field Names
+For a production investigation, record the package version, entity set, sanitized query, response status, and observation time. Keep credentials and private record content out of published documentation.
 
-| Old Documentation | Actual Field Name | Type |
-|-------------------|-------------------|------|
-| `ListingId` (primary) | `ListingKeyNumeric` | `integer` |
-| `Address` | `UnparsedAddress` | `string` |
-| `County` | `CountyOrParish` | `string` |
-| `SquareFeet` | `LivingArea` | `decimal` |
-| `BathroomsTotal` | `BathroomsTotalInteger` | `integer` |
-
-### New Important Fields
-
-- **Address Components**: `StreetDirPrefix`, `StreetDirSuffix`, `StreetNumber`, `StreetNumberNumeric`
-- **Status Fields**: Both `StandardStatus` and `MlsStatus` are available
-- **Timestamps**: Multiple timestamp fields for tracking changes
-- **Property Types**: `PropertyType`, `PropertySubType`, and `CurrentUse`
-
-### Example Response
-
-```json
-{
-  "@odata.context": "$metadata#Property",
-  "value": [
-    {
-      "ListingKeyNumeric": 1611952,
-      "StandardStatus": "Active",
-      "ListPrice": 1600.0,
-      "City": "Salt Lake City",
-      "UnparsedAddress": "1611 S MAIN ST 200",
-      // ... many more fields
-    }
-  ]
-}
-```
-
----
-
-## 👥 Member Endpoint Updates
-
-### Key Fields
-
-- **Identification**: `MemberKeyNumeric`, `MemberKey`, `MemberMlsId`
-- **Contact**: `MemberPreferredPhone`, `MemberMobilePhone`, `MemberOfficePhone`
-- **Professional**: `MemberStatus`, `MemberType`, `MemberDesignation`
-- **Association**: `MemberAOR`, `MemberAORkey`
-
-### Member Types
-- `"MLS Only Salesperson"`
-- `"MLS Only Broker"`
-
-### Total Count
-- Approximately 60,261 members in the system
-
----
-
-## 🏢 Office Endpoint Updates
-
-### Key Fields
-
-- **Identification**: `OfficeKeyNumeric`, `OfficeKey`, `OfficeMlsId`
-- **Details**: `OfficeName`, `OfficeStatus`, `OfficeBranchType`
-- **Contact**: `OfficePhone`, `OfficeFax`
-- **Location**: Full address fields including `OfficeStateOrProvince`
-
-### Special Offices
-- Office ID `1` is reserved for "NON-MLS"
-- Office ID `3` is "Federal Housing Agency FHA"
-
----
-
-## 🏘️ ADU Endpoint
-
-Successfully documented with actual fields:
-- `AduKeyNumeric` - Primary identifier
-- `AttachedYN`, `SeparateEntranceYN`, `KitchenYN` - Boolean features
-- `BedroomsTotal`, `BathroomsTotal`, `SquareFeet` - Unit specifications
-- `CurrentlyRentedYN`, `Rent` - Rental information
-
----
-
-## 🔍 Lookup Endpoint
-
-Returns enumeration values for various fields:
-- Property types
-- Architectural styles
-- Appliances
-- And many more lookup categories
-
-Response includes:
-- `LookupKey`
-- `LookupName` (category)
-- `LookupValue` (display value)
-- `StandardLookupValue`
-- `LegacyODataValue`
-
----
-
-## ❌ Issues Discovered
-
-### Deleted Endpoint
-The Deleted endpoint returned an error: "Bad request: Unknown property" when trying to use `DeletedDateTime` for ordering. This endpoint may need further investigation.
-
-### Unavailable Endpoints
-As documented in the README, the following endpoints remain unavailable:
-- Media
-- History  
-- Green Verification
-
----
-
-## 📝 Documentation Updates Made
-
-1. **Field Reference Tables**: Updated all field names, types, and examples based on actual responses
-2. **Code Examples**: Modified to use correct field names and response structure
-3. **Response Structure**: Clarified that all endpoints return OData response objects
-4. **Pagination**: Updated to show usage of `@odata.nextLink`
-5. **New Documentation**: Created comprehensive docs for Member, Office, and ADU endpoints
-
----
-
-## 🚀 Next Steps
-
-1. Investigate the Deleted endpoint issue
-2. Monitor for when Media, History, and Green Verification endpoints become available
-3. Add more complex query examples based on actual field relationships
-4. Consider adding response transformation utilities to simplify data access
+See [clients outside the facade](unavailable-clients.md), [property limitations](properties.md#location-helper-limitations), and [exception behavior](exceptions.md).

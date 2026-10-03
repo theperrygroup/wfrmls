@@ -1,363 +1,167 @@
-# Lookup API
-
-Complete reference for the Lookup endpoint of the WFRMLS Python client.
-
+---
+description: Retrieve MLS lookup categories and values, distinguish standard and active filters, and understand LookupClient paging and name results.
 ---
 
-## 📚 Overview
+# Lookup API reference
 
-The Lookup API provides access to enumeration values and reference data used throughout the MLS system. This includes standardized values for property types, statuses, architectural styles, appliances, and dozens of other fields.
+`LookupClient` requests the `Lookup` resource for service-defined categories and
+values. Use returned records and metadata to build field options; the package does
+not ship a verified, exhaustive catalog of current provider categories.
 
-### Key Features
+## Configure access
 
-- **Enumeration values** - Get valid values for dropdown fields
-- **Standardized codes** - Access RESO standard values
-- **Legacy mappings** - See OData legacy values for compatibility
-- **Category browsing** - Explore all available lookup categories
-- **Value descriptions** - Get human-readable labels for codes
+Use `WFRMLSClient().lookup` after setting `WFRMLS_BEARER_TOKEN`, or pass a token
+to `WFRMLSClient(bearer_token=...)`. The main client creates resource clients
+lazily; missing credentials raise `AuthenticationError` when you first access
+`lookup`. Direct resource client construction validates credentials immediately.
 
----
+Both constructors accept `bearer_token: Optional[str] = None` and
+`base_url: Optional[str] = None`. The default resource URL is
+`https://resoapi.utahrealestate.com/reso/odata`.
 
-## 📚 Methods
+## Query lookup records
 
-### `get_lookups()`
-
-Retrieve lookup values with optional filtering.
-
-```python
-def get_lookups(
-    top: Optional[int] = None,
-    skip: Optional[int] = None,
-    filter_query: Optional[str] = None,
-    select: Optional[List[str]] = None,
-    orderby: Optional[str] = None,
-    count: bool = False
-) -> Dict[str, Any]
+```text
+get_lookups(top=None, skip=None, filter_query=None, select=None,
+             orderby=None, expand=None, count=None) -> Dict[str, Any]
 ```
 
-**Parameters:**
+| Parameter | Accepted value | Default | Request behavior |
+| --- | --- | --- | --- |
+| `top` | `int` | `None` | Sends `$top`, capped at 200 |
+| `skip` | `int` | `None` | Sends `$skip` |
+| `filter_query` | `str` | `None` | Sends the OData expression as `$filter` |
+| `select` | `list[str]` or `str` | `None` | Sends `$select`; lists become comma-separated strings |
+| `orderby` | `str` | `None` | Sends `$orderby` |
+| `expand` | `list[str]` or `str` | `None` | Sends `$expand`; lists become comma-separated strings |
+| `count` | `bool` | `None` | Sends `$count=true` or `$count=false` when provided |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
-| `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
-| `filter_query` | `Optional[str]` | `None` | OData filter expression |
-| `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
-| `orderby` | `Optional[str]` | `None` | Field(s) to sort by with optional direction |
-| `count` | `bool` | `False` | Include total count in response metadata |
+`None` omits a parameter. The client forwards filters and field names without
+checking them against the service schema. Check your service metadata for supported
+fields, relationships, and value types. The 200-record cap is applied locally;
+negative pagination values are not validated locally.
 
-**Returns:**
-- `Dict[str, Any]` - Response dictionary containing lookup values
+The method requests `Lookup` and returns the response dictionary unchanged.
+Collection responses normally contain a `value` list. `@odata.count`,
+`@odata.context`, and `@odata.nextLink` may be present. Empty collections return an
+empty `value` list rather than `None`.
 
-**Examples:**
+Each call retrieves one page. It does not follow `@odata.nextLink`, accumulate all
+records, or retry failed requests. See [pagination](../guides/odata-queries.md).
+
+
+## Retrieve lookup records
+
+| Method | Actual request and result |
+| --- | --- |
+| `get_lookup(lookup_key: str) -> Dict[str, Any]` | Requests `Lookup('<key>')`; returns one record; HTTP 404 raises `NotFoundError` |
+| `get_lookups_by_name(lookup_name: str, **kwargs)` | Filters `LookupName eq '<name>'`; returns a collection |
+| `get_property_type_lookups(**kwargs)` | Calls the name helper with `PropertyType` |
+| `get_property_status_lookups(**kwargs)` | Calls the name helper with `PropertyStatus` |
+| `get_standard_lookups(**kwargs)` | Filters `StandardLookupValue ne null` |
+| `get_active_lookups(**kwargs)` | Filters `IsActive eq true` |
+| `get_lookup_names() -> Dict[str, Any]` | Requests `select=["LookupName"]` and `orderby="LookupName asc"`; returns a collection page |
+| `get_modified_lookups(since: Union[str, date, datetime], **kwargs)` | Filters `ModificationTimestamp`; timestamp handling is described below |
+
+All collection helpers return `Dict[str, Any]`. Helpers accepting `**kwargs`
+forward the collection options from `get_lookups()`. The name, standard, and active
+helpers combine an extra `filter_query` with `and`; parenthesize expressions that
+contain `or`. Lookup names are interpolated directly, so escape apostrophes as
+doubled quotes in OData string literals.
+
+The status helper uses the literal category **`PropertyStatus`**. It does not query
+`StandardStatus` or `MlsStatus`. Use `get_lookups_by_name()` with a category returned
+by your service when you need those categories.
+
+## Retrieve values for a category
+
+Set `WFRMLS_BEARER_TOKEN` before running this example. `PropertyType` is the
+category used by the built-in helper; confirm its fields and values in metadata.
+The example retrieves one page, not every category value automatically.
 
 ```python
+import os
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-# Get all standard status values
-status_lookups = client.lookup.get_lookups(
-    filter_query="LookupName eq 'StandardStatus'"
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.lookup.get_property_type_lookups(
+    select=["LookupKey", "LookupName", "LookupValue", "StandardLookupValue"],
+    orderby="LookupKey asc",
+    top=200,
 )
-
-# Get property types
-property_types = client.lookup.get_lookups(
-    filter_query="LookupName eq 'PropertyType'"
-)
-
-# Get lookups with full details
-detailed_lookups = client.lookup.get_lookups(
-    filter_query="LookupName eq 'PropertySubType'",
-    top=20
-)
+for record in response.get("value", []):
+    print(record.get("LookupValue"), record.get("StandardLookupValue"))
 ```
 
-### `get_lookup_names()`
+## Discover unique category names
 
-Get all available lookup categories/names.
-
-```python
-def get_lookup_names() -> Dict[str, Any]
-```
-
-**Returns:**
-- `Dict[str, Any]` - Response with unique lookup names
-
-**Examples:**
+`get_lookup_names()` neither deduplicates names nor fetches all pages. This
+example collects categories from explicit pages and deduplicates them locally.
+If the dataset changes during offset pagination, restart discovery or use the
+service's continuation mechanism in your application.
 
 ```python
-# Get all lookup categories
-names_response = client.lookup.get_lookup_names()
+import os
 
-# Extract unique categories
-lookup_names = set()
-for item in names_response["value"]:
-    lookup_names.add(item.get("LookupName"))
+from wfrmls import WFRMLSClient
 
-print("Available lookup categories:")
-for name in sorted(lookup_names):
-    print(f"  - {name}")
-```
-
-### `get_property_type_lookups()`
-
-Helper method to get property type enumeration values.
-
-```python
-def get_property_type_lookups() -> Dict[str, Any]
-```
-
-**Returns:**
-- `Dict[str, Any]` - Property type lookup values
-
----
-
-## 🏷️ Field Reference
-
-Each lookup record contains:
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **LookupKey** | `string` | Unique identifier | `"42471"` |
-| **LookupName** | `string` | Category/field name | `"StandardStatus"` |
-| **LookupValue** | `string` | Display value | `"Active"` |
-| **StandardLookupValue** | `string` | RESO standard value | `null` |
-| **LegacyODataValue** | `string` | Legacy API value | `"Active"` |
-| **ModificationTimestamp** | `datetime` | Last modified | `"2024-01-25T11:35:01Z"` |
-
----
-
-## 📋 Available Lookup Categories
-
-Based on the API, the following lookup categories are available:
-
-### Property Related
-- `PropertyType` - Main property types (Residential, Commercial, Land, etc.)
-- `PropertySubType` - Detailed property subtypes  
-- `PropertyCondition` - Property condition values
-- `CurrentUse` - Current property use
-- `PossibleUse` - Possible use options
-
-### Status & Listing
-- `StandardStatus` - RESO standard status values
-- `MlsStatus` - MLS-specific status
-- `ShowingContactType` - Showing contact types
-- `SpecialListingConditions` - Special conditions
-
-### Architecture & Features
-- `ArchitecturalStyle` - Architectural styles
-- `ConstructionMaterials` - Construction materials
-- `Roof` - Roof types
-- `Flooring` - Flooring materials
-- `Basement` - Basement types
-- `Levels` - Level descriptions
-
-### Amenities & Equipment
-- `Appliances` - Included appliances
-- `Cooling` - Cooling systems
-- `Heating` - Heating systems
-- `FireplaceFeatures` - Fireplace types
-- `InteriorFeatures` - Interior features
-- `ExteriorFeatures` - Exterior features
-
-### Lot & Location
-- `LotFeatures` - Lot characteristics
-- `View` - View types
-- `WaterSource` - Water sources
-- `Sewer` - Sewer types
-- `Utilities` - Utility options
-
-### Association & Community
-- `AssociationAmenities` - HOA amenities
-- `AssociationFeeIncludes` - What HOA fees cover
-- `CommunityFeatures` - Community amenities
-
-### Access & Parking
-- `AccessibilityFeatures` - Accessibility options
-- `ParkingFeatures` - Parking features
-- `RoadFrontageType` - Road frontage
-- `RoadSurfaceType` - Road surfaces
-
-### Business (Commercial)
-- `BusinessType` - Business categories
-- `BuildingFeatures` - Building features
-- `CurrentUse` - Current use
-
-### Other Categories
-- `AOR` - Association of Realtors
-- `AreaSource` - Area measurement source
-- `AreaUnits` - Area units (sqft, acres)
-- `Attended` - Attendance types
-- `BodyType` - Structure body types
-
----
-
-## 🔍 Common Usage Patterns
-
-### Building Dynamic Forms
-
-```python
-def get_form_options(field_name: str):
-    """Get valid options for a form field."""
-    
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+names = set()
+skip = 0
+while True:
     response = client.lookup.get_lookups(
-        filter_query=f"LookupName eq '{field_name}'",
-        orderby="LookupValue asc"
+        select=["LookupName", "LookupKey"],
+        orderby="LookupName asc,LookupKey asc",
+        top=200,
+        skip=skip,
     )
-    
-    options = []
-    for lookup in response["value"]:
-        options.append({
-            "value": lookup["LegacyODataValue"],
-            "label": lookup["LookupValue"],
-            "key": lookup["LookupKey"]
-        })
-    
-    return options
-
-# Get options for property type dropdown
-property_type_options = get_form_options("PropertyType")
+    records = response.get("value", [])
+    if not records:
+        break
+    names.update(record["LookupName"] for record in records if record.get("LookupName"))
+    skip += len(records)
+print(sorted(names))
 ```
 
-### Status Value Mapping
+An empty page ends this example; a short page alone does not prove discovery is
+complete. Keep the stable key in `orderby` to reduce inconsistent ordering.
 
-```python
-def get_status_mappings():
-    """Create mapping between display and API values."""
-    
-    response = client.lookup.get_lookups(
-        filter_query="LookupName eq 'StandardStatus'"
-    )
-    
-    # Create bidirectional mappings
-    display_to_api = {}
-    api_to_display = {}
-    
-    for lookup in response["value"]:
-        display_value = lookup["LookupValue"]
-        api_value = lookup["LegacyODataValue"]
-        
-        display_to_api[display_value] = api_value
-        api_to_display[api_value] = display_value
-    
-    return display_to_api, api_to_display
+## Query modified records
 
-# Usage
-display_to_api, api_to_display = get_status_mappings()
+`get_modified_lookups(since, **kwargs)` builds `ModificationTimestamp gt '<timestamp>'`. Pass an ISO 8601 UTC string such as
+`2026-01-01T00:00:00Z` to control the timestamp representation. Strings are not
+normalized or validated. Do not also supply `filter_query`: the helper supplies
+that keyword itself.
 
-# Convert user selection to API value
-user_selected = "Active Under Contract"
-api_filter_value = display_to_api[user_selected]  # "ActiveUnderContract"
-```
+A `date` becomes `YYYY-MM-DDT00:00:00Z`. Datetime objects are serialized with `isoformat()` followed by `Z`;
+timezone-aware datetimes can therefore produce an offset followed by `Z`.
+Prefer an explicit UTC string. If the service requires different temporal literal
+syntax, construct the expression with the collection method's `filter_query`.
 
-### Lookup Caching
 
-```python
-class LookupCache:
-    """Cache lookup values to reduce API calls."""
-    
-    def __init__(self, client):
-        self.client = client
-        self.cache = {}
-        self.cache_time = {}
-        self.cache_duration = 3600  # 1 hour
-    
-    def get_lookups(self, lookup_name: str):
-        """Get lookups with caching."""
-        
-        # Check cache
-        if lookup_name in self.cache:
-            if time.time() - self.cache_time[lookup_name] < self.cache_duration:
-                return self.cache[lookup_name]
-        
-        # Fetch from API
-        response = self.client.lookup.get_lookups(
-            filter_query=f"LookupName eq '{lookup_name}'"
-        )
-        
-        # Cache results
-        self.cache[lookup_name] = response["value"]
-        self.cache_time[lookup_name] = time.time()
-        
-        return response["value"]
+## Interpret returned values
 
-# Initialize cache
-lookup_cache = LookupCache(client)
+Client filters and tests use `LookupKey`, `LookupName`, `LookupValue`,
+`StandardLookupValue`, `IsActive`, and `ModificationTimestamp`. Other fields may be
+available in service metadata. A standard value can be null; the standard helper
+filters out null values but does not validate that the remainder is a complete
+RESO catalog. The active helper relies on the service's `IsActive` field.
 
-# Use cached lookups
-property_types = lookup_cache.get_lookups("PropertyType")
-```
+The library leaves JSON values and types unchanged. Do not assume display labels,
+local lookup values, standard values, and property filter values are interchangeable.
+Derive any mapping from the actual records and the target property's metadata.
 
-### Validation Helper
+## Handle errors
 
-```python
-def validate_field_value(field_name: str, value: str) -> bool:
-    """Validate if a value is valid for a field."""
-    
-    response = client.lookup.get_lookups(
-        filter_query=f"LookupName eq '{field_name}'"
-    )
-    
-    valid_values = set()
-    for lookup in response["value"]:
-        valid_values.add(lookup["LegacyODataValue"])
-        valid_values.add(lookup["LookupValue"])
-    
-    return value in valid_values
+HTTP 400 raises `ValidationError`; HTTP 401 raises `AuthenticationError`; HTTP 404
+raises `NotFoundError`; HTTP 429 raises `RateLimitError`; HTTP 5xx raises
+`ServerError`. Request failures raise `NetworkError`. Other unsuccessful responses
+raise `WFRMLSError`. See the [exception reference](exceptions.md) for details.
 
-# Validate user input
-is_valid = validate_field_value("StandardStatus", "Active")  # True
-is_valid = validate_field_value("StandardStatus", "Invalid")  # False
-```
 
----
+## Related references
 
-## 📊 Standard Status Values
-
-The most commonly used lookup values:
-
-| Display Value | API Value | Description |
-|---------------|-----------|-------------|
-| Active | Active | Property is actively listed |
-| Active Under Contract | ActiveUnderContract | Accepted offer, still showing |
-| Pending | Pending | Under contract |
-| Withdrawn | Withdrawn | Temporarily off market |
-| Expired | Expired | Listing period ended |
-| Closed | Closed | Sale completed |
-| Canceled | Canceled | Listing canceled |
-| Hold | Hold | On hold status |
-
----
-
-## ⚡ Performance Tips
-
-### Batch Loading
-
-```python
-def load_all_lookups_for_form(lookup_names: List[str]):
-    """Load multiple lookup categories efficiently."""
-    
-    # Build filter for multiple categories
-    filters = [f"LookupName eq '{name}'" for name in lookup_names]
-    filter_query = " or ".join(filters)
-    
-    response = client.lookup.get_lookups(
-        filter_query=f"({filter_query})",
-        top=1000  # Get many at once
-    )
-    
-    # Group by LookupName
-    grouped = {}
-    for lookup in response["value"]:
-        name = lookup["LookupName"]
-        if name not in grouped:
-            grouped[name] = []
-        grouped[name].append(lookup)
-    
-    return grouped
-
-# Load all form lookups at once
-form_lookups = load_all_lookups_for_form([
-    "PropertyType", "StandardStatus", "PropertySubType"
-])
+- [Resource metadata](resource.md) for field discovery.
+- [Property records](properties.md) for property filters.
+- [OData queries](../guides/odata-queries.md) for paging and string literals.

@@ -8,7 +8,7 @@ from .base_client import BaseClient
 
 
 class OfficeStatus(Enum):
-    """Office status options."""
+    """Library constants; these do not validate service lookup values."""
 
     ACTIVE = "Active"
     INACTIVE = "Inactive"
@@ -16,7 +16,7 @@ class OfficeStatus(Enum):
 
 
 class OfficeType(Enum):
-    """Office type options."""
+    """Library constants; these do not validate service lookup values."""
 
     MAIN = "Main"
     BRANCH = "Branch"
@@ -24,20 +24,23 @@ class OfficeType(Enum):
 
 
 class OfficeClient(BaseClient):
-    """Client for office (real estate brokerage) API endpoints.
+    """Client for HTTP queries on the Office resource.
 
-    The Office resource contains information about real estate brokerages,
-    including contact information, addresses, and licensing details.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the office client.
+        """Initialize the Office resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -51,51 +54,34 @@ class OfficeClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get offices with optional OData filtering.
-
-        This method retrieves office (brokerage) information with full OData v4.0 query support.
+        """Request one page from the Office collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing office data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of office records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get first 10 active offices
-            offices = client.office.get_offices(
-                top=10,
-                filter_query="OfficeStatus eq 'Active'"
-            )
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get offices with member info
-            offices = client.office.get_offices(
-                expand="Member",
-                top=50
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get offices with specific fields only
-            offices = client.office.get_offices(
-                select=["OfficeKey", "OfficeName", "OfficePhone", "OfficeEmail"],
-                top=100
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.office.get_offices(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -126,88 +112,55 @@ class OfficeClient(BaseClient):
         return self.get("Office", params=params)
 
     def get_office(self, office_key: str) -> Dict[str, Any]:
-        """Get office by office key.
+        """Request one Office record by key.
 
-        Retrieves a single office record by its unique office key.
-        This is the most efficient way to get detailed information about
-        a specific brokerage.
+        Requests Office('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            office_key: Office key to retrieve (unique identifier)
+            office_key: Record key string.
 
         Returns:
-            Dictionary containing office data for the specified office
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the office with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific office by key
-            office = client.office.get_office("12345")
-
-            print(f"Office: {office['OfficeName']}")
-            print(f"Phone: {office['OfficePhone']}")
-            print(f"Address: {office['OfficeAddress']}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"Office('{office_key}')")
 
     def get_active_offices(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get offices with Active status.
+        """Request one page of offices with OfficeStatus equal to Active.
 
-        Convenience method to retrieve only active offices.
-        This filters out inactive, suspended, or terminated brokerages.
+        Do not pass filter_query: the helper supplies it and duplicates raise
+        TypeError. Use get_offices to build additional compound filters.
 
         Args:
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            **kwargs: Other get_offices collection options.
 
         Returns:
-            Dictionary containing active office listings
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all active offices
-            active_offices = client.office.get_active_offices(top=100)
-
-            # Get active offices with specific fields
-            active_offices = client.office.get_active_offices(
-                select=["OfficeKey", "OfficeName", "OfficePhone", "OfficeCity"],
-                orderby="OfficeName"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_offices(filter_query="OfficeStatus eq 'Active'", **kwargs)
 
     def get_offices_by_city(self, city: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get offices in a specific city.
+        """Request offices filtered by OfficeCity.
 
-        Convenience method to filter offices by city name.
-        Useful for location-specific brokerage searches.
+        An extra filter_query is appended with and without grouping. Parenthesize
+        expressions containing or. Escape apostrophes in city as doubled quotes.
 
         Args:
-            city: City name to filter by
-            **kwargs: Additional OData parameters
+            city: City string to match.
+            **kwargs: get_offices collection options, including an additional filter.
 
         Returns:
-            Dictionary containing offices in the specified city
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get offices in Salt Lake City
-            offices = client.office.get_offices_by_city(
-                city="Salt Lake City",
-                top=100
-            )
-
-            # Get active offices in Provo
-            offices = client.office.get_offices_by_city(
-                city="Provo",
-                filter_query="OfficeStatus eq 'Active'",
-                orderby="OfficeName"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         city_filter = f"OfficeCity eq '{city}'"
 
@@ -221,31 +174,20 @@ class OfficeClient(BaseClient):
         return self.get_offices(**kwargs)
 
     def search_offices_by_name(self, name: str, **kwargs: Any) -> Dict[str, Any]:
-        """Search offices by name using partial matching.
+        """Request offices using contains(OfficeName, '<name>').
 
-        Convenience method to find brokerages by name using partial matching.
-        Uses OData string functions for flexible name searching.
+        An extra filter_query is appended with and without grouping. Parenthesize
+        expressions containing or. Escape apostrophes in name as doubled quotes.
 
         Args:
-            name: Office name to search for (partial matching)
-            **kwargs: Additional OData parameters
+            name: Office-name substring.
+            **kwargs: get_offices collection options, including an additional filter.
 
         Returns:
-            Dictionary containing offices matching the name criteria
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Search for offices with "Realty" in the name
-            realty_offices = client.office.search_offices_by_name(
-                name="Realty",
-                top=50
-            )
-
-            # Search for Coldwell Banker offices
-            cb_offices = client.office.search_offices_by_name(
-                name="Coldwell Banker"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         name_filter = f"contains(OfficeName, '{name}')"
 
@@ -259,56 +201,37 @@ class OfficeClient(BaseClient):
         return self.get_offices(**kwargs)
 
     def get_offices_with_members(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get offices with their member information expanded.
+        """Request offices with expand set to Members.
 
-        This is a convenience method that automatically expands the Member
-        relationship to include agent/broker details in the response. More efficient
-        than making separate requests for offices and their members.
+        The relationship name is Members, not Member. Its schema and availability
+        are service-defined. Do not pass expand; duplicates raise TypeError.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Other get_offices collection options.
 
         Returns:
-            Dictionary containing office data with expanded Member relationships
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get active offices with member info
-            offices = client.office.get_offices_with_members(
-                filter_query="OfficeStatus eq 'Active'",
-                top=25
-            )
-
-            # Access members for first office
-            first_office = offices['value'][0]
-            if 'Member' in first_office:
-                members = first_office['Member']
-                print(f"Office has {len(members)} members")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_offices(expand="Members", **kwargs)
 
     def get_offices_by_zipcode(self, zipcode: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get offices in a specific ZIP code.
+        """Request offices filtered by OfficePostalCode.
 
-        Convenience method to filter offices by postal code.
-        Useful for geographic-based brokerage searches.
+        An extra filter_query is appended with and without grouping. Use a string
+        to retain leading zeros; escape apostrophes as doubled quotes.
 
         Args:
-            zipcode: ZIP/postal code to filter by
-            **kwargs: Additional OData parameters
+            zipcode: Postal-code string.
+            **kwargs: get_offices collection options, including an additional filter.
 
         Returns:
-            Dictionary containing offices in the specified ZIP code
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get offices in ZIP code 84101 (downtown Salt Lake City)
-            offices = client.office.get_offices_by_zipcode(
-                zipcode="84101",
-                top=50
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         zipcode_filter = f"OfficePostalCode eq '{zipcode}'"
 
@@ -324,35 +247,25 @@ class OfficeClient(BaseClient):
     def get_modified_offices(
         self, since: Union[str, date], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get offices modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only office records
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date brokerage information.
+        Builds ModificationTimestamp gt <timestamp>. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDZ; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string or date object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string or date.
+            **kwargs: Other get_offices collection options.
 
         Returns:
-            Dictionary containing offices modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get offices modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.office.get_modified_offices(
-                since=cutoff_time.isoformat() + "Z"
-            )
-
-            # Get offices modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.office.get_modified_offices(
-                since=yesterday.isoformat() + "Z"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, date):
             since_str = since.isoformat() + "Z"

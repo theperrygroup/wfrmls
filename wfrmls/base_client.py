@@ -20,25 +20,24 @@ load_dotenv()
 
 
 class BaseClient:
-    """Base client with common functionality for all WFRMLS API endpoints.
+    """Shared authenticated HTTP client for the resource interfaces.
 
-    This class provides the foundational HTTP client functionality that all
-    service clients inherit from. It handles authentication, request/response
-    processing, and error handling.
+    Each instance owns a Requests session. Shared resource requests do not set
+    an explicit timeout or implement automatic retries, backoff, or token refresh.
+    The separate WFRMLSClient metadata request has different behavior.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the base client.
+        """Initialize a service client and resolve its credentials.
 
         Args:
-            bearer_token: Bearer token for authentication. If not provided,
-                will attempt to load from WFRMLS_BEARER_TOKEN environment variable.
-            base_url: Base URL for the API. Defaults to the production WFRMLS API.
+            bearer_token: Explicit token, or None to use WFRMLS_BEARER_TOKEN.
+            base_url: OData service root, or None for the package default.
 
         Raises:
-            AuthenticationError: If no bearer token is provided or found in environment.
+            AuthenticationError: If neither an explicit nor environment token exists.
         """
         self.bearer_token = bearer_token or os.getenv("WFRMLS_BEARER_TOKEN")
         if not self.bearer_token:
@@ -183,13 +182,16 @@ class BaseClient:
     def get(
         self, endpoint: str, params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Make GET request to API endpoint.
+        """Send a GET request to a path relative to the configured service root.
 
         Args:
-            endpoint: API endpoint path
-            params: Query parameters to include in request
+            endpoint: Relative path; leading slashes are removed before URL assembly.
+            params: Raw query dictionary, including $ prefixes for OData parameters.
 
         Returns:
-            Parsed JSON response data
+            Handled JSON response. No query clamping or response schema validation occurs.
+
+        Raises:
+            WFRMLSError: For mapped HTTP failures or a wrapped transport failure.
         """
         return self._request("GET", endpoint, params=params)

@@ -7,21 +7,23 @@ from .base_client import BaseClient
 
 
 class DataSystemClient(BaseClient):
-    """Client for data system metadata API endpoints.
+    """Client for HTTP queries on the DataSystem resource.
 
-    The DataSystem resource provides metadata about the data system itself,
-    including version information, contact details, and system capabilities.
-    This is useful for understanding the MLS system configuration and features.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the data system client.
+        """Initialize the DataSystem resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -35,48 +37,34 @@ class DataSystemClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get data system information with optional OData filtering.
-
-        This method retrieves data system metadata with full OData v4.0 query support.
-        Provides information about the MLS system configuration and capabilities.
+        """Request one page from the DataSystem collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing data system metadata with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of data system records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get all data system information
-            data_systems = client.data_system.get_data_systems()
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get specific fields only
-            data_systems = client.data_system.get_data_systems(
-                select=["DataSystemKey", "DataSystemName", "SystemVersion"]
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get data systems with specific properties
-            data_systems = client.data_system.get_data_systems(
-                filter_query="DataSystemName eq 'WFRMLS'",
-                expand="Resources"
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.data_system.get_data_systems(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -107,87 +95,60 @@ class DataSystemClient(BaseClient):
         return self.get("DataSystem", params=params)
 
     def get_data_system(self, data_system_key: str) -> Dict[str, Any]:
-        """Get data system by data system key.
+        """Request one DataSystem record by key.
 
-        Retrieves a single data system record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific data system configuration.
+        Requests DataSystem('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            data_system_key: Data system key to retrieve (unique identifier)
+            data_system_key: Record key string.
 
         Returns:
-            Dictionary containing data system data for the specified record
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the data system with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific data system by key
-            data_system = client.data_system.get_data_system("WFRMLS")
-
-            print(f"System Name: {data_system['DataSystemName']}")
-            print(f"Version: {data_system.get('SystemVersion', 'Unknown')}")
-            print(f"Contact: {data_system.get('ContactEmail', 'Unknown')}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"DataSystem('{data_system_key}')")
 
     def get_system_info(self) -> Dict[str, Any]:
-        """Get general system information.
+        """Request a DataSystem collection page with top=10.
 
-        Convenience method to retrieve basic system information.
-        Typically returns information about the primary MLS system.
+        Calls get_data_systems(top=10). It does not choose a current system, return
+        one record directly, fetch all pages, or perform a health/version check.
+        Use get_data_systems for filters, field selection, and other query options.
 
         Returns:
-            Dictionary containing system information
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get system information
-            system_info = client.data_system.get_system_info()
-
-            for system in system_info.get('value', []):
-                print(f"System: {system['DataSystemName']}")
-                print(f"Description: {system.get('DataSystemDescription', 'N/A')}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_data_systems(top=10)
 
     def get_modified_data_systems(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get data systems modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only data system records
-        that have been updated since the last sync. Useful for monitoring
-        system configuration changes.
+        Builds ModificationTimestamp gt '<timestamp>'. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDT00:00:00Z; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string, date, or datetime.
+            **kwargs: Other get_data_systems collection options.
 
         Returns:
-            Dictionary containing data systems modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get systems modified in last day
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.data_system.get_modified_data_systems(
-                since=cutoff_time
-            )
-
-            # Get systems modified since a specific date
-            updates = client.data_system.get_modified_data_systems(
-                since="2023-01-01T00:00:00Z",
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"

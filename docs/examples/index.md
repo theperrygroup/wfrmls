@@ -1,124 +1,72 @@
-# Examples
-
-Practical examples for common WFRMLS client workflows. This section stays intentionally compact and points to the guides that already exist in the repository.
-
+---
+title: "Runnable WFRMLS examples"
+description: "Run an offline mocked WFRMLS property query, verify the value response shape, and find focused examples for paging, retries, and synchronization."
 ---
 
-## Quick Navigation
+# Runnable WFRMLS examples
 
-<div class="grid cards" markdown>
+Start with this offline example to verify the client call and collection shape
+without a real token or provider request. The remaining guides show focused
+application patterns rather than complete production integrations.
 
--   :material-rocket-launch:{ .lg .middle } **Quick Start**
+## Run a mocked property query
 
-    ---
+Install the optional test dependency in your environment:
 
-    Make your first request and inspect a simple response.
+```bash
+python -m pip install wfrmls responses
+```
 
-    [:octicons-arrow-right-24: Quick Start](../getting-started/quickstart.md)
-
--   :material-home-search:{ .lg .middle } **Property Search**
-
-    ---
-
-    Work with filtering, sorting, and field selection.
-
-    [:octicons-arrow-right-24: Property Search Guide](../guides/property-search.md)
-
--   :material-filter-cog:{ .lg .middle } **OData Queries**
-
-    ---
-
-    Build more precise query expressions for real workloads.
-
-    [:octicons-arrow-right-24: OData Queries Guide](../guides/odata-queries.md)
-
--   :material-database-sync:{ .lg .middle } **Data Sync**
-
-    ---
-
-    Use incremental update patterns for local stores.
-
-    [:octicons-arrow-right-24: Data Sync Guide](../guides/data-sync.md)
-
--   :material-shield-alert:{ .lg .middle } **Error Handling**
-
-    ---
-
-    Add retries, logging, and defensive response handling.
-
-    [:octicons-arrow-right-24: Error Handling Guide](../guides/error-handling.md)
-
-</div>
-
----
-
-## Short Examples
-
-### Property search
+Save the following as `mocked_search.py` and run `python mocked_search.py`.
+`responses` intercepts Requests calls and rejects unregistered URLs while its
+context is active. The token and listing below are intentionally synthetic.
 
 ```python
+import responses
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-properties = client.property.get_properties(
-    filter_query="StandardStatus eq 'Active' and ListPrice le 500000",
-    select=["ListingId", "ListPrice", "City", "BedroomsTotal"],
-    orderby="ListPrice asc",
-    top=10,
-)
-
-for property_record in properties:
-    print(
-        property_record["ListingId"],
-        property_record.get("City"),
-        property_record.get("ListPrice"),
+client = WFRMLSClient(bearer_token="documentation-test-token")
+with responses.RequestsMock() as mock:
+    mock.add(
+        responses.GET,
+        "https://resoapi.utahrealestate.com/reso/odata/Property",
+        json={
+            "value": [
+                {"ListingId": "1234567", "City": "Example City", "ListPrice": 400000}
+            ]
+        },
+        status=200,
     )
+    response = client.property.get_properties(
+        top=1,
+        select=["ListingId", "City", "ListPrice"],
+    )
+    assert len(response["value"]) == 1
+    print(response["value"][0]["ListingId"])
 ```
 
-### Open house lookup
+Expected output:
 
-```python
-from wfrmls import WFRMLSClient
-
-client = WFRMLSClient()
-open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7, top=10)
-
-for open_house in open_houses.get("value", []):
-    print(open_house.get("OpenHouseDate"), open_house.get("ListingKey"))
+```text
+1234567
 ```
 
-### Incremental sync pattern
+A collection is a dictionary containing a `value` list. Iterating the outer
+dictionary would iterate its keys. By contrast, `get_property()` returns the
+normalized entity dictionary directly.
 
-```python
-from datetime import datetime, timedelta, timezone
-from wfrmls import WFRMLSClient
+## Find an example for your task
 
-client = WFRMLSClient()
-cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+| Task | Example and limits |
+| --- | --- |
+| Query live data | [Quick start](../getting-started/quickstart.md); requires authorized provider credentials. |
+| Compose a search | [Property search](../guides/property-search.md); verifies helper parameters and string escaping. |
+| Read every page | [OData paging](../guides/odata-queries.md#follow-collection-next-links); includes an application helper with timeouts and origin checks. |
+| Retry a failed read | [Error handling](../guides/error-handling.md#add-bounded-retries-for-reads); bounded attempts for selected library exceptions. |
+| Keep a checkpoint | [Synchronization](../guides/data-sync.md); stages updates and advances state only after a complete fetch. |
+| Check radius support | [Geographic limitations](../guides/geolocation.md); demonstrates the local validation failure. |
 
-recent_updates = client.property.get_properties(
-    filter_query=f"ModificationTimestamp gt '{cutoff.isoformat()}'",
-    orderby="ModificationTimestamp desc",
-    top=200,
-)
-```
-
----
-
-## When To Use Guides Instead
-
-Use the dedicated guides when you need more than a quick pattern:
-
-- **[Property Search Guide](../guides/property-search.md)** for search-oriented applications.
-- **[OData Queries Guide](../guides/odata-queries.md)** for complex filters and sorting.
-- **[Data Sync Guide](../guides/data-sync.md)** for synchronization workflows.
-- **[Rate Limits Guide](../guides/rate-limits.md)** for pacing and retry strategies.
-
----
-
-## Next Steps
-
-- **[API Reference](../api/index.md)** - Review the full client surface.
-- **[Reference Guide](../reference/index.md)** - Check shared field and response conventions.
-- **[Getting Started](../getting-started/index.md)** - Revisit installation and authentication setup.
+Mocks validate application behavior against the chosen fixture. They do not
+verify current provider field types, feed permissions, quotas, or MLS licensing.
+Use the provider's metadata and your agreement for those contracts.

@@ -1,358 +1,166 @@
-# Offices API
-
-Complete reference for the Offices endpoint of the WFRMLS Python client.
-
+---
+description: Retrieve MLS office records and filter brokerages by city, postal code, name, status, or modification time with OfficeClient.
 ---
 
-## 🏢 Overview
+# Office API reference
 
-The Offices API provides access to real estate brokerage and office information, including contact details, addresses, and licensing information.
+`OfficeClient` requests brokerage records from the `Office` resource. Its helpers
+build name, city, postal-code, status, and modification filters and can request
+expanded member relationships.
 
-### Key Features
+## Configure access
 
-- **Office profiles** - Access brokerage and office information
-- **Contact details** - Get phone, fax, and address information
-- **Branch relationships** - View main office associations
-- **Status filtering** - Filter by active/inactive status
-- **Broker information** - Access managing broker details
+Use `WFRMLSClient().office` after setting `WFRMLS_BEARER_TOKEN`, or pass a token
+to `WFRMLSClient(bearer_token=...)`. The main client creates resource clients
+lazily; missing credentials raise `AuthenticationError` when you first access
+`office`. Direct resource client construction validates credentials immediately.
 
----
+Both constructors accept `bearer_token: Optional[str] = None` and
+`base_url: Optional[str] = None`. The default resource URL is
+`https://resoapi.utahrealestate.com/reso/odata`.
 
-## 📚 Methods
+## Query office records
 
-### `get_offices()`
-
-Retrieve multiple office records with optional filtering and pagination.
-
-```python
-def get_offices(
-    top: Optional[int] = None,
-    skip: Optional[int] = None,
-    filter_query: Optional[str] = None,
-    select: Optional[List[str]] = None,
-    orderby: Optional[str] = None,
-    count: bool = False
-) -> Dict[str, Any]
+```text
+get_offices(top=None, skip=None, filter_query=None, select=None,
+             orderby=None, expand=None, count=None) -> Dict[str, Any]
 ```
 
-**Parameters:**
+| Parameter | Accepted value | Default | Request behavior |
+| --- | --- | --- | --- |
+| `top` | `int` | `None` | Sends `$top`, capped at 200 |
+| `skip` | `int` | `None` | Sends `$skip` |
+| `filter_query` | `str` | `None` | Sends the OData expression as `$filter` |
+| `select` | `list[str]` or `str` | `None` | Sends `$select`; lists become comma-separated strings |
+| `orderby` | `str` | `None` | Sends `$orderby` |
+| `expand` | `list[str]` or `str` | `None` | Sends `$expand`; lists become comma-separated strings |
+| `count` | `bool` | `None` | Sends `$count=true` or `$count=false` when provided |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
-| `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
-| `filter_query` | `Optional[str]` | `None` | OData filter expression |
-| `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
-| `orderby` | `Optional[str]` | `None` | Field(s) to sort by with optional direction |
-| `count` | `bool` | `False` | Include total count in response metadata |
+`None` omits a parameter. The client forwards filters and field names without
+checking them against the service schema. Check your service metadata for supported
+fields, relationships, and value types. The 200-record cap is applied locally;
+negative pagination values are not validated locally.
 
-**Returns:**
-- `Dict[str, Any]` - Response dictionary containing:
-  - `@odata.context`: OData context URL
-  - `value`: List of office dictionaries
-  - `@odata.count`: Total count (if requested)
-  - `@odata.nextLink`: URL for next page of results
+The method requests `Office` and returns the response dictionary unchanged.
+Collection responses normally contain a `value` list. `@odata.count`,
+`@odata.context`, and `@odata.nextLink` may be present. Empty collections return an
+empty `value` list rather than `None`.
 
-**Examples:**
+Each call retrieves one page. It does not follow `@odata.nextLink`, accumulate all
+records, or retry failed requests. See [pagination](../guides/odata-queries.md).
+
+
+## Retrieve one office
+
+`get_office(office_key: str) -> Dict[str, Any]` requests `Office('<key>')` and
+returns the record dictionary. A missing office reported with HTTP 404 raises
+`NotFoundError`; it does not return `None`.
+
+## Use office helpers
+
+Each helper returns a collection response dictionary and forwards its `**kwargs`
+to `get_offices()`.
+
+| Method | Filter or expansion |
+| --- | --- |
+| `get_active_offices(**kwargs)` | Sets `OfficeStatus eq 'Active'` |
+| `get_offices_by_city(city: str, **kwargs)` | Sets `OfficeCity eq '<city>'` |
+| `search_offices_by_name(name: str, **kwargs)` | Sets `contains(OfficeName, '<name>')` |
+| `get_offices_by_zipcode(zipcode: str, **kwargs)` | Sets `OfficePostalCode eq '<zipcode>'` |
+| `get_offices_with_members(**kwargs)` | Sets `expand="Members"` |
+| `get_modified_offices(since: Union[str, date], **kwargs)` | Filters `ModificationTimestamp`; timestamp handling is described below |
+
+City, name, and postal-code helpers append a supplied `filter_query` with `and`.
+Parenthesize any additional expression containing `or`. These helpers interpolate
+strings directly; escape apostrophes as doubled quotes in an OData string literal.
+Postal codes are strings so leading zeros are retained.
+
+Do not supply `filter_query` to the active helper or `expand` to the member
+expansion helper: those arguments are already set and duplicates raise `TypeError`.
+The expansion name is `Members`, not `Member`. Relationship availability is
+determined by the service metadata and your credentials.
+
+## Find active offices in a city
+
+Set `WFRMLS_BEARER_TOKEN` before running this example. Change the city to match
+your query. The result is one page of office records.
 
 ```python
+import os
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-# Get first 10 offices
-response = client.office.get_offices(top=10)
-offices = response["value"]
-
-# Get active offices only
-active_response = client.office.get_active_offices(top=20)
-
-# Search by office name
-realty_offices = client.office.get_offices(
-    filter_query="contains(OfficeName, 'Realty')",
-    select=["OfficeKey", "OfficeName", "OfficeCity", "OfficeStatus"],
-    orderby="OfficeName asc"
-)
-
-# Get offices with count
-result_with_count = client.office.get_offices(
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.office.get_offices_by_city(
+    "Salt Lake City",
     filter_query="OfficeStatus eq 'Active'",
-    count=True,
-    top=1
+    select=["OfficeKey", "OfficeName", "OfficeCity", "OfficePostalCode"],
+    orderby="OfficeName asc,OfficeKey asc",
+    top=50,
 )
-total_active = result_with_count.get("@odata.count", 0)
+for office in response.get("value", []):
+    print(office.get("OfficeKey"), office.get("OfficeName"))
 ```
 
-### `get_office()`
+## Retrieve an office with its members
 
-Retrieve detailed information for a specific office by office key.
+Replace `office-key` with a key returned by your service. A collection filter can
+request related members, while `get_office()` accepts only the key.
 
 ```python
-def get_office(office_key: str) -> Optional[Dict[str, Any]]
+import os
+
+from wfrmls import WFRMLSClient
+
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.office.get_offices_with_members(
+    filter_query="OfficeKey eq 'office-key'",
+    top=1,
+)
+for office in response.get("value", []):
+    print(office.get("OfficeName"))
+    for member in office.get("Members") or []:
+        print(member.get("MemberKey"), member.get("MemberLastName"))
 ```
 
-**Parameters:**
+## Query modified records
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `office_key` | `str` | Unique office identifier |
+`get_modified_offices(since, **kwargs)` builds `ModificationTimestamp gt <timestamp>`. Pass an ISO 8601 UTC string such as
+`2026-01-01T00:00:00Z` to control the timestamp representation. Strings are not
+normalized or validated. Do not also supply `filter_query`: the helper supplies
+that keyword itself.
 
-**Returns:**
-- `Optional[Dict[str, Any]]` - Office dictionary or `None` if not found
+A `date` becomes `YYYY-MM-DDZ`. Datetime objects are serialized with `isoformat()` followed by `Z`;
+timezone-aware datetimes can therefore produce an offset followed by `Z`.
+Prefer an explicit UTC string. If the service requires different temporal literal
+syntax, construct the expression with the collection method's `filter_query`.
 
-**Examples:**
 
-```python
-# Get specific office
-office = client.office.get_office("3")
+## Interpret fields and enums
 
-if office:
-    print(f"Office: {office['OfficeName']}")
-    print(f"Phone: {office['OfficePhone']}")
-    print(f"Status: {office['OfficeStatus']}")
-```
+Fields referenced by client queries and tests include `OfficeKey`, `OfficeName`,
+`OfficeStatus`, `OfficeCity`, `OfficePostalCode`, `OfficePhone`, and
+`ModificationTimestamp`. `Members` is the relationship requested by the expansion
+helper. The client does not guarantee a field catalog or convert JSON values.
+Consult metadata for contact fields, broker fields, branch relationships, types,
+and nullability before selecting them.
 
----
+`wfrmls.office.OfficeStatus` defines `ACTIVE="Active"`, `INACTIVE="Inactive"`,
+and `SUSPENDED="Suspended"`. `OfficeType` defines `MAIN="Main"`,
+`BRANCH="Branch"`, and `FRANCHISE="Franchise"`. These are library constants;
+they do not validate provider data or confirm current service lookup values.
+Use the enum's `.value` in a filter expression.
 
-## 🏷️ Field Reference
+## Handle errors
 
-### Core Identification Fields
+HTTP 400 raises `ValidationError`; HTTP 401 raises `AuthenticationError`; HTTP 404
+raises `NotFoundError`; HTTP 429 raises `RateLimitError`; HTTP 5xx raises
+`ServerError`. Request failures raise `NetworkError`. Other unsuccessful responses
+raise `WFRMLSError`. See the [exception reference](exceptions.md) for details.
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficeKeyNumeric** | `integer` | Numeric office key | `3` |
-| **OfficeKey** | `string` | Unique office identifier | `"3"` |
-| **OfficeMlsId** | `string` | MLS office ID | `"3"` |
-| **OriginatingSystemOfficeKey** | `string` | Source system key | `"fcd99ec6..."` |
-| **OriginatingSystemName** | `string` | Source system name | `"UtahRealEstate.com"` |
 
-### Office Information
+## Related references
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficeName** | `string` | Office/brokerage name | `"Federal Housing Agency FHA"` |
-| **OfficeBranchType** | `string` | Branch type | `"Branch"` |
-| **OfficeStatus** | `string` | Office status | `"Active"` |
-| **OfficeCorporateLicense** | `string` | Corporate license | `"-1"` |
-
-### Contact Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficeAddress1** | `string` | Primary address | `"125 south state street suite 3001"` |
-| **OfficeAddress2** | `string` | Secondary address | `""` |
-| **OfficeCity** | `string` | City | `"Salt Lake City"` |
-| **OfficeStateOrProvince** | `string` | State | `"UT"` |
-| **OfficePostalCode** | `string` | ZIP code | `"84138"` |
-| **OfficeCountyOrParish** | `string` | County | `""` |
-
-### Communication
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficePhone** | `string` | Main phone number | `"801-524-6413"` |
-| **OfficeFax** | `string` | Fax number | `""` |
-
-### Broker Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficeBrokerKey** | `string` | Managing broker key | `"44002406"` |
-| **OfficeBrokerMlsId** | `string` | Broker MLS ID | `"44002406"` |
-
-### Branch Relationships
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MainOfficeKeyNumeric** | `integer` | Main office numeric key | `null` |
-| **MainOfficeMlsId** | `string` | Main office MLS ID | `""` |
-
-### System Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **ModificationTimestamp** | `datetime` | Last modified | `"2016-02-18T18:10:04Z"` |
-| **OriginalEntryTimestamp** | `datetime` | Original entry date | `"1998-06-19T15:09:00Z"` |
-
----
-
-## 🔍 Common Query Patterns
-
-### Status Filtering
-
-```python
-# Active offices only
-active_offices = client.office.get_active_offices(top=50)
-
-# All offices (including inactive)
-all_offices = client.office.get_offices(
-    select=["OfficeKey", "OfficeName", "OfficeStatus"],
-    orderby="OfficeStatus desc, OfficeName asc"
-)
-```
-
-### Name Searches
-
-```python
-# Search by office name contains
-realty_offices = client.office.search_offices_by_name("Realty")
-
-# Offices starting with specific letter
-c_offices = client.office.get_offices(
-    filter_query="startswith(OfficeName, 'C')"
-)
-
-# Exact name match
-coldwell = client.office.get_offices(
-    filter_query="OfficeName eq 'Coldwell Banker Realty'"
-)
-```
-
-### Location Queries
-
-```python
-# Offices in specific city
-salt_lake_offices = client.office.get_offices(
-    filter_query="OfficeCity eq 'Salt Lake City'",
-    select=["OfficeName", "OfficeAddress1", "OfficePhone"]
-)
-
-# Offices by ZIP code
-zip_offices = client.office.get_offices(
-    filter_query="OfficePostalCode eq '84101'"
-)
-
-# Offices in multiple cities
-cities = ['Salt Lake City', 'Park City', 'Provo']
-city_filter = " or ".join([f"OfficeCity eq '{city}'" for city in cities])
-multi_city_offices = client.office.get_offices(
-    filter_query=f"({city_filter})"
-)
-```
-
-### Branch Relationships
-
-```python
-# Branch offices only
-branches = client.office.get_offices(
-    filter_query="OfficeBranchType eq 'Branch'"
-)
-
-# Offices with main office
-with_main = client.office.get_offices(
-    filter_query="MainOfficeKeyNumeric ne null"
-)
-```
-
-### Broker Queries
-
-```python
-# Offices by broker
-broker_offices = client.office.get_offices(
-    filter_query="OfficeBrokerKey eq '44002406'",
-    select=["OfficeName", "OfficeCity", "OfficeBrokerMlsId"]
-)
-```
-
----
-
-## 📊 Pagination Examples
-
-### Iterating Through All Offices
-
-```python
-def get_all_offices():
-    """Retrieve all offices using pagination."""
-    all_offices = []
-    skip = 0
-    page_size = 200  # Maximum allowed
-    
-    while True:
-        response = client.office.get_offices(
-            top=page_size,
-            skip=skip,
-            orderby="OfficeKey asc"
-        )
-        
-        offices = response.get("value", [])
-        if not offices:
-            break
-            
-        all_offices.extend(offices)
-        
-        # Check for next page
-        if "@odata.nextLink" not in response:
-            break
-            
-        skip += page_size
-        print(f"Retrieved {len(all_offices)} offices...")
-    
-    return all_offices
-```
-
-### Office Directory by Location
-
-```python
-def create_office_directory_by_city():
-    """Create directory of offices grouped by city."""
-    
-    # Get all active offices with location info
-    response = client.office.get_offices(
-        filter_query="OfficeStatus eq 'Active'",
-        select=["OfficeKey", "OfficeName", "OfficeCity", "OfficePhone"],
-        orderby="OfficeCity asc, OfficeName asc"
-    )
-    
-    # Group by city
-    directory = {}
-    for office in response.get("value", []):
-        city = office.get("OfficeCity", "Unknown")
-        if city not in directory:
-            directory[city] = []
-        directory[city].append(office)
-    
-    return directory
-```
-
----
-
-## ⚡ Performance Tips
-
-### Optimize Field Selection
-
-```python
-# ❌ Inefficient - retrieves all fields
-all_fields = client.office.get_offices(top=100)
-
-# ✅ Efficient - only needed fields
-office_list = client.office.get_offices(
-    select=["OfficeKey", "OfficeName", "OfficePhone", "OfficeCity"],
-    top=100
-)
-```
-
-### Efficient Status Checks
-
-```python
-# Count offices by status efficiently
-active_count = client.office.get_offices(
-    filter_query="OfficeStatus eq 'Active'",
-    top=0,  # Don't need actual records
-    count=True
-)["@odata.count"]
-
-print(f"Active offices: {active_count}")
-```
-
-### Batch Office Lookups
-
-```python
-# Get multiple offices by keys efficiently
-office_keys = ["1", "3", "100", "200"]
-filter_parts = [f"OfficeKey eq '{key}'" for key in office_keys]
-filter_query = " or ".join(filter_parts)
-
-offices = client.office.get_offices(
-    filter_query=f"({filter_query})",
-    select=["OfficeKey", "OfficeName", "OfficePhone"]
-)
+- [Member records](members.md) for queries using `OfficeKey`.
+- [OData queries](../guides/odata-queries.md) for compound filters and paging.
+- [Resource metadata](resource.md) for resource and field discovery.

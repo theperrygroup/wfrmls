@@ -4,6 +4,8 @@ mkdocs-material>=9.7.7
 mkdocs-include-markdown-plugin>=7.3.0
 mkdocs-minify-plugin>=0.8.0
 mkdocstrings[python]>=1.0.6
+# Format long Python signatures in the generated API reference.
+black>=23.0.0
 pymdown-extensions>=11.0.1
 mike>=2.2.0
 
@@ -20,4 +22,4 @@ pillow>=12.3.0
 cairosvg>=2.9.0
 
 # Additional dependencies for Google-style docstrings
-griffe>=2.1.0 
+griffe>=2.1.0

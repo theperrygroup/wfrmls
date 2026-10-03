@@ -20,62 +20,39 @@ if TYPE_CHECKING:
 
 
 class WFRMLSClient:
-    """Main client for WFRMLS API.
+    """Facade for lazy WFRMLS service access and schema discovery.
 
-    This is the primary entry point for accessing the WFRMLS API. It provides
-    access to all available resources through service-specific client properties.
-    The client uses lazy initialization to create service clients only when accessed.
-
-    Note: Media, History, and Green Verification endpoints are currently unavailable
-    due to server-side issues (504 Gateway Timeouts and missing entity types).
+    Construction stores configuration without making requests or validating
+    credentials. Service clients resolve credentials when first accessed and
+    are cached independently. The facade does not expose media, history, or green
+    attributes; separate exported classes are compatibility interfaces.
 
     Example:
+        Configure WFRMLS_BEARER_TOKEN before the first service access.
+
         ```python
         from wfrmls import WFRMLSClient
 
-        # Initialize with bearer token from environment variable
         client = WFRMLSClient()
-
-        # Or provide bearer token directly
-        client = WFRMLSClient(bearer_token="your_bearer_token_here")
-
-        # Discover available resources
-        service_doc = client.get_service_document()
-        metadata = client.get_metadata()
-
-        # Use service endpoints
-        properties = client.property.get_properties(top=10)
-        property_detail = client.property.get_property("12345678")
-        print(property_detail["ParcelNumber"])
-
-        # Search properties by location
-        properties = client.property.search_properties_by_radius(
-            latitude=40.7608, longitude=-111.8910, radius_miles=10
+        listings = client.property.get_properties_by_city(
+            "Salt Lake City", filter_query="StandardStatus eq 'Active'", top=10
         )
-
-        # Get open houses
-        open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-
-        # Get member information
-        members = client.member.get_active_members(top=50)
-
-        # Get office information
-        offices = client.office.get_active_offices(top=50)
+        print(len(listings.get("value", [])))
         ```
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the client.
+        """Store client configuration for later service construction.
 
         Args:
-            bearer_token: Bearer token for authentication. If not provided,
-                will attempt to load from WFRMLS_BEARER_TOKEN environment variable.
-            base_url: Base URL for the API. Defaults to the production WFRMLS API.
+            bearer_token: Token passed to service clients; None defers to their environment lookup.
+            base_url: Service root override; None defers to the service default.
 
-        Raises:
-            AuthenticationError: If no bearer token is provided or found in environment.
+        Note:
+            Missing credentials do not raise here. AuthenticationError is raised when
+            a service or discovery BaseClient is first constructed without a token.
         """
         self._bearer_token = bearer_token
         self._base_url = base_url
@@ -107,45 +84,32 @@ class WFRMLSClient:
 
     @property_decorator
     def bearer_token(self) -> Optional[str]:
-        """Get the configured bearer token.
+        """Return the explicitly configured token, possibly None.
 
-        Returns:
-            The bearer token configured for this client.
+        This does not resolve or expose the environment token used by service clients.
         """
         return self._bearer_token
 
     @property_decorator
     def base_url(self) -> Optional[str]:
-        """Get the configured base URL.
+        """Return the explicitly configured service root, possibly None.
 
-        Returns:
-            The configured base URL, or None when the default API URL is used.
+        A None value does not mean a constructed service lacks its default root.
         """
         return self._base_url
 
     def get_service_document(self) -> Dict[str, Any]:
-        """Get the OData service document.
-
-        The service document provides a list of all available resources (entity sets)
-        that can be accessed through the API. This is essential for discovering
-        what endpoints are available for the authenticated user.
+        """Retrieve the service-root JSON document with one GET request.
 
         Returns:
-            Dictionary containing the service document with available resources
+            Parsed provider JSON, commonly containing a value list of entity sets.
 
         Raises:
-            WFRMLSError: If the API request fails
-            AuthenticationError: If authentication fails
+            AuthenticationError: If the discovery client has no configured token.
+            WFRMLSError: For shared HTTP or transport failures.
 
-        Example:
-            ```python
-            # Get available resources
-            service_doc = client.get_service_document()
-
-            # List available entity sets
-            for resource in service_doc.get('value', []):
-                print(f"Resource: {resource['name']} - {resource['url']}")
-            ```
+        Note:
+            Entity-set discovery does not verify every field, query, or permission.
         """
         from typing import cast
 
@@ -154,28 +118,19 @@ class WFRMLSClient:
         return cast(Dict[str, Any], result)
 
     def get_metadata(self) -> str:
-        """Get the OData metadata document.
-
-        The metadata document provides the complete schema definition including
-        entity types, properties, relationships, and enumerations. This is
-        essential for understanding the structure of the data model.
+        """Return the raw XML metadata string from /$metadata.
 
         Returns:
-            XML string containing the complete metadata schema
+            Response text for a 200 response; no XML parsing is performed.
 
         Raises:
-            WFRMLSError: If the API request fails
-            AuthenticationError: If authentication fails
+            AuthenticationError: If the discovery client has no configured token.
+            WFRMLSError: For any non-200 HTTP status, without shared response attributes.
+            requests.exceptions.RequestException: For the direct metadata transport call.
 
-        Example:
-            ```python
-            # Get metadata schema
-            metadata_xml = client.get_metadata()
-
-            # Save to file for inspection
-            with open('wfrmls_metadata.xml', 'w') as f:
-                f.write(metadata_xml)
-            ```
+        Note:
+            This direct request has a 30-second timeout and does not use BaseClient's
+            JSON response handler or exception mapping.
         """
         base_client = self._get_base_client()
         # For metadata, we need to handle the raw response since it's XML
@@ -193,24 +148,13 @@ class WFRMLSClient:
 
     @property_decorator
     def property(self) -> "PropertyClient":
-        """Access to property endpoints.
-
-        Provides access to property listings, search functionality, and property details.
-        This is the primary resource for real estate data in the WFRMLS system.
+        """Access the cached client for property collection queries and numeric-key lookups.
 
         Returns:
-            PropertyClient instance for property operations
+            A PropertyClient, created only on first access.
 
-        Example:
-            ```python
-            # Get active properties
-            properties = client.property.get_active_properties(top=50)
-
-            # Get property with photos
-            property_with_media = client.property.get_properties_with_media(
-                filter_query="ListingId eq '12345678'"
-            )
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._property is None:
             from .properties import PropertyClient
@@ -222,24 +166,13 @@ class WFRMLSClient:
 
     @property_decorator
     def member(self) -> "MemberClient":
-        """Access to member (agent/broker) endpoints.
-
-        Provides access to real estate agent and broker information,
-        including contact details, office affiliations, and licensing data.
+        """Access the cached client for member collection queries and key lookups.
 
         Returns:
-            MemberClient instance for member operations
+            A MemberClient, created only on first access.
 
-        Example:
-            ```python
-            # Get active members
-            members = client.member.get_active_members(top=50)
-
-            # Get member with office info
-            member_with_office = client.member.get_members_with_office(
-                filter_query="MemberKey eq '12345'"
-            )
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._member is None:
             from .member import MemberClient
@@ -251,24 +184,13 @@ class WFRMLSClient:
 
     @property_decorator
     def office(self) -> "OfficeClient":
-        """Access to office (brokerage) endpoints.
-
-        Provides access to real estate office and brokerage information,
-        including contact details, addresses, and licensing information.
+        """Access the cached client for office collection queries and key lookups.
 
         Returns:
-            OfficeClient instance for office operations
+            An OfficeClient, created only on first access.
 
-        Example:
-            ```python
-            # Get active offices
-            offices = client.office.get_active_offices(top=50)
-
-            # Get office with members
-            office_with_members = client.office.get_offices_with_members(
-                filter_query="OfficeKey eq '12345'"
-            )
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._office is None:
             from .office import OfficeClient
@@ -280,25 +202,13 @@ class WFRMLSClient:
 
     @property_decorator
     def openhouse(self) -> "OpenHouseClient":
-        """Access to open house schedule endpoints.
-
-        Provides access to open house schedules, events, and showing information.
-        Useful for finding upcoming open houses and managing showing schedules.
+        """Access the cached client for open-house collection and date queries.
 
         Returns:
-            OpenHouseClient instance for open house operations
+            An OpenHouseClient, created only on first access.
 
-        Example:
-            ```python
-            # Get upcoming open houses
-            open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-
-            # Get open houses for a property
-            property_opens = client.openhouse.get_open_houses_for_property("1611952")
-
-            # Get open houses by agent
-            agent_opens = client.openhouse.get_open_houses_by_agent("96422")
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._openhouse is None:
             from .openhouse import OpenHouseClient
@@ -310,31 +220,21 @@ class WFRMLSClient:
 
     @property_decorator
     def open_house(self) -> "OpenHouseClient":
-        """Access to open house schedule endpoints via legacy name.
+        """Return the same cached OpenHouseClient as openhouse.
 
-        Returns:
-            OpenHouseClient instance for open house operations.
+        This is a compatibility alias, not a separate HTTP client.
         """
         return self.openhouse
 
     @property_decorator
     def data_system(self) -> "DataSystemClient":
-        """Access to data system metadata endpoints.
-
-        Provides access to data system information, including version details,
-        contact information, and system capabilities.
+        """Access the cached client for data-system collection queries.
 
         Returns:
-            DataSystemClient instance for data system operations
+            A DataSystemClient, created only on first access.
 
-        Example:
-            ```python
-            # Get system information
-            system_info = client.data_system.get_system_info()
-
-            # Get specific data system by key
-            system = client.data_system.get_data_system("WFRMLS")
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._data_system is None:
             from .data_system import DataSystemClient
@@ -346,22 +246,13 @@ class WFRMLSClient:
 
     @property_decorator
     def resource(self) -> "ResourceClient":
-        """Access to resource metadata endpoints.
-
-        Provides access to API resource metadata, including field definitions,
-        data types, and resource relationships.
+        """Access the cached client for resource metadata collection queries.
 
         Returns:
-            ResourceClient instance for resource metadata operations
+            A ResourceClient, created only on first access.
 
-        Example:
-            ```python
-            # Get all resources
-            resources = client.resource.get_resources()
-
-            # Get Property resource metadata
-            property_resource = client.resource.get_resource_by_name("Property")
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._resource is None:
             from .resource import ResourceClient
@@ -373,22 +264,13 @@ class WFRMLSClient:
 
     @property_decorator
     def property_unit_types(self) -> "PropertyUnitTypesClient":
-        """Access to property unit types endpoints.
-
-        Provides access to property unit type information, including condos,
-        townhomes, apartments, and other unit classifications.
+        """Access the cached client for property unit-record queries.
 
         Returns:
-            PropertyUnitTypesClient instance for unit type operations
+            A PropertyUnitTypesClient, created only on first access.
 
-        Example:
-            ```python
-            # Get all unit types
-            unit_types = client.property_unit_types.get_property_unit_types()
-
-            # Get residential unit types
-            residential = client.property_unit_types.get_residential_unit_types()
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._property_unit_types is None:
             from .property_unit_types import PropertyUnitTypesClient
@@ -400,22 +282,13 @@ class WFRMLSClient:
 
     @property_decorator
     def lookup(self) -> "LookupClient":
-        """Access to lookup table endpoints.
-
-        Provides access to enumeration values and reference data used throughout
-        the MLS system, including property types, statuses, and other lookup values.
+        """Access the cached client for lookup collections and field-name discovery.
 
         Returns:
-            LookupClient instance for lookup operations
+            A LookupClient, created only on first access.
 
-        Example:
-            ```python
-            # Get property type lookups
-            property_types = client.lookup.get_property_type_lookups()
-
-            # Get all lookup names
-            lookup_names = client.lookup.get_lookup_names()
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._lookup is None:
             from .lookup import LookupClient
@@ -427,25 +300,13 @@ class WFRMLSClient:
 
     @property_decorator
     def adu(self) -> "AduClient":
-        """Access to Accessory Dwelling Unit (ADU) endpoints.
-
-        Provides access to accessory dwelling unit information, including
-        types, statuses, and property relationships for secondary housing units.
+        """Access the cached client for accessory dwelling unit queries.
 
         Returns:
-            AduClient instance for ADU operations
+            A AduClient, created only on first access.
 
-        Example:
-            ```python
-            # Get all ADUs
-            adus = client.adu.get_adus()
-
-            # Get existing ADUs
-            existing_adus = client.adu.get_existing_adus()
-
-            # Get ADUs for a property
-            property_adus = client.adu.get_adus_for_property("1611952")
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._adu is None:
             from .adu import AduClient
@@ -457,32 +318,13 @@ class WFRMLSClient:
 
     @property_decorator
     def deleted(self) -> "DeletedClient":
-        """Access to deleted records endpoints.
-
-        Provides access to deleted record tracking for data synchronization.
-        Essential for maintaining data integrity when replicating MLS data.
+        """Access the cached client for deleted-record queries and sync helpers.
 
         Returns:
-            DeletedClient instance for deleted record operations
+            A DeletedClient, created only on first access.
 
-        Example:
-            ```python
-            # Get all deleted records
-            deleted = client.deleted.get_deleted(top=50)
-
-            # Get deleted properties since yesterday
-            from datetime import datetime, timedelta, timezone
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            deleted_properties = client.deleted.get_deleted_since(
-                since=yesterday.isoformat() + "Z",
-                resource_name="Property"
-            )
-
-            # Get recent deletions for synchronization
-            recent_deletions = client.deleted.get_deleted_property_records(
-                orderby="DeletedDateTime desc"
-            )
-            ```
+        Raises:
+            AuthenticationError: If the service is first accessed without credentials.
         """
         if self._deleted is None:
             from .deleted import DeletedClient

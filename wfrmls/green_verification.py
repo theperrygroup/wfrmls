@@ -17,20 +17,23 @@ class GreenVerificationType(Enum):
 
 
 class GreenVerificationClient(BaseClient):
-    """Client for property green verification/certification API endpoints.
+    """Standalone compatibility interface for PropertyGreenVerification requests.
 
-    The PropertyGreenVerification resource contains information about
-    environmental certifications and green building verifications for properties.
+    WFRMLSClient has no green attribute. Exported methods and mocked tests do
+    not establish current provider availability or access permissions.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the green verification client.
+        """Initialize a service client and resolve its credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Explicit token, or None to use WFRMLS_BEARER_TOKEN.
+            base_url: OData service root, or None for the package default.
+
+        Raises:
+            AuthenticationError: If neither an explicit nor environment token exists.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -44,28 +47,23 @@ class GreenVerificationClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get green verifications with optional OData filtering.
+        """Request one PropertyGreenVerification page with named OData parameters.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip)
-            filter_query: OData filter query string
-            select: Fields to select (OData $select)
-            orderby: Order by clause (OData $orderby)
-            expand: Related resources to include (OData $expand)
-            count: Include total count in results (OData $count)
+            top: Optional $top; values above 200 are clamped to 200.
+            skip: Optional $skip offset, passed unchanged.
+            filter_query: Optional raw $filter expression.
+            select: Optional field list or comma-separated $select string.
+            orderby: Optional raw $orderby expression.
+            expand: Optional relationship list or comma-separated $expand string.
+            count: Optional $count, converted to lowercase true or false.
 
         Returns:
-            Dictionary containing green verification data
+            Parsed JSON dictionary from one request, commonly containing value.
+            Counts, next links, and individual fields are server-provided and optional.
 
-        Example:
-            ```python
-            # Get LEED certified properties
-            leed_properties = client.green.get_green_verifications(
-                filter_query="GreenVerificationType eq 'LEED'",
-                expand="Property"
-            )
-            ```
+        Raises:
+            WFRMLSError: For shared HTTP or transport failures.
         """
         params: Dict[str, Any] = {}
 
@@ -95,27 +93,27 @@ class GreenVerificationClient(BaseClient):
         return self.get("PropertyGreenVerification", params=params)
 
     def get_green_verification(self, verification_key: str) -> Dict[str, Any]:
-        """Get green verification by key.
+        """Request PropertyGreenVerification('<key>') without normalization.
 
         Args:
-            verification_key: Verification key to retrieve
+            verification_key: String inserted without escaping into a quoted key URL.
 
         Returns:
-            Dictionary containing verification data
+            Handled provider JSON.
         """
         return self.get(f"PropertyGreenVerification('{verification_key}')")
 
     def get_verifications_for_property(
         self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get green verifications for a specific property.
+        """Filter green-verification records by quoted ListingKey.
 
         Args:
-            listing_key: Property listing key
-            **kwargs: Additional OData parameters
+            listing_key: Text inserted without escaping into a quoted literal.
+            **kwargs: Collection parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing verifications for the property
+            Provider collection JSON; an existing filter is joined with and.
         """
         property_filter = f"ListingKey eq '{listing_key}'"
 

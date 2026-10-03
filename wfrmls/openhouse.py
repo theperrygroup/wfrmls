@@ -8,7 +8,7 @@ from .base_client import BaseClient
 
 
 class OpenHouseStatus(Enum):
-    """OpenHouse status options."""
+    """Library constants; these do not validate service lookup values."""
 
     ACTIVE = "Active"
     ENDED = "Ended"
@@ -17,7 +17,7 @@ class OpenHouseStatus(Enum):
 
 
 class OpenHouseType(Enum):
-    """OpenHouse type options."""
+    """Library constants; these do not validate service lookup values."""
 
     PUBLIC = "Public"
     PRIVATE = "Private"
@@ -25,7 +25,7 @@ class OpenHouseType(Enum):
 
 
 class OpenHouseAttendedBy(Enum):
-    """Who attends the open house."""
+    """Library constants; these do not validate service lookup values."""
 
     AGENT = "Agent"
     OWNER = "Owner"
@@ -35,21 +35,23 @@ class OpenHouseAttendedBy(Enum):
 
 
 class OpenHouseClient(BaseClient):
-    """Client for open house schedule API endpoints.
+    """Client for HTTP queries on the OpenHouse resource.
 
-    The OpenHouse resource contains information about scheduled open house events,
-    including dates, times, showing agents, and related property information.
-    All timestamps are in UTC format.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the open house client.
+        """Initialize the OpenHouse resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -63,53 +65,34 @@ class OpenHouseClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get open houses with optional OData filtering.
-
-        This method retrieves open house schedule information with full OData v4.0 query support.
-        All timestamps are returned in UTC format.
+        """Request one page from the OpenHouse collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing open house data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of open house records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get upcoming open houses
-            open_houses = client.openhouse.get_open_houses(
-                filter_query="OpenHouseStartTime gt '2023-12-01T00:00:00Z'",
-                orderby="OpenHouseStartTime asc",
-                top=50
-            )
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get open houses with property info
-            open_houses = client.openhouse.get_open_houses(
-                expand="Property",
-                top=25
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get open houses with specific fields only
-            open_houses = client.openhouse.get_open_houses(
-                select=["OpenHouseKey", "ListingKey", "OpenHouseStartTime", "OpenHouseEndTime"],
-                top=100
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.openhouse.get_open_houses(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -140,31 +123,20 @@ class OpenHouseClient(BaseClient):
         return self.get("OpenHouse", params=params)
 
     def get_open_house(self, open_house_key: str) -> Dict[str, Any]:
-        """Get open house by open house key.
+        """Request one OpenHouse record by key.
 
-        Retrieves a single open house record by its unique open house key.
-        This is the most efficient way to get detailed information about
-        a specific open house event.
+        Requests OpenHouse('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            open_house_key: Open house key to retrieve (unique identifier)
+            open_house_key: Record key string.
 
         Returns:
-            Dictionary containing open house data for the specified event
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the open house with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific open house by key
-            open_house = client.openhouse.get_open_house("306227")
-
-            print(f"Open House: {open_house['OpenHouseStartTime']} - {open_house['OpenHouseEndTime']}")
-            print(f"Property: {open_house['ListingKey']}")
-            print(f"Agent: {open_house['ShowingAgentFirstName']} {open_house['ShowingAgentLastName']}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"OpenHouse('{open_house_key}')")
 
@@ -173,33 +145,22 @@ class OpenHouseClient(BaseClient):
         days_ahead: Optional[int] = 7,
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get upcoming open houses.
+        """Request open houses on or after the machine's local date.
 
-        Convenience method to retrieve open houses scheduled for the near future.
+        Any non-None days_ahead value adds only OpenHouseDate ge <today>. It does
+        not impose an upper bound or active-status filter. None suppresses the added
+        date condition. An extra filter_query is appended with and. Use
+        get_open_houses_by_date_range for a bounded schedule.
 
         Args:
-            days_ahead: Number of days ahead to search (default: 7)
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            days_ahead: Optional integer; its magnitude is not used. Defaults to 7.
+            **kwargs: get_open_houses collection options, including an extra filter.
 
         Returns:
-            Dictionary containing upcoming open house listings
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get open houses for next 3 days
-            upcoming = client.openhouse.get_upcoming_open_houses(
-                days_ahead=3,
-                orderby="OpenHouseStartTime asc",
-                top=50
-            )
-
-            # Get this week's open houses
-            weekend_opens = client.openhouse.get_upcoming_open_houses(
-                days_ahead=7,
-                expand="Property",
-                select=["OpenHouseKey", "ListingKey", "OpenHouseStartTime", "OpenHouseEndTime"]
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         # Remove days_ahead from kwargs if it exists to avoid conflicts
         kwargs.pop("days_ahead", None)
@@ -222,32 +183,20 @@ class OpenHouseClient(BaseClient):
     def get_open_houses_for_property(
         self, listing_key: str, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get open houses for a specific property.
+        """Request open houses filtered by ListingKey.
 
-        Convenience method to filter open houses by property listing key.
-        Useful for finding all scheduled showings for a particular property.
+        An extra filter_query is appended with and without grouping. Parenthesize
+        expressions containing or; escape apostrophes in keys as doubled quotes.
 
         Args:
-            listing_key: Property listing key to filter by
-            **kwargs: Additional OData parameters
+            listing_key: Listing key string.
+            **kwargs: get_open_houses collection options, including an extra filter.
 
         Returns:
-            Dictionary containing open houses for the specified property
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all open houses for a property
-            property_opens = client.openhouse.get_open_houses_for_property(
-                listing_key="1625740",
-                orderby="OpenHouseStartTime asc"
-            )
-
-            # Get upcoming open houses for property
-            upcoming_opens = client.openhouse.get_open_houses_for_property(
-                listing_key="1625740",
-                filter_query="OpenHouseStartTime gt '2023-12-01T00:00:00Z'"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         property_filter = f"ListingKey eq '{listing_key}'"
 
@@ -261,27 +210,20 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(**kwargs)
 
     def get_open_houses_by_agent(self, agent_key: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get open houses by showing agent.
+        """Request open houses filtered by ShowingAgentKey.
 
-        Convenience method to filter open houses by the agent conducting them.
-        Useful for finding all open houses managed by a specific agent.
+        An extra filter_query is appended with and without grouping. Parenthesize
+        expressions containing or; escape apostrophes in keys as doubled quotes.
 
         Args:
-            agent_key: Showing agent key to filter by
-            **kwargs: Additional OData parameters
+            agent_key: Showing-agent key string.
+            **kwargs: get_open_houses collection options, including an extra filter.
 
         Returns:
-            Dictionary containing open houses for the specified agent
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all open houses for an agent
-            agent_opens = client.openhouse.get_open_houses_by_agent(
-                agent_key="96422",
-                orderby="OpenHouseStartTime asc",
-                top=100
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         agent_filter = f"ShowingAgentKey eq '{agent_key}'"
 
@@ -295,101 +237,63 @@ class OpenHouseClient(BaseClient):
         return self.get_open_houses(**kwargs)
 
     def get_active_open_houses(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get open houses with Active status.
+        """Request open houses with OpenHouseStatus equal to Active.
 
-        Convenience method to retrieve only active open houses.
-        Filters out ended, cancelled, or expired open house events.
+        Do not pass filter_query: the helper supplies it and duplicates raise
+        TypeError. Use get_open_houses for additional compound filters.
 
         Args:
-            **kwargs: Additional OData parameters (top, select, orderby, etc.)
+            **kwargs: Other get_open_houses collection options.
 
         Returns:
-            Dictionary containing active open house listings
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all active open houses
-            active_opens = client.openhouse.get_active_open_houses(
-                orderby="OpenHouseStartTime asc",
-                top=100
-            )
-
-            # Get active open houses with property details
-            active_with_props = client.openhouse.get_active_open_houses(
-                expand="Property",
-                select=["OpenHouseKey", "ListingKey", "OpenHouseStartTime", "OpenHouseStatus"],
-                top=50
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_open_houses(
             filter_query="OpenHouseStatus eq 'Active'", **kwargs
         )
 
     def get_open_houses_with_property(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get open houses with their property information expanded.
+        """Request open houses with expand set to Property.
 
-        This is a convenience method that automatically expands the Property
-        relationship to include property details in the response. More efficient
-        than making separate requests for open houses and their properties.
+        Relationship schema and availability are service-defined. Do not pass
+        expand in kwargs; duplicate keywords raise TypeError.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Other get_open_houses collection options.
 
         Returns:
-            Dictionary containing open house data with expanded Property relationships
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get upcoming open houses with property info
-            opens_with_props = client.openhouse.get_open_houses_with_property(
-                filter_query="OpenHouseStartTime gt '2023-12-01T00:00:00Z'",
-                orderby="OpenHouseStartTime asc",
-                top=25
-            )
-
-            # Access property info for first open house
-            first_open = opens_with_props['value'][0]
-            if 'Property' in first_open:
-                property_info = first_open['Property']
-                print(f"Open house for: {property_info['UnparsedAddress']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_open_houses(expand="Property", **kwargs)
 
     def get_modified_open_houses(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get open houses modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only open house records
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date scheduling information.
+        Builds ModificationTimestamp gt '<timestamp>'. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDT00:00:00Z; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string, date, or datetime.
+            **kwargs: Other get_open_houses collection options.
 
         Returns:
-            Dictionary containing open houses modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get open houses modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.openhouse.get_modified_open_houses(
-                since=cutoff_time
-            )
-
-            # Get open houses modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.openhouse.get_modified_open_houses(
-                since=yesterday,
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"
@@ -407,30 +311,23 @@ class OpenHouseClient(BaseClient):
         end_date: Union[str, date, datetime],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Get open houses within a specific date range.
+        """Request an inclusive OpenHouseDate range.
 
-        Convenience method to retrieve open houses scheduled between two dates.
+        Builds OpenHouseDate ge <start> and OpenHouseDate le <end>. Datetime
+        objects are reduced to their dates; date objects use ISO dates; strings pass
+        through unchanged. Date ordering and string formats are not validated.
+        An extra filter_query is appended with and without grouping.
 
         Args:
-            start_date: Start date for the range (ISO format string, date, or datetime object)
-            end_date: End date for the range (ISO format string, date, or datetime object)
-            **kwargs: Additional OData parameters
+            start_date: ISO date string, date, or datetime for the lower bound.
+            end_date: ISO date string, date, or datetime for the upper bound.
+            **kwargs: get_open_houses collection options, including an extra filter.
 
         Returns:
-            Dictionary containing open houses within the specified date range
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import date, timezone
-
-            # Get open houses for January 2024
-            start_date = date(2024, 1, 1)
-            end_date = date(2024, 1, 31)
-            opens = client.openhouse.get_open_houses_by_date_range(
-                start_date=start_date,
-                end_date=end_date
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(start_date, datetime):
             start_str = start_date.date().isoformat()
@@ -460,25 +357,21 @@ class OpenHouseClient(BaseClient):
     def get_weekend_open_houses(
         self, weeks_ahead: Optional[int] = 2, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get weekend open houses.
+        """Request open houses on or after the machine's local date.
 
-        Convenience method to retrieve open houses scheduled for weekends.
+        This helper does not restrict results to weekends. weeks_ahead is ignored;
+        there is no upper bound or active-status filter. An extra filter_query is
+        appended with and. Use get_open_houses_by_date_range for a chosen weekend.
 
         Args:
-            weeks_ahead: Number of weeks ahead to search (default: 2)
-            **kwargs: Additional OData parameters
+            weeks_ahead: Optional integer, currently ignored; defaults to 2.
+            **kwargs: get_open_houses collection options, including an extra filter.
 
         Returns:
-            Dictionary containing weekend open house listings
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get open houses for next 2 weekends
-            weekend_opens = client.openhouse.get_weekend_open_houses(
-                weeks_ahead=2,
-                orderby="OpenHouseStartTime asc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         from datetime import datetime
 

@@ -1,231 +1,129 @@
-# WFRMLS Python Client
-
-A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to all RESO-certified endpoints for real estate data integration.
-
+---
+title: WFRMLS Python client for UtahRealEstate.com
+description: Query Utah MLS listings, agents, offices, and open houses with the WFRMLS Python client. Learn authentication, OData filters, pagination, and synchronization.
 ---
 
-## 🚀 Quick Navigation
+# WFRMLS Python client
 
-<div class="grid cards" markdown>
+Use `wfrmls` to query UtahRealEstate.com's Wasatch Front Regional MLS
+RESO Web API from Python. The library provides resource clients for listings,
+agents, offices, open houses, and supporting metadata.
 
--   :material-rocket-launch:{ .lg .middle } **Getting Started**
+## Start with a working request
 
-    ---
-
-    Install the client and make your first API call in under 5 minutes
-
-    [:octicons-arrow-right-24: Quick Start](getting-started/quickstart.md)
-
--   :material-api:{ .lg .middle } **API Reference**
-
-    ---
-
-    Complete method documentation with examples and parameters
-
-    [:octicons-arrow-right-24: View API Docs](api/index.md)
-
--   :material-code-braces:{ .lg .middle } **Code Examples**
-
-    ---
-
-    Real-world usage examples for common real estate applications
-
-    [:octicons-arrow-right-24: Browse Examples](examples/index.md)
-
--   :material-book-open-page-variant:{ .lg .middle } **User Guides**
-
-    ---
-
-    Comprehensive guides for advanced features and best practices
-
-    [:octicons-arrow-right-24: Read Guides](guides/index.md)
-
-</div>
-
----
-
-## 📋 Quick Reference
-
-### Core Components
-
-!!! abstract "Main Client"
-    The **`WFRMLSClient`** serves as the main entry point, providing access to all API modules through a unified interface.
-
-!!! abstract "Service Modules"
-    - **Property**: Real estate listings and property data
-    - **Member**: Real estate agent information
-    - **Office**: Brokerage and office details
-    - **OpenHouse**: Open house schedules and events
-    - **Analytics**: Data insights and market analytics
-    - **Lookup**: Reference data and code tables
-
-### Common Patterns
-
-=== ":material-rocket-launch: Basic Operation"
-
-    ```python
-    from wfrmls import WFRMLSClient
-
-    # Initialize client
-    client = WFRMLSClient(bearer_token="your_token")
-
-    # Get active properties
-    properties = client.property.get_properties(
-        top=10,
-        filter_query="StandardStatus eq 'Active'"
-    )
-    ```
-
-=== ":material-shield-check: Error Handling"
-
-    ```python
-    from wfrmls.exceptions import WFRMLSError, NotFoundError
-
-    try:
-        property_data = client.property.get_property("12345678")
-        print(property_data["ParcelNumber"])
-    except NotFoundError:
-        print("Property not found")
-    except WFRMLSError as e:
-        print(f"API error: {e}")
-    ```
-
-=== ":material-cog: Advanced Configuration"
-
-    ```python
-    # Complex queries with filtering and sorting
-    properties = client.property.get_properties(
-        select=["ListingId", "ListPrice", "StandardStatus"],
-        filter_query="ListPrice ge 200000 and ListPrice le 500000",
-        orderby="ListPrice desc",
-        top=50
-    )
-    ```
-
----
-
-## 🔧 Installation
-
-!!! info "Prerequisites"
-    - Python 3.8 or higher
-    - Valid WFRMLS API bearer token
-
-### Quick Setup
-
-```bash
-# Install via pip
-pip install wfrmls
-
-# Set up environment variable
-export WFRMLS_BEARER_TOKEN="your_bearer_token_here"
-```
-
-### First API Call
+You need Python 3.8 or later and a provider-issued bearer token. Install the
+package with `python -m pip install wfrmls`, then configure
+`WFRMLS_BEARER_TOKEN` in your application's environment.
 
 ```python
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()  # Uses environment variable
-data = client.property.get_properties(top=5)
-print(f"Retrieved {len(data)} properties")
+client = WFRMLSClient()
+response = client.property.get_properties(
+    top=10,
+    filter_query="StandardStatus eq 'Active'",
+    select=["ListingId", "ListPrice", "City"],
+)
+
+listings = response.get("value", [])
+print(f"Retrieved {len(listings)} listings")
+for listing in listings:
+    print(listing.get("ListingId"), listing.get("ListPrice"))
 ```
 
----
+Collections return an OData dictionary whose `value` field contains the
+records. `get_property(listing_id)` returns one property dictionary.
+The [quick start](getting-started/quickstart.md) explains both response shapes
+and how to handle errors.
 
-## 🎯 Key Features
+## Find the documentation you need
 
-### **🏗️ Core Resources**
-Complete access to primary MLS data:
+<div class="grid cards" markdown>
 
-- **[Properties](api/properties.md)** - Residential and commercial listings with full details
-- **[Members](api/members.md)** - Real estate agent profiles and contact information
-- **[Offices](api/offices.md)** - Brokerage data and office locations
-- **[Open Houses](api/openhouse.md)** - Scheduled showings and events
+-   :material-rocket-launch:{ .lg .middle } **Getting started**
 
-### **🔍 Advanced Queries**
-Powerful search and filtering capabilities:
+    ---
 
-- **[Geolocation Search](guides/geolocation.md)** - Radius and polygon-based property searches
-- **[OData Queries](guides/odata-queries.md)** - Complex filtering, sorting, and field selection
-- **[Data Synchronization](guides/data-sync.md)** - Incremental updates and change tracking
+    Install the client, configure authentication, and query your first listings.
 
-### **⚡ Developer Experience**
-Built for production use:
+    [:octicons-arrow-right-24: Follow the quick start](getting-started/quickstart.md)
 
-- **Type Safety**: Full type hints and modern Python practices
-- **Error Handling**: Comprehensive exception handling with clear messages
-- **Rate Limiting**: Built-in handling for API rate limits and quotas
-- **Testing**: 100% test coverage with comprehensive test suite
+-   :material-filter-variant:{ .lg .middle } **Search and synchronization**
 
----
+    ---
 
-## 🌟 Real-World Applications
+    Compose OData filters and plan pagination, updates, and deletion processing.
 
-### **Property Search Portals**
-- Build consumer-facing property search websites
-- Implement map-based property discovery
-- Create advanced filtering and sorting interfaces
+    [:octicons-arrow-right-24: Read the guides](guides/index.md)
 
-### **Market Analytics Dashboards**
-- Track market trends and pricing patterns
-- Generate automated market reports
-- Monitor inventory levels and days on market
+-   :material-api:{ .lg .middle } **API reference**
 
-### **CRM Integration**
-- Sync agent and office data with customer management systems
-- Track open house attendance and lead generation
-- Automate client communication workflows
+    ---
 
-### **Data Warehousing**
-- Extract property data for business intelligence
-- Maintain synchronized local databases
-- Generate custom reports and analytics
+    Check real method signatures, return values, and resource-specific behavior.
 
----
+    [:octicons-arrow-right-24: Browse resource clients](api/index.md)
 
-## 📚 Related Documentation
+-   :material-code-braces:{ .lg .middle } **Examples**
 
-!!! tip "Additional Resources"
+    ---
 
-    - **[RESO Standards](reference/index.md)** - Industry standards compliance
-    - **[Utah Grid System](reference/index.md)** - Local address conventions
-    - **[Field Reference](reference/index.md)** - Complete data dictionary
-    - **[Status Codes](reference/index.md)** - API response reference
+    Adapt complete examples for listing queries and integration workflows.
 
----
+    [:octicons-arrow-right-24: Explore the examples](examples/index.md)
 
-## 🚀 Quick Start
+</div>
 
-New to the WFRMLS API? Start here:
+## Supported resource access
 
-1. **[Install the client](getting-started/installation.md)** - Get up and running in minutes
-2. **[Configure authentication](getting-started/authentication.md)** - Set up your API credentials
-3. **[Try the quick start](getting-started/quickstart.md)** - Make your first API call
-4. **[Explore examples](examples/index.md)** - See real-world use cases
+| Task | Client or guide |
+| --- | --- |
+| Search listings by status, price, city, or address | [`client.property`](api/properties.md) |
+| Query real estate agents and brokerages | [`client.member`](api/members.md), [`client.office`](api/offices.md) |
+| Retrieve open house events | [`client.openhouse`](api/openhouse.md) |
+| Discover lookup values | [`client.lookup`](api/lookup.md) |
+| Query ADUs and unit types | [`client.adu`](api/adu.md), [`client.property_unit_types`](api/property-unit-types.md) |
+| Track deleted records | [`client.deleted`](api/deleted.md) |
+| Inspect resource and system information | [`client.resource`](api/resource.md), [`client.data_system`](api/data-system.md) |
+| Summarize retrieved samples | [`WFRMLSAnalytics(client)`](api/analytics.md) |
 
----
+Use the [service document and XML metadata](api/client.md) to discover the
+resources and fields exposed to your token. The provider determines data access
+and query support.
 
-## 🆘 Support & Community
+## Understand the library's limits
 
-### Getting Help
+!!! warning "Location searches"
+    Radius and polygon helpers raise `ValidationError`. The near-address helper
+    only falls back to a city query or returns an empty error payload; it does
+    not geocode or apply a radius. Use the supported
+    [city and address search patterns](guides/geolocation.md).
 
-- **API Issues**: Contact [UtahRealEstate.com Support](https://vendor.utahrealestate.com)
-- **Library Issues**: [GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/theperrygroup/wfrmls/discussions)
+!!! info "Media, history, and green verification"
+    Standalone client classes are exported, but `WFRMLSClient` has no media,
+    history, or green verification attributes. Read the
+    [API reference](api/index.md) and verify provider access before using them.
 
-### Contributing
+Ordinary requests do not retry automatically or set a timeout. HTTP 429 raises
+`RateLimitError`; your application supplies any waiting or retry policy.
+The property pagination helper uses `$skip` and `$top`, rather than following
+`@odata.nextLink`, and can silently return partial results after an error.
+See [rate limits](guides/rate-limits.md),
+[error handling](guides/error-handling.md), and
+[data synchronization](guides/data-sync.md) before building an importer.
 
-We welcome contributions! See the **[Development Guide](development/index.md)** for details on:
+## Documentation scope and support
 
-- Setting up the development environment
-- Running tests and quality checks
-- Submitting pull requests
-- Following coding standards
+This site documents the repository's `master` branch. Check the
+[PyPI package](https://pypi.org/project/wfrmls/) and
+[release history](https://github.com/theperrygroup/wfrmls/releases) when matching
+examples to an installed release.
 
-### License
+The Python client is distributed under the [MIT License](legal/license.md).
+That license covers the software, not permission to access or redistribute MLS
+data. Obtain API access through the
+[UtahRealEstate.com vendor dashboard](https://vendor.utahrealestate.com/).
 
-This project is licensed under the **MIT License** - see the [license details](legal/license.md) for more information.
-
----
-
-*Ready to get started? Jump to the [Quick Start Guide](getting-started/quickstart.md) or explore the [API Reference](api/index.md).* 
+For library bugs or documentation corrections, use
+[GitHub Issues](https://github.com/theperrygroup/wfrmls/issues). For contributions,
+read the [development guide](development/index.md).

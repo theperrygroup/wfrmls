@@ -1,8 +1,16 @@
 # Query Options
 
-## Query Options
+This page preserves historical provider reference material. See the
+[source and snapshot limitations](index.md#sources-and-snapshot-limits)
+and [official provider documentation](https://docs.utahrealestate.com/).
+Current account access and provider behavior have not been revalidated.
 
-### $select
+These examples describe the provider wire protocol. In the wrapper, use `select`,
+`filter_query`, `top`, `skip`, `count`, `orderby`, and `expand` with
+`client.property.get_properties()`. See the [property API reference](../docs/api/properties.md)
+for exact signatures and the [OData guide](../docs/guides/odata-queries.md) for Python examples.
+
+## $select
 
 The **$select** query option can be used to request limited fields in the results set.
 
@@ -10,8 +18,8 @@ The **$select** query option can be used to request limited fields in the result
 
 ```http
 GET /reso/odata/Property?$select=ListingKey,ListPrice,YearBuilt HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Response:
@@ -39,7 +47,7 @@ Response:
 }
 ```
 
-### $filter
+## $filter
 
 Each resource can be filtered on various fields and data types using the $filter query option.
 
@@ -49,8 +57,8 @@ Properties with more than 3 bedrooms (Number):
 
 ```http
 GET /reso/odata/Property?$filter=BedroomsTotal%20gt%203 HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Properties in the price range 300,000 - 500,000 (Decimal):
@@ -59,8 +67,8 @@ Properties in the price range 300,000 - 500,000 (Decimal):
 
 ```http
 GET /reso/odata/Property?$filter=ListPrice%20ge%20300000%20and%20ListPrice%20le%20500000 HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Properties that have air conditioning (Boolean):
@@ -69,8 +77,8 @@ Properties that have air conditioning (Boolean):
 
 ```http
 GET /reso/odata/Property?$filter=CoolingYN%20eq%20true HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Properties listed since a given date (Date):
@@ -79,8 +87,8 @@ Properties listed since a given date (Date):
 
 ```http
 GET /reso/odata/Property?$filter=ListingContractDate%20gt%202018-01-01 HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Properties updated since a given date (Timestamp):
@@ -89,37 +97,48 @@ Properties updated since a given date (Timestamp):
 
 ```http
 GET /reso/odata/Property?$filter=ModificationTimestamp%20gt%202019-09-01T01:00:00Z HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-Properties with Active status (Single Lookup):
+Properties with Active status (single enum in the [schema snapshot](metadata.xml)):
 
-`https://resoapi.utahrealestate.com/reso/odata/Property?$filter=StandardStatus has Odata.Models.StandardStatus'Active'`
+`https://resoapi.utahrealestate.com/reso/odata/Property?$filter=StandardStatus eq Odata.Models.StandardStatus'Active'`
 
 ```http
-GET /reso/odata/Property?$filter=StandardStatus%20has%20Odata.Models.StandardStatus'Active' HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+GET /reso/odata/Property?$filter=StandardStatus%20eq%20Odata.Models.StandardStatus'Active' HTTP/1.1
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-Properties with certain exterior features ExteriorFeatures (Multi Lookup):
+The snapshot marks `StandardStatus` as a non-flag enum and `ExteriorFeatures` as
+a flag enum, so the examples use `eq` for the former and `has` for the latter.
+The wrapper's convenience filters use string comparisons such as
+`StandardStatus eq 'Active'`; confirm the accepted literal syntax for your
+current account rather than assuming every historical enum form is supported.
+
+Properties with a Balcony exterior feature (flag enum):
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$filter=ExteriorFeatures%20has%20Odata.Models.ExteriorFeatures'Balcony'`
 
 ```http
 GET /reso/odata/Property?$filter=ExteriorFeatures%20has%20Odata.Models.ExteriorFeatures'Balcony' HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-### $top and $skip
+## $top and $skip
 
-The web API has a limit on how many records can be pulled at once. Currently, the limit is set to 200 records per request.
+The retained provider material uses 200 records per page. Treat that as a
+historical example: current page limits can depend on vendor configuration. The
+Python property collection method caps a supplied `top` at 200, independently of
+the provider configuration. A page size is not a request-rate quota.
 
-The **$top** and **$skip** query options can be used to offset the result set.
+The **$top** option requests a page size; **$skip** offsets the result set.
 
-For example, to get the 600 most recent listings, make 3 requests using **$top** and **$skip**:
+For a static result set with 200-record pages, these three requests cover 600
+records using **$top** and **$skip**. A changing result set can shift between
+requests; this is a pagination example, not a consistent snapshot guarantee:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$orderby=ModificationTimestamp desc&$top=200`
 
@@ -129,24 +148,38 @@ For example, to get the 600 most recent listings, make 3 requests using **$top**
 
 ```http
 GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc&$top=200 HTTP/1.1
-GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc&$top=200&$skip=200 HTTP/1.1
-GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc&$top=200&$skip=400 HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-Using the **$skip** option to paginate over large data sets can be time consuming. Especially when ordering by a non numeric, or non indexed field. As the **$skip** value gets larger, query response time may slow down. If paginating through a large data set, it is advised to order by the primary key, or an indexed field. For example, if replicating the entire Property resource, ordering by ListingKeyNumeric would be the fastest. See the Replication section for more information.
+```http
+GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc&$top=200&$skip=200 HTTP/1.1
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
+```
 
-### $count
+```http
+GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc&$top=200&$skip=400 HTTP/1.1
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
+```
 
-The total number of records for a given resource can be included in the result set by using the **$count** option.
+Using the **$skip** option to paginate over large data sets can be time consuming. Especially when ordering by a non numeric, or non indexed field. As the **$skip** value gets larger, query response time may slow down. If paginating through a large data set, it is advised to order by the primary key, or an indexed field. For example, if replicating the entire Property resource, the historical guide recommends ordering by `ListingKeyNumeric`. Actual performance
+depends on the provider and query. See [replication](replication.md) for the
+numeric-key alternative and completeness considerations.
+
+## $count
+
+The **$count** option asks the provider to include the matching record count.
+The historical number below is illustrative; it is not a current inventory
+count and does not prove that all pages of a scan were fetched.
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$count=true`
 
 ```http
 GET /reso/odata/Property?$count=true HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Response:
@@ -157,24 +190,26 @@ Response:
     "@odata.count": 1731072,
     "value": [
         {
-            // Property data
+            "ListingKeyNumeric": 1611952
         }
     ]
 }
 ```
 
-### $expand
+## $expand
 
-The web API can return related resources with each record using the **$expand** query option.
+The historical API material describes related resources returned through the
+**$expand** option. Available relationships and media access must be confirmed
+against current account metadata; see [getting photos](getting-photos.md).
 
-For example, to get all images for each property in addition to the data:
+For example, to request related Media with property data:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$expand=Media`
 
 ```http
 GET /reso/odata/Property?$expand=Media HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Response:
@@ -194,10 +229,10 @@ Response:
                     "ResourceRecordID": "1723791",
                     "ResourceRecordKey": "1723791",
                     "LongDescription": "",
-                    "MediaURL": "https://.....jpg"
+                    "MediaURL": "https://example.com/property-photo.jpg"
                 }
             ]
         }
     ]
 }
-``` 
+```

@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wfrmls"
 version = "1.3.10"
-description = "Python wrapper for Wasatch Front Regional MLS API"
+description = "Python client for UtahRealEstate.com's WFRMLS RESO Web API and OData listing queries"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
     {name = "WFRMLS API Team", email = "api@utahrealestate.com"}
 ]
-keywords = ["wfrmls", "mls", "real-estate", "api", "wrapper", "reso", "utah"]
+keywords = ["wfrmls", "mls", "real-estate", "reso", "odata", "utah", "utahrealestate", "python-client", "property-listings"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

@@ -1,28 +1,32 @@
 # Web API Documentation
 
-## Overview
+This page preserves historical provider reference material. See the
+[source and snapshot limitations](index.md#sources-and-snapshot-limits)
+and [official provider documentation](https://docs.utahrealestate.com/).
+Current account access and provider behavior have not been revalidated.
 
-### Introduction
+## Introduction
 
-UtahRealEstate.com's web API (Application Programming Interface) is a RESO certified RESTful API built on OData v4.0. The API is both RESO web API Certified and RESO Data Dictionary Certified.
+The retained material describes UtahRealEstate.com's Web API as an OData v4.0 REST API with RESO Web API and Data Dictionary certification. This is historical provider context, not a claim about a current certification version or the Python package's certification.
 
-### What is a REST API?
+## What is a REST API?
 
-REST stand for Representational State Transfer. This is an architectural pattern describing how distributed systems can expose a consistent interface. When the term is used, it generally refers to an API accessed via HTTP protocol at a predefined set of URLs.
+REST stands for Representational State Transfer. This is an architectural pattern describing how distributed systems can expose a consistent interface. When the term is used, it generally refers to an API accessed via HTTP protocol at a predefined set of URLs.
 
-These URLs represent various resources - any information or content accessed at that location, which can be returned as JSON, HTML, audio files, or images. Often, resources have one or more methods that can be performed on them over HTTP, like GET, POST, PUT and DELETE.
+These URLs represent various resources - any information or content accessed at that location, which can be returned as JSON, HTML, audio files, or images. REST APIs can define methods such as GET, POST, PUT, and DELETE. This wrapper exposes read-oriented resource methods; this general protocol description does not establish provider write permissions or implemented Python write methods.
 
-### Getting Started
+## Getting Started
 
-Once you have registered for a data services account with UtahRealEstate.com, login into your account to view the status of your account, retrieve the bearer token, and accessible resources. This information can be found under Service Details.
+The retained onboarding instructions direct vendors to a data services account and its Service Details page for a bearer token and permitted resources. Confirm the current registration process and licensing requirements with the provider.
 
 [Login to Vendor Dashboard](https://vendor.utahrealestate.com)
 
-If you are not registered with UtahRealEstate.com [click here to register](https://vendor.utahrealestate.com).
+The retained material also uses the [vendor dashboard](https://vendor.utahrealestate.com/)
+as its registration entry point; consult the provider for current onboarding.
 
-### Authentication
+## Authentication
 
-UtahRealEstate.com's web API supports OpenID and OAuth2 authorization/authentication protocols, and as part of previous web API certifications, is OpenID certified. Our API supports several grant types, however, we simplify the authentication process by providing a Bearer Token to our vendors.
+The historical provider material discusses OAuth2/OpenID and vendor-issued bearer tokens. The Python wrapper accepts an already-issued bearer token; it does not implement an OAuth login, token exchange, or automatic refresh flow.
 
 To access the API, simply pass your bearer token under the Authorization header:
 
@@ -30,11 +34,11 @@ To access the API, simply pass your bearer token under the Authorization header:
 
 ```http
 GET /reso/odata HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-Response:
+Historical service-document response example (account access may differ):
 
 ```json
 {
@@ -92,4 +96,4 @@ Response:
 }
 ```
 
-**https://resoapi.utahrealestate.com/reso/odata** is the Web API's Odata endpoint. See the next section, Odata Endpoints for more information on pulling data through resource endpoints. 
+See [OData endpoints](odata-endpoints.md) for service discovery, metadata, and resource paths, and the [Python authentication guide](../docs/getting-started/authentication.md) for the `bearer_token` constructor argument and environment variable. Resource names in the example do not imply that each has a main-client accessor; see [wrapper boundaries](index.md#protocol-and-wrapper-boundaries).

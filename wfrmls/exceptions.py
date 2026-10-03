@@ -4,10 +4,10 @@ from typing import Any, Dict, Optional
 
 
 class WFRMLSError(Exception):
-    """Base exception for all WFRMLS API errors.
+    """Base custom exception with optional status_code and response_data attributes.
 
-    This is the base class for all exceptions raised by the WFRMLS API wrapper.
-    All other custom exceptions inherit from this class.
+    Local failures may omit both attributes. Python argument errors and direct
+    metadata transport errors are not necessarily wrapped in this hierarchy.
     """
 
     def __init__(
@@ -29,48 +29,36 @@ class WFRMLSError(Exception):
 
 
 class AuthenticationError(WFRMLSError):
-    """Raised when authentication fails.
+    """Raised for missing service credentials or a shared HTTP 401 response.
 
-    This exception is raised when the bearer token is invalid, missing,
-    or expired, resulting in a 401 Unauthorized response.
+    The facade defers missing-credential errors until service construction.
     """
 
 
 class ValidationError(WFRMLSError):
-    """Raised when request validation fails.
+    """Raised for shared HTTP 400 responses or explicit local input checks.
 
-    This exception is raised when the API returns a 400 Bad Request,
-    indicating that the request parameters or format are invalid.
+    Examples include nonnumeric property keys and disabled geospatial methods.
     """
 
 
 class NotFoundError(WFRMLSError):
-    """Raised when a resource is not found.
-
-    This exception is raised when the API returns a 404 Not Found,
-    indicating that the requested resource (property, member, etc.) does not exist.
-    """
+    """Raised for shared HTTP 404 responses or an empty wrapped property lookup."""
 
 
 class RateLimitError(WFRMLSError):
-    """Raised when rate limit is exceeded.
+    """Raised for a shared HTTP 429 response.
 
-    This exception is raised when the API returns a 429 Too Many Requests,
-    indicating that the client has exceeded the rate limit.
+    The package does not automatically retry or schedule requests after this error.
     """
 
 
 class ServerError(WFRMLSError):
-    """Raised when server returns 5xx error.
-
-    This exception is raised when the API returns a 500+ status code,
-    indicating a server-side error that is not caused by the client request.
-    """
+    """Raised for shared HTTP responses with status codes from 500 through 599."""
 
 
 class NetworkError(WFRMLSError):
-    """Raised when network connection fails.
+    """Raised when a shared request catches a Requests transport exception.
 
-    This exception is raised when there are network connectivity issues
-    preventing the request from reaching the API server.
+    The separate metadata request propagates its Requests exceptions directly.
     """

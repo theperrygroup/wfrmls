@@ -32,21 +32,23 @@ class MediaCategory(Enum):
 
 
 class MediaClient(BaseClient):
-    """Client for media (photos/videos) API endpoints.
+    """Standalone compatibility interface for Media request construction.
 
-    The Media resource contains property photos, videos, and other media files.
-    Each media record is related to a Property through ResourceRecordKeyNumeric.
-    Media items include URLs, ordering information, and descriptive metadata.
+    WFRMLSClient has no media attribute. This exported class requires credentials;
+    its existence and mocked tests do not verify current provider availability.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the media client.
+        """Initialize a service client and resolve its credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Explicit token, or None to use WFRMLS_BEARER_TOKEN.
+            base_url: OData service root, or None for the package default.
+
+        Raises:
+            AuthenticationError: If neither an explicit nor environment token exists.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -60,54 +62,23 @@ class MediaClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get media records with optional OData filtering.
-
-        This method retrieves media (photo/video) information with full OData v4.0 query support.
-        Commonly used to get photos for specific properties.
+        """Request one Media collection page with named OData parameters.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional $top; values above 200 are clamped to 200.
+            skip: Optional $skip offset, passed unchanged.
+            filter_query: Optional raw $filter expression.
+            select: Optional field list or comma-separated $select string.
+            orderby: Optional raw $orderby expression.
+            expand: Optional relationship list or comma-separated $expand string.
+            count: Optional $count, converted to lowercase true or false.
 
         Returns:
-            Dictionary containing media data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of media records
+            Parsed JSON dictionary from one request, commonly containing value.
+            Counts, next links, and individual fields are server-provided and optional.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
-
-        Example:
-            ```python
-            # Get media for a specific property
-            media = client.media.get_media(
-                filter_query="ResourceRecordKeyNumeric eq 1611952",
-                orderby="Order asc",
-                select=["MediaURL", "Order", "LongDescription"]
-            )
-
-            # Get first 10 photos only
-            photos = client.media.get_media(
-                filter_query="MediaType eq 'Photo'",
-                top=10,
-                orderby="Order asc"
-            )
-
-            # Get media with property info
-            media_with_props = client.media.get_media(
-                expand="Property",
-                top=25
-            )
-            ```
+            WFRMLSError: For shared HTTP or transport failures.
         """
         params: Dict[str, Any] = {}
 
@@ -138,71 +109,27 @@ class MediaClient(BaseClient):
         return self.get("Media", params=params)
 
     def get_media_item(self, media_key: str) -> Dict[str, Any]:
-        """Get media item by media key.
-
-        Retrieves a single media record by its unique media key.
-        This is the most efficient way to get detailed information about
-        a specific photo, video, or document.
+        """Request Media('<key>') and return the handled provider JSON.
 
         Args:
-            media_key: Media key to retrieve (unique identifier, often complex string)
+            media_key: String key inserted without escaping into a quoted key path.
 
         Returns:
-            Dictionary containing media data for the specified item
-
-        Raises:
-            NotFoundError: If the media with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific media item by key
-            media_item = client.media.get_media_item("1611952_050774e9ef920b479d8e37ff459daf14_2880536.jpg")
-
-            print(f"Media URL: {media_item['MediaURL']}")
-            print(f"Order: {media_item['Order']}")
-            print(f"Description: {media_item.get('LongDescription', 'No description')}")
-            ```
+            Parsed provider JSON; no single-record normalization is performed.
         """
         return self.get(f"Media('{media_key}')")
 
     def get_media_for_property(
         self, listing_key: Union[str, int], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get media for a specific property.
-
-        Convenience method to retrieve all media (photos, videos, etc.) for a property.
-        Uses ResourceRecordKeyNumeric to filter by property listing key.
+        """Query ResourceRecordKeyNumeric for one property.
 
         Args:
-            listing_key: Property listing key (string or integer)
-            **kwargs: Additional OData parameters
+            listing_key: Numeric string or integer inserted without quotes.
+            **kwargs: get_media parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing media for the specified property
-
-        Example:
-            ```python
-            # Get all photos for a property
-            property_media = client.media.get_media_for_property(
-                listing_key="1611952",
-                orderby="Order asc"
-            )
-
-            # Get just photo URLs for a property
-            photo_urls = client.media.get_media_for_property(
-                listing_key=1611952,
-                select=["MediaURL", "Order"],
-                filter_query="MediaType eq 'Photo'"
-            )
-
-            # Get first 5 photos for a property
-            first_photos = client.media.get_media_for_property(
-                listing_key="1611952",
-                top=5,
-                orderby="Order asc"
-            )
-            ```
+            Provider collection JSON from one request; an existing filter is joined with and.
         """
         property_filter = f"ResourceRecordKeyNumeric eq {listing_key}"
 
@@ -218,33 +145,14 @@ class MediaClient(BaseClient):
     def get_photos_for_property(
         self, listing_key: Union[str, int], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get photos only for a specific property.
-
-        Convenience method to retrieve only photo media for a property,
-        filtering out videos, documents, and other media types.
+        """Query ResourceRecordKeyNumeric for one property and MediaType eq 'Photo'.
 
         Args:
-            listing_key: Property listing key (string or integer)
-            **kwargs: Additional OData parameters
+            listing_key: Numeric string or integer inserted without quotes.
+            **kwargs: get_media parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing photos for the specified property
-
-        Example:
-            ```python
-            # Get all photos for a property
-            photos = client.media.get_photos_for_property(
-                listing_key="1611952",
-                orderby="Order asc"
-            )
-
-            # Get photo URLs only
-            photo_urls = client.media.get_photos_for_property(
-                listing_key="1611952",
-                select=["MediaURL", "Order"],
-                orderby="Order asc"
-            )
-            ```
+            Provider collection JSON from one request; an existing filter is joined with and.
         """
         photo_filter = (
             f"ResourceRecordKeyNumeric eq {listing_key} and MediaType eq 'Photo'"
@@ -262,27 +170,13 @@ class MediaClient(BaseClient):
     def get_primary_photo(
         self, listing_key: Union[str, int]
     ) -> Optional[Dict[str, Any]]:
-        """Get the primary photo for a property.
-
-        Convenience method to get the first/primary photo (Order = 1) for a property.
-        Returns None if no photos are found.
+        """Return the first photo with Order eq 1, or None if value is empty.
 
         Args:
-            listing_key: Property listing key (string or integer)
+            listing_key: Numeric property key inserted into ResourceRecordKeyNumeric.
 
         Returns:
-            Dictionary containing the primary photo data, or None if not found
-
-        Example:
-            ```python
-            # Get primary photo for a property
-            primary_photo = client.media.get_primary_photo("1611952")
-
-            if primary_photo:
-                print(f"Primary photo URL: {primary_photo['MediaURL']}")
-            else:
-                print("No primary photo found")
-            ```
+            First object from the one-page photo response, or None.
         """
         response = self.get_photos_for_property(
             listing_key=listing_key, filter_query="Order eq 1", top=1
@@ -296,32 +190,16 @@ class MediaClient(BaseClient):
     def get_media_urls_for_property(
         self, listing_key: Union[str, int], media_type: Optional[str] = None
     ) -> List[str]:
-        """Get just the media URLs for a property.
-
-        Convenience method to extract just the MediaURL values for a property,
-        returned as a simple list of URLs ordered by the Order field.
+        """Extract MediaURL strings from one page of at most 200 media records.
 
         Args:
-            listing_key: Property listing key (string or integer)
-            media_type: Optional media type filter ("Photo", "Video", etc.)
+            listing_key: Numeric property key inserted into ResourceRecordKeyNumeric.
+            media_type: Optional MediaType string, default None for all types.
 
         Returns:
-            List of media URLs ordered by Order field
-
-        Example:
-            ```python
-            # Get all photo URLs for a property
-            photo_urls = client.media.get_media_urls_for_property(
-                listing_key="1611952",
-                media_type="Photo"
-            )
-
-            # Get all media URLs (photos, videos, etc.)
-            all_urls = client.media.get_media_urls_for_property("1611952")
-
-            for url in photo_urls:
-                print(f"Photo: {url}")
-            ```
+            List of MediaURL values from a page requested in Order asc order;
+            records missing that key are skipped. Values are not validated.
+            This does not paginate or download media.
         """
         filter_parts = [f"ResourceRecordKeyNumeric eq {listing_key}"]
 
@@ -347,34 +225,15 @@ class MediaClient(BaseClient):
     def get_media_by_category(
         self, listing_key: Union[str, int], category: str, **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get media for a property filtered by category.
-
-        Convenience method to filter media by category (e.g., "Interior", "Exterior").
-        Useful for getting specific types of photos.
+        """Query a numeric property key with an additional MediaCategory condition.
 
         Args:
-            listing_key: Property listing key (string or integer)
-            category: Media category to filter by
-            **kwargs: Additional OData parameters
+            listing_key: Numeric string or integer, interpolated without quotes.
+            category: Category text inserted without escaping into a quoted literal.
+            **kwargs: get_media parameters, including optional filter_query.
 
         Returns:
-            Dictionary containing media for the specified category
-
-        Example:
-            ```python
-            # Get exterior photos
-            exterior_photos = client.media.get_media_by_category(
-                listing_key="1611952",
-                category="Exterior",
-                orderby="Order asc"
-            )
-
-            # Get kitchen photos
-            kitchen_photos = client.media.get_media_by_category(
-                listing_key="1611952",
-                category="Kitchen"
-            )
-            ```
+            Provider collection JSON; an existing filter is joined with and.
         """
         category_filter = f"ResourceRecordKeyNumeric eq {listing_key} and MediaCategory eq '{category}'"
 
@@ -388,68 +247,28 @@ class MediaClient(BaseClient):
         return self.get_media(**kwargs)
 
     def get_media_with_property(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get media with their property information expanded.
-
-        This is a convenience method that automatically expands the Property
-        relationship to include property details in the response. More efficient
-        than making separate requests for media and their properties.
+        """Query Media with $expand=Property.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: get_media parameters, excluding expand.
 
         Returns:
-            Dictionary containing media data with expanded Property relationships
-
-        Example:
-            ```python
-            # Get recent media with property info
-            media_with_props = client.media.get_media_with_property(
-                orderby="ModificationTimestamp desc",
-                top=25
-            )
-
-            # Access property info for first media item
-            first_media = media_with_props['value'][0]
-            if 'Property' in first_media:
-                property_info = first_media['Property']
-                print(f"Photo for: {property_info['UnparsedAddress']}")
-            ```
+            Provider collection JSON if the relationship is accepted by the server.
         """
         return self.get_media(expand="Property", **kwargs)
 
     def get_modified_media(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get media modified since a specific date/time.
-
-        Used for incremental data synchronization to get only media records
-        that have been updated since the last sync. Essential for maintaining
-        up-to-date photo and media information.
+        """Query ModificationTimestamp after a quoted cutoff.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: String sent unchanged, date expanded to midnight Z, or datetime
+                serialized with isoformat() plus Z without timezone conversion.
+            **kwargs: get_media parameters, excluding filter_query.
 
         Returns:
-            Dictionary containing media modified since the specified time
-
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get media modified in last 15 minutes (recommended sync interval)
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=15)
-            updates = client.media.get_modified_media(
-                since=cutoff_time
-            )
-
-            # Get media modified since yesterday
-            yesterday = datetime.now(timezone.utc) - timedelta(days=1)
-            updates = client.media.get_modified_media(
-                since=yesterday,
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+            Provider collection JSON. Prefer an already-normalized UTC string.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"

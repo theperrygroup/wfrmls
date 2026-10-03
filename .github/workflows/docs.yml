@@ -7,6 +7,8 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'overrides/**'
+      - 'scripts/check_docs.py'
       - '.github/workflows/docs.yml'
       - 'wfrmls/**'  # Rebuild docs when code changes (for auto-generated content)
   pull_request:
@@ -15,6 +17,10 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
+      - 'overrides/**'
+      - 'scripts/check_docs.py'
+      - '.github/workflows/docs.yml'
+      - 'wfrmls/**'
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
@@ -68,10 +74,8 @@ jobs:
 
       - name: Build documentation
         run: |
-          mkdocs build --clean
-        env:
-          # Set environment variables for build
-          SITE_URL: ${{ github.event.repository.html_url }}
+          mkdocs build --clean --strict
+          python scripts/check_docs.py site
 
       - name: Upload documentation artifacts
         uses: actions/upload-pages-artifact@v4
@@ -115,7 +119,9 @@ jobs:
 
       - name: Test documentation build
         run: |
-          mkdocs build --clean
+          pip install -e .
+          mkdocs build --clean --strict
+          python scripts/check_docs.py site
 
       - name: Comment PR
         if: github.event_name == 'pull_request'
@@ -127,28 +133,29 @@ jobs:
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
               comment.body.includes('📚 Documentation Preview')
             );
-            
+
             const commentBody = `📚 **Documentation Preview**
-            
+
             ✅ Documentation builds successfully!
-            
+
             The documentation will be automatically deployed when this PR is merged to master.
-            
+
             **Changed files:**
             - Documentation files: \`docs/\`
             - Configuration: \`mkdocs.yml\`
-            
+
             **Preview locally:**
             \`\`\`bash
-            pip install -r docs/requirements.txt
-            mkdocs serve
+            python -m pip install -e .
+            python -m pip install -r docs/requirements.txt
+            python -m mkdocs serve
             \`\`\``;
-            
+
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -163,4 +170,4 @@ jobs:
                 issue_number: context.issue.number,
                 body: commentBody
               });
-            } 
+            }

@@ -1,478 +1,259 @@
-# WFRMLS Python API Wrapper Style Guide
+# WFRMLS Python Client Code Style Guide
 
-This document outlines the coding standards and conventions for the WFRMLS Python API wrapper project. All contributors should follow these guidelines to ensure consistency and maintainability.
+Use this guide when changing the Python client and its tests. For Markdown and
+MkDocs content, use the [documentation style guide](docs/STYLE_GUIDE.md). The
+configuration in [pyproject.toml](pyproject.toml), [setup.cfg](setup.cfg), and
+[the workflows](.github/workflows/) defines the commands and enforced checks.
 
-## Table of Contents
+## Supported Python and tools
 
-1. [General Principles](#general-principles)
-2. [Code Formatting](#code-formatting)
-3. [Import Organization](#import-organization)
-4. [Type Hints](#type-hints)
-5. [Documentation](#documentation)
-6. [Naming Conventions](#naming-conventions)
-7. [Class Structure](#class-structure)
-8. [Method Implementation](#method-implementation)
-9. [Error Handling](#error-handling)
-10. [Enums](#enums)
-11. [Testing](#testing)
-12. [File Organization](#file-organization)
+The package declares Python 3.8 or newer. The checked-in CI and release workflows
+test Python 3.8 through 3.12. Keep library syntax compatible with Python 3.8 until
+the declared minimum and the workflows change together.
 
-## General Principles
+| Tool | Repository configuration | Contributor guidance |
+| --- | --- | --- |
+| Black | Line length 88; target `py38` | Format Python code with Black. |
+| isort | Black profile; line length 88; multiline mode 3 | Sort imports with isort. |
+| flake8 | Settings in `setup.cfg` | Preserve the configured ignores; avoid new lint findings. |
+| mypy | Typed definitions, return warnings, strict equality | Add precise annotations; this is a selected set of checks, not `strict = true`. |
+| pytest | Test discovery under `tests/`; coverage enabled | Use mocked tests for normal development. |
 
-- **Consistency**: Follow established patterns in the codebase
-- **Readability**: Code should be self-documenting and easy to understand
-- **Type Safety**: Use comprehensive type hints throughout
-- **Documentation**: All public APIs must have Google-style docstrings
-- **Testing**: Maintain 100% test coverage
-- **Error Handling**: Use custom exceptions with meaningful messages
+Install development and documentation dependencies in an isolated environment:
 
-## Code Formatting
-
-### Tools Configuration
-- **Black**: Line length 88 characters, target Python 3.8+
-- **isort**: Black-compatible profile, multi-line output 3
-- **flake8**: Standard configuration
-- **mypy**: Strict type checking enabled
-
-### Line Length
-- Maximum 88 characters per line (Black default)
-- Break long lines at logical points
-- Use parentheses for line continuation when needed
-
-### Spacing
-```python
-# Good
-def method(self, param1: str, param2: Optional[int] = None) -> Dict[str, Any]:
-    """Method with proper spacing."""
-    return {"key": "value"}
-
-# Bad
-def method(self,param1:str,param2:Optional[int]=None)->Dict[str,Any]:
-    return {"key":"value"}
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pip install -r docs/requirements.txt
 ```
 
-## Import Organization
+On Windows, activate the environment using the appropriate `.venv\Scripts`
+activation command. CI uses Python 3.11 for its code quality and documentation
+jobs; the library still needs to support its declared minimum.
 
-Follow this order (enforced by isort):
-1. Standard library imports
-2. Third-party imports
-3. Local application imports
+## Formatting and imports
+
+Use four spaces for indentation, parentheses for multiline expressions, and
+Black's formatting. Keep prose and signatures readable even where a tool permits
+a longer line. Group imports as standard library, third party, then package
+imports, with a blank line between groups:
 
 ```python
-"""Module docstring."""
-
-from datetime import date
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 import requests
-from dotenv import load_dotenv
 
 from .base_client import BaseClient
 from .exceptions import WFRMLSError
 ```
 
-## Type Hints
+Prefer relative imports within `wfrmls`. Use `TYPE_CHECKING` for imports needed
+only by annotations when that avoids a circular dependency. In `WFRMLSClient`,
+`property_decorator` aliases `builtins.property` so the service named `property`
+does not shadow the decorator.
 
-### Required Type Hints
-- All function/method parameters
-- All function/method return types
-- Class attributes when not obvious
-- Complex variable assignments
+## Names and types
+
+Use `snake_case` for modules, functions, methods, parameters, and local variables;
+`PascalCase` for classes and enums; and `UPPER_SNAKE_CASE` for constants and enum
+members. Name resource clients after their actual resource, such as
+`PropertyClient`, `MemberClient`, and `OpenHouseClient`.
+
+Annotate public parameters and return values. Follow the existing Python 3.8
+compatible `typing` forms such as `Dict[str, Any]`, `List[str]`, `Optional[int]`,
+and `Union[List[str], str]`. Use `Any` for genuinely unstructured provider data,
+rather than discarding types for the whole interface.
+
+Python arguments use names such as `filter_query`, `select`, and `orderby`.
+Translate them to the provider's exact wire names (`$filter`, `$select`,
+`$orderby`) when building a request. Preserve the case of resource names, fields,
+and provider enum values. Do not invent camelCase query parameters or new enum
+values from another API's conventions.
+
+## Client structure and authentication
+
+Resource clients inherit `BaseClient`; `WFRMLSClient` exposes them lazily. Keep
+shared HTTP behavior in `BaseClient` and resource-specific filters and response
+handling in the appropriate resource module. Follow an existing resource's
+pattern before introducing a new abstraction.
+
+The constructor parameter is `bearer_token`. `BaseClient` uses an explicit,
+nonempty token first, then `WFRMLS_BEARER_TOKEN` from the environment, and raises
+`AuthenticationError` if neither provides a token. Its request header is
+`Authorization: Bearer <token>`.
 
 ```python
-def search_teams(
-    self,
-    page_number: Optional[int] = None,
-    page_size: Optional[int] = None,
-    sort_direction: Optional[Union[SortDirection, str]] = None,
-    team_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Search teams with proper type hints."""
-    params: Dict[str, Any] = {}
-    # Implementation...
+from wfrmls import WFRMLSClient
+
+client = WFRMLSClient(bearer_token="example-token")
 ```
 
-### Type Hint Patterns
-- Use `Optional[T]` for nullable parameters
-- Use `Union[EnumType, str]` for enum parameters that accept strings
-- Use `Dict[str, Any]` for API response data
-- Use `List[T]` for list parameters
-- Use `Union[List[T], T]` for parameters that accept single item or list
+The default base URL is `https://resoapi.utahrealestate.com/reso/odata`.
+`WFRMLSClient` stores the constructor values and initializes a `BaseClient` or
+resource client on first access, so missing-token validation happens at that
+access. Document this timing accurately. The package calls `load_dotenv()` on
+import; tests and examples must not depend on a contributor's real credentials.
 
-## Documentation
+Use placeholder tokens in documentation and fake tokens in mocked tests. Do not
+commit credentials or log bearer tokens, authorization headers, or private
+provider payloads.
 
-### Module Docstrings
+## Query and response handling
+
+Include optional parameters only when supplied. Check `is not None` rather than
+truthiness when `0` or `False` is a meaningful value. Join field lists with commas,
+serialize booleans according to the endpoint's OData handling, and preserve the
+public method's documented input types.
+
+Do not assume every response is a collection. Collection methods generally
+return an OData envelope with `value`; `get_property()` returns one normalized
+entity dictionary; `get_metadata()` returns XML text; analytics helpers have
+their own derived result shapes. Document and test the actual shape.
+
+The property collection method caps a supplied `top` at 200. That is a client
+behavior, separate from the provider's current per-vendor page size or rate
+limits. The current property pagination helper uses `$top`/`$skip`, accumulates
+records in memory, and can return partial results after an exception. Do not
+describe it as automatic `@odata.nextLink` handling or a complete replication
+engine.
+
+Use ISO 8601 strings with an explicit timezone for timestamp examples. Preserve
+the distinction between date-only fields and timestamp fields. Avoid documenting
+a fixed UTC offset for local times that observe daylight saving time.
+
+## Public API documentation
+
+Write Google-style docstrings for public classes and methods. Include a concise
+summary, parameter names and defaults, the return shape, and exceptions that the
+implementation can actually raise. Explain limitations that affect use. Examples
+must use existing methods and arguments and handle empty collection results.
+
 ```python
-"""Brief description of the module.
+from typing import Any, Dict
 
-Longer description if needed, explaining the module's purpose
-and main functionality.
-"""
-```
+from wfrmls import WFRMLSClient
 
-### Class Docstrings
-```python
-class TeamsClient(BaseClient):
-    """Client for teams API endpoints.
 
-    This client provides access to team search functionality and team details.
-    Note: This uses a different base URL than the main WFRMLS API.
-    """
-```
-
-### Method Docstrings
-Use Google-style docstrings with complete parameter and return documentation:
-
-```python
-def search_teams(
-    self,
-    page_number: Optional[int] = None,
-    page_size: Optional[int] = None,
-    status: Optional[Union[TeamStatus, str]] = None,
-) -> Dict[str, Any]:
-    """Search teams given a set of criteria.
+def property_page(client: WFRMLSClient) -> Dict[str, Any]:
+    """Request a small page of property identifiers.
 
     Args:
-        page_number: Page number for pagination (default: 0)
-        page_size: Number of results per page (default: 20, min: 1)
-        status: Filter by team status (ACTIVE or INACTIVE)
+        client: Configured WFRMLS client.
 
     Returns:
-        Dictionary containing team search results with pagination information
+        OData envelope containing a `value` list of property records.
 
     Raises:
-        WFRMLSError: If the API request fails
-        ValidationError: If parameters are invalid
-
-    Example:
-        ```python
-        # Search for active teams
-        teams = client.teams.search_teams(
-            status=TeamStatus.ACTIVE,
-            page_size=50
-        )
-        ```
+        WFRMLSError: If the underlying property request fails.
     """
+    return client.property.get_properties(top=10, select=["ListingKey", "ListPrice"])
 ```
 
-### Documentation Requirements
-- All public methods must have docstrings
-- Include parameter descriptions with types and defaults
-- Document return value structure
-- List possible exceptions
-- Provide usage examples for complex methods
-- Use proper Markdown formatting in examples
+Use parameter tables in Markdown when they help explain a public signature:
 
-### Parameter Documentation Tables
-When documenting method parameters in markdown documentation (separate from docstrings), **always use full width tables** with the following structure:
-
-```markdown
 | Parameter | Type | Required | Description | Default |
-|-----------|------|----------|-------------|---------|
-| page_number | int | No | Page number for pagination | 0 |
-| page_size | int | No | Number of results per page (min: 1) | 20 |
-| status | TeamStatus \| str | No | Filter by team status (ACTIVE or INACTIVE) | None |
-| **kwargs | Any | No | Additional OData parameters (top, select, orderby, etc.) | {} |
+| --- | --- | --- | --- | --- |
+| `top` | `int` | No | Requested number of records; the client caps it at 200. | `None` |
+| `select` | `List[str]` \| `str` | No | Fields to include in the provider response. | `None` |
+| `filter_query` | `str` | No | OData filter expression passed to the provider. | `None` |
+
+Escape literal pipes in Markdown tables. Document `**kwargs` only for methods
+that accept it, and list the supported forwarded arguments. Keep provider
+protocol descriptions in [the provider reference](api_docs/index.md) distinct
+from the Python API reference. A historical schema or resource listing does not
+prove that a resource is currently available or exposed by `WFRMLSClient`.
+
+## Exceptions
+
+Use the existing hierarchy in [wfrmls/exceptions.py](wfrmls/exceptions.py):
+`AuthenticationError`, `ValidationError`, `NotFoundError`, `RateLimitError`,
+`ServerError`, and `NetworkError` all inherit `WFRMLSError`. `WFRMLSError` supports
+`status_code` and `response_data` when those are available.
+
+The shared JSON response handler maps HTTP 400, 401, 404, 429, and 5xx to the
+corresponding exceptions. Other HTTP errors use `WFRMLSError`, and request
+failures use `NetworkError`. `get_metadata()` has separate error handling; avoid
+claiming that every method uses the same mapping. Do not promise retries,
+backoff, token refresh, or automatic recovery unless the relevant code implements
+them.
+
+## Tests and validation
+
+Name tests `tests/test_<module>.py` and describe the observed behavior in each
+test name. Use `responses` or mocks for HTTP calls, with a fake bearer token.
+Cover request serialization, successful response shapes, empty results, and the
+error behavior affected by a change. Add regression tests for meaningful fixes.
+
+Normal test runs must exclude the live integration file:
+
+```bash
+python -m pytest tests/ --ignore=tests/test_integration.py
+black --check --diff wfrmls/ tests/
+isort --check-only --diff wfrmls/ tests/
+flake8 wfrmls/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+mypy wfrmls/ --ignore-missing-imports --show-error-codes
 ```
 
-**Full Width Table Requirements:**
-- Use pipe-separated format for maximum compatibility
-- Include all five columns: Parameter, Type, Required, Description, Default
-- Bold parameter names when they are primary/required parameters
-- Use `|` (pipe) separators for union types in the Type column
-- Keep descriptions concise but informative (under 80 characters)
-- Always show default values, use "None" for optional parameters without defaults
-- Include **kwargs row when applicable for additional parameters
+Do not rely only on `-m "not integration"`: the integration file contains live
+tests without consistent markers. Running it requires separate authorization
+for live provider calls and the correct account permissions.
 
-## Naming Conventions
+Coverage is enabled by `pyproject.toml`. The checked-in CI test command enforces a
+15% floor; it does not enforce 100% coverage. Aim for strong coverage of changed
+behavior, and do not weaken a configured gate to make a change pass. Report the
+measured result rather than claiming a project-wide coverage target was met.
 
-### Files and Modules
-- Use snake_case for file names: `transaction_builder.py`
-- Module names should be descriptive and concise
+For documentation, install `docs/requirements.txt` and build from the repository
+root:
 
-### Classes
-- Use PascalCase: `TransactionBuilderClient`
-- Client classes should end with "Client": `TeamsClient`
-- Exception classes should end with "Error": `ValidationError`
-
-### Methods and Functions
-- Use snake_case: `search_teams()`, `get_team_without_agents()`
-- Use descriptive names that indicate the action
-- Prefix with HTTP method when appropriate: `get_`, `post_`, `put_`, `delete_`
-
-### Variables
-- Use snake_case: `page_number`, `sort_direction`
-- Use descriptive names, avoid abbreviations
-- Constants use UPPER_SNAKE_CASE: `DEFAULT_PAGE_SIZE`
-
-### Parameters
-- API parameter names should match the API specification
-- Use camelCase for API parameters: `pageNumber`, `sortDirection`
-- Use snake_case for Python parameter names, convert in method body
-
-## Class Structure
-
-### Client Class Pattern
-```python
-class ExampleClient(BaseClient):
-    """Client for example API endpoints."""
-
-    def __init__(
-        self, api_key: Optional[str] = None, base_url: Optional[str] = None
-    ) -> None:
-        """Initialize the client.
-
-        Args:
-            api_key: API key for authentication
-            base_url: Base URL for the API
-        """
-        # Set appropriate base URL for this client
-        example_base_url = base_url or "https://api.example.com/v1"
-        super().__init__(api_key=api_key, base_url=example_base_url)
-
-    # Public methods in logical order
-    # GET methods first, then POST, PUT, PATCH, DELETE
+```bash
+mkdocs build --clean
 ```
 
-### Property-based Client Access
-```python
-@property
-def example_client(self) -> ExampleClient:
-    """Access to example endpoints.
+Use `mkdocs build --strict --clean` to surface warnings when appropriate, while
+distinguishing a stricter local check from the checked-in workflow command. The
+documentation workflow installs the package for its main build so mkdocstrings
+can inspect source. Changes to provider snapshots are reviewed as documentation;
+they must not trigger live API calls merely to validate examples.
 
-    Returns:
-        ExampleClient instance
-    """
-    if self._example_client is None:
-        self._example_client = ExampleClient(
-            api_key=self._api_key, base_url=self._base_url
-        )
-    return self._example_client
-```
+## Repository layout
 
-## Method Implementation
+| Location | Purpose |
+| --- | --- |
+| `wfrmls/base_client.py` | Shared bearer authentication, GET requests, and JSON error handling. |
+| `wfrmls/client.py` | Lazy resource access, service discovery, and XML metadata retrieval. |
+| `wfrmls/properties.py`, `member.py`, `office.py`, `openhouse.py` | Main resource clients. |
+| `wfrmls/adu.py`, `lookup.py`, `deleted.py` | Additional resource clients. |
+| `wfrmls/data_system.py`, `resource.py`, `property_unit_types.py` | Supporting resource clients. |
+| `wfrmls/media.py`, `history.py`, `green_verification.py` | Standalone resource modules; do not imply matching main-client accessors exist. |
+| `wfrmls/analytics.py` | Derived analytics helpers. |
+| `wfrmls/exceptions.py`, `__init__.py`, `py.typed` | Errors, package exports/version, and typing marker. |
+| `tests/` | Mocked unit tests and a separate live integration file. |
+| `docs/`, `mkdocs.yml` | Published client documentation and its site configuration. |
+| `api_docs/` | Historical provider reference and schema snapshot. |
+| `.github/workflows/` | CI, documentation, and release automation. |
 
-### Parameter Processing Pattern
-```python
-def search_method(
-    self,
-    required_param: str,
-    optional_param: Optional[int] = None,
-    enum_param: Optional[Union[MyEnum, str]] = None,
-    list_param: Optional[List[Union[MyEnum, str]]] = None,
-) -> Dict[str, Any]:
-    """Method with standard parameter processing."""
-    params: Dict[str, Any] = {}
+Keep resource-related enums with their client module. Export intended public
+types through `wfrmls/__init__.py` and `__all__`. Add a main-client accessor only
+when that interface is intentional and supported; an exported standalone class
+does not imply a main-client property.
 
-    # Required parameters (validate if needed)
-    # No need to add to params dict for path parameters
+## Versions and delivery
 
-    # Optional simple parameters
-    if optional_param is not None:
-        params["optionalParam"] = optional_param
+Keep `pyproject.toml`'s version and `wfrmls/__init__.py`'s `__version__` consistent.
+The release workflow is triggered by a `v*` tag and verifies that both match the
+tag's version before packaging. It runs its test matrix, builds with
+`python -m build`, checks distributions with `twine check`, publishes to PyPI,
+and creates a GitHub release. Do not describe tag creation as a harmless local
+version update: pushing a matching tag can initiate publication.
 
-    # Enum parameters
-    if enum_param is not None:
-        if isinstance(enum_param, MyEnum):
-            params["enumParam"] = enum_param.value
-        else:
-            params["enumParam"] = enum_param
+Record relevant behavior changes in the authorized issue, release notes, or
+review record. The repository has no `tasks/` directory to update. Follow the
+current task's delivery authorization and branch policy; documentation or code
+review alone does not authorize a commit, push, release, or live provider call.
 
-    # List parameters with enum support
-    if list_param is not None:
-        params["listParam"] = [
-            item.value if isinstance(item, MyEnum) else item
-            for item in list_param
-        ]
-
-    return self.get("endpoint", params=params)
-```
-
-### Date Parameter Handling
-```python
-# For date parameters
-if date_param is not None:
-    if isinstance(date_param, date):
-        params["dateParam"] = date_param.isoformat()
-    else:
-        params["dateParam"] = date_param
-```
-
-## Error Handling
-
-### Exception Hierarchy
-```python
-class WFRMLSError(Exception):
-    """Base exception for all WFRMLS API errors."""
-
-class AuthenticationError(WFRMLSError):
-    """Raised when authentication fails."""
-
-class ValidationError(WFRMLSError):
-    """Raised when request validation fails."""
-```
-
-### Error Documentation
-- Document all possible exceptions in method docstrings
-- Use specific exception types when appropriate
-- Include helpful error messages with context
-
-## Enums
-
-### Enum Definition Pattern
-```python
-class SortDirection(Enum):
-    """Sort direction options."""
-
-    ASC = "ASC"
-    DESC = "DESC"
-
-
-class TeamStatus(Enum):
-    """Team status options."""
-
-    ACTIVE = "ACTIVE"
-    INACTIVE = "INACTIVE"
-```
-
-### Enum Usage
-- Use descriptive enum names
-- Values should match API specification exactly
-- Include docstring describing the enum's purpose
-- Export enums in `__init__.py` for public use
-
-## Testing
-
-### Test File Structure
-```python
-"""Tests for the example client."""
-
-import pytest
-import responses
-
-from wfrmls.example import ExampleClient
-from wfrmls.exceptions import WFRMLSError
-
-
-class TestExampleClientInit:
-    """Test ExampleClient initialization."""
-
-    def test_init_with_api_key(self) -> None:
-        """Test initialization with provided API key."""
-        # Test implementation
-
-
-class TestExampleClientMethods:
-    """Test ExampleClient methods."""
-
-    def setup_method(self) -> None:
-        """Set up test client."""
-        self.client = ExampleClient(api_key="test_key")
-
-    @responses.activate
-    def test_method_success(self) -> None:
-        """Test successful method call."""
-        # Test implementation
-```
-
-### Testing Requirements
-- 100% code coverage required
-- Test all success paths
-- Test all error conditions
-- Use `responses` library for HTTP mocking
-- Test parameter validation and conversion
-- Test enum handling
-- Include integration tests where appropriate
-
-### Test Naming
-- Test classes: `TestClassName`
-- Test methods: `test_method_name_condition`
-- Use descriptive names that explain what is being tested
-
-## File Organization
-
-### Directory Structure
-
-```
-wfrmls/
-├── __init__.py          # Package exports
-├── base_client.py       # Base client functionality
-├── client.py           # Main client class
-├── exceptions.py       # Custom exceptions
-├── agents.py          # Agents client
-├── teams.py           # Teams client
-├── transactions.py    # Transactions client
-├── transaction_builder.py  # Transaction builder client
-├── directory.py       # Directory client (new)
-└── py.typed          # Type hint marker
-
-tests/
-├── __init__.py
-├── test_base_client.py
-├── test_client.py
-├── test_exceptions.py
-├── test_agents.py
-├── test_teams.py
-├── test_transactions.py
-├── test_transaction_builder.py
-└── test_directory.py  # Directory tests (new)
-```
-
-### Module Organization
-- One client class per module
-- Related enums in the same module as the client
-- Keep modules focused and cohesive
-- Export public APIs through `__init__.py`
-
-### Import/Export Pattern
-```python
-# In client module
-from .base_client import BaseClient
-
-# In __init__.py
-from .example import ExampleClient, ExampleEnum
-
-__all__ = [
-    "ExampleClient",
-    "ExampleEnum",
-    # ... other exports
-]
-```
-
-## API Key Management
-
-### Environment Variable Pattern
-```python
-# Always check for environment variable first
-self.api_key = api_key or os.getenv("WFRMLS_BEARER_TOKEN")
-if not self.api_key:
-    raise AuthenticationError(
-        "API key is required. Set WFRMLS_BEARER_TOKEN environment variable or pass api_key parameter."
-    )
-```
-
-### API Key Usage
-- Use `WFRMLS_BEARER_TOKEN` environment variable as default
-- Allow override via constructor parameter
-- Include in Authorization header as Bearer token
-
-## Version Management
-
-### Version Updates
-- Update version in `pyproject.toml`
-- Update version in `__init__.py`
-- Follow semantic versioning (MAJOR.MINOR.PATCH)
-- Document changes in release notes
-
-## Documentation Updates
-
-### When Adding New Endpoints
-1. Update the appropriate client class
-2. Add comprehensive docstrings with examples
-3. Update `__init__.py` exports if needed
-4. Add/update tests with 100% coverage
-5. Update API documentation in `docs/` directory
-6. Mark endpoint as completed in `tasks/` files
-
-This style guide ensures consistency across the WFRMLS API wrapper codebase and should be followed for all new implementations and modifications.
+When adding or changing a resource, update its source, public docstrings, tests,
+API page, and guide examples together. Validate the changed behavior and the
+documentation build, and report authored, tested, and published results
+separately.

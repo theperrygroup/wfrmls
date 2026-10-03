@@ -1,320 +1,158 @@
-# Resource API
-
-Complete reference for the Resource endpoint of the WFRMLS Python client.
-
+---
+description: Query resource metadata by key or ResourceName, request Fields expansion, and distinguish service discovery from implemented client accessors.
 ---
 
-## 🗂️ Overview
+# Resource metadata API reference
 
-The Resource API provides metadata about available resources (endpoints) in the WFRMLS system. This endpoint helps developers discover what data is available and understand the structure of the API.
+`ResourceClient` requests records from the `Resource` metadata collection. It
+supports key and name queries, standard-name filtering, field expansion, and
+modification queries. Service metadata and the package's client accessors are
+separate sources of information.
 
-### Key Features
+## Configure access
 
-- **Resource discovery** - List all available API endpoints
-- **Metadata access** - Get information about each resource
-- **API structure** - Understand the organization of data
-- **Version information** - Access timestamp and path details
-- **Service exploration** - Discover available data types
+Use `WFRMLSClient().resource` after setting `WFRMLS_BEARER_TOKEN`, or pass a token
+to `WFRMLSClient(bearer_token=...)`. The main client creates resource clients
+lazily; missing credentials raise `AuthenticationError` when you first access
+`resource`. Direct resource client construction validates credentials immediately.
 
----
+Both constructors accept `bearer_token: Optional[str] = None` and
+`base_url: Optional[str] = None`. The default resource URL is
+`https://resoapi.utahrealestate.com/reso/odata`.
 
-## 📚 Methods
+## Query resource records
 
-### `get_resources()`
-
-Retrieve all available resources in the WFRMLS system.
-
-```python
-def get_resources() -> Dict[str, Any]
+```text
+get_resources(top=None, skip=None, filter_query=None, select=None,
+             orderby=None, expand=None, count=None) -> Dict[str, Any]
 ```
 
-**Returns:**
-- `Dict[str, Any]` - List of all available resources
+| Parameter | Accepted value | Default | Request behavior |
+| --- | --- | --- | --- |
+| `top` | `int` | `None` | Sends `$top`, capped at 200 |
+| `skip` | `int` | `None` | Sends `$skip` |
+| `filter_query` | `str` | `None` | Sends the OData expression as `$filter` |
+| `select` | `list[str]` or `str` | `None` | Sends `$select`; lists become comma-separated strings |
+| `orderby` | `str` | `None` | Sends `$orderby` |
+| `expand` | `list[str]` or `str` | `None` | Sends `$expand`; lists become comma-separated strings |
+| `count` | `bool` | `None` | Sends `$count=true` or `$count=false` when provided |
 
-**Examples:**
+`None` omits a parameter. The client forwards filters and field names without
+checking them against the service schema. Check your service metadata for supported
+fields, relationships, and value types. The 200-record cap is applied locally;
+negative pagination values are not validated locally.
+
+The method requests `Resource` and returns the response dictionary unchanged.
+Collection responses normally contain a `value` list. `@odata.count`,
+`@odata.context`, and `@odata.nextLink` may be present. Empty collections return an
+empty `value` list rather than `None`.
+
+Each call retrieves one page. It does not follow `@odata.nextLink`, accumulate all
+records, or retry failed requests. See [pagination](../guides/odata-queries.md).
+
+
+## Retrieve resource metadata
+
+| Method | Actual request and return value |
+| --- | --- |
+| `get_resource(resource_key: str) -> Dict[str, Any]` | Requests `Resource('<key>')`; returns one record; HTTP 404 raises `NotFoundError` |
+| `get_resource_by_name(resource_name: str, **kwargs)` | Filters `ResourceName eq '<name>'`; returns a collection response |
+| `get_standard_resources(**kwargs)` | Filters `StandardName ne null`; returns a collection |
+| `get_resources_with_fields(**kwargs)` | Sets `expand="Fields"`; returns a collection |
+| `get_modified_resources(since: Union[str, date, datetime], **kwargs)` | Filters `ModificationTimestamp`; timestamp handling is described below |
+
+Collection helpers return `Dict[str, Any]` and forward their `**kwargs` to
+`get_resources()`. Name and standard helpers append an extra `filter_query` with
+`and`. Parenthesize additional filters containing `or`. Resource names are
+interpolated directly; escape apostrophes as doubled quotes in OData string literals.
+
+Do not pass `expand` to `get_resources_with_fields()` because the helper already
+sets it; duplicate arguments raise `TypeError`. To request other relationships,
+use `get_resources(expand=...)` directly.
+
+## Inspect metadata for a named resource
+
+Set `WFRMLS_BEARER_TOKEN` before running this example. A name query returns a
+collection, including an empty collection when there are no matches. It does not
+select a single record or raise `NotFoundError` for an empty result.
 
 ```python
+import os
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-# Get all available resources
-resources = client.resource.get_resources()
-
-# List resource names
-for resource in resources["value"]:
-    name = resource.get("RName")
-    path = resource.get("ResourcePath")
-    print(f"{name}: {path}")
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.resource.get_resource_by_name(
+    "Property",
+    expand="Fields",
+    top=10,
+)
+for resource in response.get("value", []):
+    print(resource.get("ResourceKey"), resource.get("ResourceName"))
+    print("Fields:", resource.get("Fields"))
 ```
 
-### `get_resource_by_name()`
+## Retrieve standard-named resources
 
-Get detailed information about a specific resource.
+This example retrieves one page with a non-null `StandardName`. That filter does
+not prove standards compliance or guarantee that the resource is accessible.
 
 ```python
-def get_resource_by_name(
-    resource_name: str
-) -> Dict[str, Any]
+import os
+
+from wfrmls import WFRMLSClient
+
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.resource.get_standard_resources(
+    select=["ResourceKey", "ResourceName", "StandardName"],
+    orderby="ResourceName asc,ResourceKey asc",
+    top=200,
+)
+for resource in response.get("value", []):
+    print(resource.get("ResourceName"), resource.get("StandardName"))
 ```
 
-**Parameters:**
+## Query modified records
 
-| Parameter | Type | Description |
-|----------|------|-------------|
-| `resource_name` | `str` | Name of the resource (e.g., "Property") |
+`get_modified_resources(since, **kwargs)` builds `ModificationTimestamp gt '<timestamp>'`. Pass an ISO 8601 UTC string such as
+`2026-01-01T00:00:00Z` to control the timestamp representation. Strings are not
+normalized or validated. Do not also supply `filter_query`: the helper supplies
+that keyword itself.
 
-**Returns:**
-- `Dict[str, Any]` - Resource details
+A `date` becomes `YYYY-MM-DDT00:00:00Z`. Datetime objects are serialized with `isoformat()` followed by `Z`;
+timezone-aware datetimes can therefore produce an offset followed by `Z`.
+Prefer an explicit UTC string. If the service requires different temporal literal
+syntax, construct the expression with the collection method's `filter_query`.
 
-**Examples:**
 
-```python
-# Get details about the Property resource
-property_resource = client.resource.get_resource_by_name("Property")
+## Distinguish metadata from client support
 
-# Get details about the Member resource
-member_resource = client.resource.get_resource_by_name("Member")
-```
+Client queries and tests use `ResourceKey`, `ResourceName`, `StandardName`,
+`ModificationTimestamp`, and the `Fields` relationship. The client does not rename
+these fields to historical aliases such as `RName`. If your service returns another
+schema, inspect its metadata and build an explicit query for that schema.
 
----
+A `Resource` record is not a complete guarantee of request permissions, service
+health, or package support. Do not invent Python method names from resource names.
+For example, this release has no `client.media`, `client.history`, or
+`client.green_verification` accessor. Their presence in provider metadata would not
+create those accessors.
 
-## 🏷️ Field Reference
+Use [main-client discovery](client.md) for `get_service_document()` and
+`get_metadata()`. The service document lists advertised entity sets; XML metadata
+describes fields and relationships. `ResourceClient` neither parses that XML nor
+creates dynamic client methods.
 
-Each resource record contains:
+## Handle errors
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **RName** | `string` | Resource name | `"Property"` |
-| **ResourcePath** | `string` | API endpoint path | `"/Property"` |
-| **Description** | `string` | Resource description | `"Property"` |
-| **DSName** | `string` | Data system name | `"WEB_API"` |
-| **TimeZoneOffset** | `integer` | Timezone offset hours | `-7` |
-| **TimestampModified** | `datetime` | Last modified date | `"2021-11-16T00:00:13Z"` |
+HTTP 400 raises `ValidationError`; HTTP 401 raises `AuthenticationError`; HTTP 404
+raises `NotFoundError`; HTTP 429 raises `RateLimitError`; HTTP 5xx raises
+`ServerError`. Request failures raise `NetworkError`. Other unsuccessful responses
+raise `WFRMLSError`. See the [exception reference](exceptions.md) for details.
 
----
 
-## 📋 Available Resources
+## Related references
 
-Based on the API, the following resources are available:
-
-| Resource | Path | Description |
-|----------|------|-------------|
-| **Media** | `/Media` | Property photos and media files |
-| **Member** | `/Member` | Real estate agents and brokers |
-| **Office** | `/Office` | Real estate offices and brokerages |
-| **OpenHouse** | `/OpenHouse` | Open house events |
-| **Property** | `/Property` | Property listings |
-
----
-
-## 🔍 Common Usage Patterns
-
-### Dynamic API Exploration
-
-```python
-def explore_api_structure():
-    """Dynamically explore available API endpoints."""
-    
-    # Get all resources
-    resources = client.resource.get_resources()
-    
-    api_structure = {
-        "base_url": client.base_url,
-        "resources": {},
-        "total_resources": len(resources["value"])
-    }
-    
-    # Build resource map
-    for resource in resources["value"]:
-        name = resource.get("RName")
-        api_structure["resources"][name] = {
-            "path": resource.get("ResourcePath"),
-            "description": resource.get("Description"),
-            "last_modified": resource.get("TimestampModified")
-        }
-    
-    return api_structure
-
-# Explore API
-api_map = explore_api_structure()
-print(f"Found {api_map['total_resources']} resources")
-```
-
-### Endpoint Validation
-
-```python
-def validate_endpoint_exists(endpoint_name: str) -> bool:
-    """Check if an endpoint exists in the API."""
-    
-    resources = client.resource.get_resources()
-    
-    valid_endpoints = set()
-    for resource in resources["value"]:
-        name = resource.get("RName", "").lower()
-        valid_endpoints.add(name)
-    
-    return endpoint_name.lower() in valid_endpoints
-
-# Validate endpoints
-print(validate_endpoint_exists("Property"))  # True
-print(validate_endpoint_exists("InvalidEndpoint"))  # False
-```
-
-### API Documentation Generator
-
-```python
-def generate_api_docs():
-    """Generate documentation for available endpoints."""
-    
-    resources = client.resource.get_resources()
-    
-    docs = []
-    docs.append("# WFRMLS API Endpoints\n")
-    docs.append("## Available Resources\n")
-    
-    for resource in sorted(resources["value"], key=lambda x: x.get("RName", "")):
-        name = resource.get("RName")
-        path = resource.get("ResourcePath")
-        desc = resource.get("Description")
-        modified = resource.get("TimestampModified")
-        
-        docs.append(f"\n### {name}")
-        docs.append(f"- **Endpoint**: `{path}`")
-        docs.append(f"- **Description**: {desc}")
-        docs.append(f"- **Last Modified**: {modified}")
-        docs.append("")
-    
-    return "\n".join(docs)
-
-# Generate documentation
-api_docs = generate_api_docs()
-```
-
-### Resource Availability Monitor
-
-```python
-from datetime import datetime
-
-def check_resource_updates():
-    """Check for updates to API resources."""
-    
-    current_resources = client.resource.get_resources()
-    
-    # In a real application, you'd compare with stored data
-    updates = {
-        "check_time": datetime.now().isoformat(),
-        "resources": {}
-    }
-    
-    for resource in current_resources["value"]:
-        name = resource.get("RName")
-        modified = resource.get("TimestampModified")
-        
-        updates["resources"][name] = {
-            "available": True,
-            "last_modified": modified,
-            "path": resource.get("ResourcePath")
-        }
-    
-    return updates
-
-# Check for updates
-resource_status = check_resource_updates()
-```
-
-### API Client Configuration
-
-```python
-def configure_client_from_resources():
-    """Configure API client based on available resources."""
-    
-    resources = client.resource.get_resources()
-    
-    config = {
-        "endpoints": {},
-        "timezone_offset": None
-    }
-    
-    for resource in resources["value"]:
-        name = resource.get("RName")
-        path = resource.get("ResourcePath")
-        
-        # Store endpoint configuration
-        config["endpoints"][name.lower()] = {
-            "path": path,
-            "full_url": f"{client.base_url}{path}"
-        }
-        
-        # Get timezone (should be consistent)
-        if config["timezone_offset"] is None:
-            config["timezone_offset"] = resource.get("TimeZoneOffset")
-    
-    return config
-
-# Get client configuration
-client_config = configure_client_from_resources()
-```
-
----
-
-## 🔄 Integration with Other Endpoints
-
-### Dynamic Method Builder
-
-```python
-def build_dynamic_client():
-    """Build client methods based on available resources."""
-    
-    resources = client.resource.get_resources()
-    
-    class DynamicClient:
-        def __init__(self, base_client):
-            self.client = base_client
-            self._endpoints = {}
-            
-            # Build endpoint map
-            for resource in resources["value"]:
-                name = resource.get("RName", "").lower()
-                self._endpoints[name] = resource.get("ResourcePath")
-        
-        def get_endpoint_data(self, endpoint_name: str, **kwargs):
-            """Generic method to get data from any endpoint."""
-            
-            if endpoint_name.lower() not in self._endpoints:
-                raise ValueError(f"Unknown endpoint: {endpoint_name}")
-            
-            # Use the appropriate client method
-            if hasattr(self.client, endpoint_name.lower()):
-                endpoint_client = getattr(self.client, endpoint_name.lower())
-                if hasattr(endpoint_client, f"get_{endpoint_name.lower()}s"):
-                    method = getattr(endpoint_client, f"get_{endpoint_name.lower()}s")
-                    return method(**kwargs)
-            
-            return None
-    
-    return DynamicClient(client)
-
-# Create dynamic client
-dynamic = build_dynamic_client()
-```
-
----
-
-## ⚡ Performance Tips
-
-1. **Cache resource list** - Resources rarely change, cache for session
-2. **Validate once** - Check available endpoints at startup
-3. **Build endpoint maps** - Create lookup dictionaries for fast access
-4. **Monitor changes** - Periodically check for API updates
-5. **Handle missing resources** - Gracefully handle unavailable endpoints
-
----
-
-## 🚨 Important Notes
-
-- Resources represent available API endpoints
-- Not all resources may be accessible based on permissions
-- Resource availability may vary by MLS
-- The Resource endpoint itself is not typically listed
-- Always handle cases where resources may be unavailable
+- [Main client](client.md) for implemented accessors and metadata discovery.
+- [Lookup values](lookup.md) for field categories and enumerations.
+- [Data systems](data-system.md) for data-system records.

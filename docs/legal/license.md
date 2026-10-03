@@ -1,10 +1,13 @@
-# License
-
-This project is distributed under the MIT License. The canonical source is the repository root `LICENSE` file.
-
+---
+title: "WFRMLS Python client MIT license"
+description: "Read the WFRMLS Python client MIT software license, including The Perry Group copyright notice, permissions, conditions, and warranty disclaimer."
 ---
 
-## Full License Text
+# WFRMLS Python client MIT license
+
+The canonical license is the repository root [LICENSE](https://github.com/theperrygroup/wfrmls/blob/master/LICENSE) file. This license covers the software and associated documentation. See [MLS data-use terms](index.md) for the separate provider requirements.
+
+## Full MIT license text
 
 ```text
 MIT License

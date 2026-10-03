@@ -1,384 +1,155 @@
-# Data System API
-
-Complete reference for the Data System endpoint of the WFRMLS Python client.
-
+---
+description: Retrieve DataSystem collection and key records, understand get_system_info's ten-record limit, and query modification timestamps.
 ---
 
-## 🖥️ Overview
+# Data system API reference
 
-The Data System API provides metadata about the WFRMLS API service itself, including version information, service URIs, and data dictionary details. This endpoint is useful for understanding the API's capabilities and configuration.
+`DataSystemClient` requests the `DataSystem` resource. It returns service data-system
+records without interpreting version fields, configuring endpoints, or performing
+health or compatibility checks.
 
-### Key Features
+## Configure access
 
-- **Service information** - Get API service details
-- **Version tracking** - Access API and data dictionary versions
-- **Configuration data** - Retrieve service URIs and settings
-- **System metadata** - Understand the API implementation
-- **Compatibility checking** - Verify API version support
+Use `WFRMLSClient().data_system` after setting `WFRMLS_BEARER_TOKEN`, or pass a token
+to `WFRMLSClient(bearer_token=...)`. The main client creates resource clients
+lazily; missing credentials raise `AuthenticationError` when you first access
+`data_system`. Direct resource client construction validates credentials immediately.
 
----
+Both constructors accept `bearer_token: Optional[str] = None` and
+`base_url: Optional[str] = None`. The default resource URL is
+`https://resoapi.utahrealestate.com/reso/odata`.
 
-## 📚 Methods
+## Query data system records
 
-### `get_data_systems()`
-
-Retrieve information about all data systems.
-
-```python
-def get_data_systems() -> Dict[str, Any]
+```text
+get_data_systems(top=None, skip=None, filter_query=None, select=None,
+             orderby=None, expand=None, count=None) -> Dict[str, Any]
 ```
 
-**Returns:**
-- `Dict[str, Any]` - Data system information
+| Parameter | Accepted value | Default | Request behavior |
+| --- | --- | --- | --- |
+| `top` | `int` | `None` | Sends `$top`, capped at 200 |
+| `skip` | `int` | `None` | Sends `$skip` |
+| `filter_query` | `str` | `None` | Sends the OData expression as `$filter` |
+| `select` | `list[str]` or `str` | `None` | Sends `$select`; lists become comma-separated strings |
+| `orderby` | `str` | `None` | Sends `$orderby` |
+| `expand` | `list[str]` or `str` | `None` | Sends `$expand`; lists become comma-separated strings |
+| `count` | `bool` | `None` | Sends `$count=true` or `$count=false` when provided |
 
-**Examples:**
+`None` omits a parameter. The client forwards filters and field names without
+checking them against the service schema. Check your service metadata for supported
+fields, relationships, and value types. The 200-record cap is applied locally;
+negative pagination values are not validated locally.
+
+The method requests `DataSystem` and returns the response dictionary unchanged.
+Collection responses normally contain a `value` list. `@odata.count`,
+`@odata.context`, and `@odata.nextLink` may be present. Empty collections return an
+empty `value` list rather than `None`.
+
+Each call retrieves one page. It does not follow `@odata.nextLink`, accumulate all
+records, or retry failed requests. See [pagination](../guides/odata-queries.md).
+
+
+## Retrieve a data system by key
+
+`get_data_system(data_system_key: str) -> Dict[str, Any]` requests
+`DataSystem('<key>')` and returns one record dictionary. HTTP 404 raises
+`NotFoundError`. Use a key returned by the service; a data-system name is not
+automatically converted to its key.
+
+## Understand the system-info helper
+
+`get_system_info() -> Dict[str, Any]` is exactly a call to
+`get_data_systems(top=10)`. It returns a collection page, including a `value` list
+when supplied by the service. It does not identify a preferred or current system,
+return the first record directly, or fetch every system.
+
+The method accepts no query arguments. Use `get_data_systems()` to select fields,
+filter, order, count, expand, or request another page. `get_service_info()` does not
+exist on `DataSystemClient`. For the service document and XML schema, use the
+[main client's discovery methods](client.md).
+
+## Read the system-info collection
+
+Set `WFRMLS_BEARER_TOKEN` before running this example. Field names below are used
+in repository test fixtures; confirm the schema in your service metadata.
 
 ```python
+import os
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-# Get data system information
-systems = client.data_system.get_data_systems()
-
-# Display system info
-for system in systems["value"]:
-    print(f"System: {system['DSName']}")
-    print(f"Service URI: {system['ServiceUri']}")
-    print(f"Data Dictionary Version: {system['DataDictionaryVersion']}")
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.data_system.get_system_info()
+for system in response.get("value", []):
+    print(system.get("DataSystemKey"), system.get("DataSystemName"))
 ```
 
-### `get_system_info()`
+## Filter and select data-system records
 
-Get information about the current data system.
+The client forwards field names and filters to the service. This example uses
+fields found in the repository's mocked tests; metadata determines whether your
+service exposes the same schema.
 
 ```python
-def get_system_info() -> Dict[str, Any]
+import os
+
+from wfrmls import WFRMLSClient
+
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.data_system.get_data_systems(
+    filter_query="DataSystemStatus eq 'Active'",
+    select=["DataSystemKey", "DataSystemName", "DataSystemStatus"],
+    orderby="DataSystemName asc,DataSystemKey asc",
+    top=50,
+    count=True,
+)
+for system in response.get("value", []):
+    print(system.get("DataSystemName"), system.get("DataSystemStatus"))
+print("Matching systems:", response.get("@odata.count"))
 ```
 
-**Returns:**
-- `Dict[str, Any]` - Current system information
+## Query modified records
 
-**Examples:**
+`get_modified_data_systems(since: Union[str, date, datetime], **kwargs)` builds `ModificationTimestamp gt '<timestamp>'`. Pass an ISO 8601 UTC string such as
+`2026-01-01T00:00:00Z` to control the timestamp representation. Strings are not
+normalized or validated. Do not also supply `filter_query`: the helper supplies
+that keyword itself.
 
-```python
-# Get current system info
-info = client.data_system.get_system_info()
+A `date` becomes `YYYY-MM-DDT00:00:00Z`. Datetime objects are serialized with `isoformat()` followed by `Z`;
+timezone-aware datetimes can therefore produce an offset followed by `Z`.
+Prefer an explicit UTC string. If the service requires different temporal literal
+syntax, construct the expression with the collection method's `filter_query`.
 
-# Access version information
-transport_version = info["value"][0]["TransportVersion"]
-dd_version = info["value"][0]["DataDictionaryVersion"]
 
-print(f"Transport Version: {transport_version}")
-print(f"Data Dictionary Version: {dd_version}")
-```
+The modification helper returns a collection response and forwards other
+collection options to `get_data_systems()`. It does not maintain a synchronization
+cursor or cache the response.
 
-### `get_service_info()`
+## Interpret data-system metadata
 
-Get detailed service information.
+The implementation and tests reference `DataSystemKey`, `DataSystemName`,
+`DataSystemStatus`, and `ModificationTimestamp`; tests also exercise expansion
+with `Resources`. These are request-building examples, not a guarantee of current
+provider fields. Historical documentation used fields such as `DSName`,
+`ServiceUri`, and `TransportVersion`; the client does not require, translate, or
+derive those fields.
 
-```python
-def get_service_info() -> Dict[str, Any]
-```
+Read the fields your service actually returns. A reported version or modification
+timestamp does not establish endpoint health, current resource access, or
+compatibility with your application's expected schema. The client provides no
+version-comparison logic, endpoint reconfiguration, caching, or health monitor.
 
-**Returns:**
-- `Dict[str, Any]` - Service configuration details
+## Handle errors
 
----
+HTTP 400 raises `ValidationError`; HTTP 401 raises `AuthenticationError`; HTTP 404
+raises `NotFoundError`; HTTP 429 raises `RateLimitError`; HTTP 5xx raises
+`ServerError`. Request failures raise `NetworkError`. Other unsuccessful responses
+raise `WFRMLSError`. See the [exception reference](exceptions.md) for details.
 
-## 🏷️ Field Reference
 
-Each data system record contains:
+## Related references
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **DSName** | `string` | Data system name | `"WEB_API"` |
-| **ServiceUri** | `string` | Base service URI | `"https://resoapi.utahrealestate.com/reso/odata"` |
-| **TransportVersion** | `string` | API transport version | `"1.02"` |
-| **DataDictionaryVersion** | `string` | RESO data dictionary version | `"1.7"` |
-| **TimestampModified** | `datetime` | Last modification date | `"2021-11-16T00:00:13Z"` |
-
----
-
-## 🔍 Common Usage Patterns
-
-### Version Compatibility Check
-
-```python
-def check_api_compatibility(required_version: str = "1.7"):
-    """Check if API data dictionary version meets requirements."""
-    
-    system_info = client.data_system.get_system_info()
-    
-    if system_info["value"]:
-        current_version = system_info["value"][0]["DataDictionaryVersion"]
-        
-        # Simple version comparison (in practice, use proper version parsing)
-        is_compatible = current_version >= required_version
-        
-        return {
-            "compatible": is_compatible,
-            "current_version": current_version,
-            "required_version": required_version,
-            "message": "Compatible" if is_compatible else "Update required"
-        }
-    
-    return {
-        "compatible": False,
-        "message": "Unable to retrieve version information"
-    }
-
-# Check compatibility
-compatibility = check_api_compatibility()
-print(f"API Compatible: {compatibility['compatible']}")
-```
-
-### Service Health Check
-
-```python
-from datetime import datetime, timedelta
-
-def check_service_health():
-    """Perform a health check on the API service."""
-    
-    health_status = {
-        "status": "unknown",
-        "timestamp": datetime.now().isoformat(),
-        "checks": {}
-    }
-    
-    try:
-        # Check data system endpoint
-        system_info = client.data_system.get_data_systems()
-        
-        if system_info.get("value"):
-            health_status["checks"]["data_system"] = "ok"
-            
-            # Check modification date
-            modified = system_info["value"][0].get("TimestampModified")
-            if modified:
-                mod_date = datetime.fromisoformat(modified.replace("Z", "+00:00"))
-                age_days = (datetime.now(mod_date.tzinfo) - mod_date).days
-                
-                health_status["checks"]["last_update"] = f"{age_days} days ago"
-            
-            # Check service URI accessibility
-            service_uri = system_info["value"][0].get("ServiceUri")
-            if service_uri:
-                health_status["checks"]["service_uri"] = service_uri
-                health_status["status"] = "healthy"
-            else:
-                health_status["status"] = "degraded"
-        else:
-            health_status["status"] = "unhealthy"
-            health_status["checks"]["data_system"] = "no data"
-            
-    except Exception as e:
-        health_status["status"] = "error"
-        health_status["error"] = str(e)
-    
-    return health_status
-
-# Perform health check
-health = check_service_health()
-print(f"Service Status: {health['status']}")
-```
-
-### API Configuration Manager
-
-```python
-class APIConfigManager:
-    """Manage API configuration based on data system info."""
-    
-    def __init__(self, client):
-        self.client = client
-        self._config = None
-        self._loaded_at = None
-        self.cache_duration = 3600  # 1 hour
-    
-    def get_config(self, force_refresh=False):
-        """Get API configuration with caching."""
-        
-        # Check cache
-        if not force_refresh and self._config:
-            if time.time() - self._loaded_at < self.cache_duration:
-                return self._config
-        
-        # Load fresh configuration
-        system_info = self.client.data_system.get_system_info()
-        
-        if system_info.get("value"):
-            data = system_info["value"][0]
-            
-            self._config = {
-                "service_uri": data.get("ServiceUri"),
-                "base_url": data.get("ServiceUri", "").replace("/odata", ""),
-                "transport_version": data.get("TransportVersion"),
-                "data_dictionary_version": data.get("DataDictionaryVersion"),
-                "system_name": data.get("DSName"),
-                "last_modified": data.get("TimestampModified"),
-                "loaded_at": datetime.now().isoformat()
-            }
-            
-            self._loaded_at = time.time()
-        
-        return self._config
-    
-    def get_version_info(self):
-        """Get version information only."""
-        
-        config = self.get_config()
-        
-        return {
-            "transport": config.get("transport_version"),
-            "data_dictionary": config.get("data_dictionary_version")
-        }
-
-# Use configuration manager
-config_manager = APIConfigManager(client)
-config = config_manager.get_config()
-versions = config_manager.get_version_info()
-```
-
-### Service Documentation Generator
-
-```python
-def generate_service_documentation():
-    """Generate documentation about the API service."""
-    
-    system_info = client.data_system.get_system_info()
-    
-    if not system_info.get("value"):
-        return "Unable to retrieve system information"
-    
-    data = system_info["value"][0]
-    
-    docs = []
-    docs.append("# WFRMLS API Service Information\n")
-    docs.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    
-    docs.append("## Service Details\n")
-    docs.append(f"- **System Name**: {data.get('DSName')}")
-    docs.append(f"- **Service URI**: `{data.get('ServiceUri')}`")
-    docs.append(f"- **Last Modified**: {data.get('TimestampModified')}\n")
-    
-    docs.append("## Version Information\n")
-    docs.append(f"- **Transport Version**: {data.get('TransportVersion')}")
-    docs.append(f"- **Data Dictionary Version**: {data.get('DataDictionaryVersion')}")
-    docs.append(f"  - RESO Standard Version: {data.get('DataDictionaryVersion')}\n")
-    
-    docs.append("## API Endpoints\n")
-    docs.append(f"Base URL: `{data.get('ServiceUri')}`\n")
-    
-    docs.append("### Available Resources")
-    docs.append("- Property")
-    docs.append("- Member")
-    docs.append("- Office")
-    docs.append("- OpenHouse")
-    docs.append("- Media\n")
-    
-    docs.append("## OData Support\n")
-    docs.append("This API supports OData v4 query syntax including:")
-    docs.append("- `$filter` - Filter results")
-    docs.append("- `$select` - Choose fields")
-    docs.append("- `$orderby` - Sort results")
-    docs.append("- `$top` / `$skip` - Pagination")
-    docs.append("- `$count` - Get total count")
-    
-    return "\n".join(docs)
-
-# Generate documentation
-service_docs = generate_service_documentation()
-print(service_docs)
-```
-
-### Multi-Environment Support
-
-```python
-class EnvironmentManager:
-    """Manage multiple API environments."""
-    
-    def __init__(self):
-        self.environments = {}
-        self.current_env = None
-    
-    def add_environment(self, name: str, client: WFRMLSClient):
-        """Add an environment configuration."""
-        
-        system_info = client.data_system.get_system_info()
-        
-        if system_info.get("value"):
-            data = system_info["value"][0]
-            
-            self.environments[name] = {
-                "client": client,
-                "service_uri": data.get("ServiceUri"),
-                "version": data.get("DataDictionaryVersion"),
-                "transport": data.get("TransportVersion"),
-                "system": data.get("DSName")
-            }
-            
-            if not self.current_env:
-                self.current_env = name
-    
-    def switch_environment(self, name: str):
-        """Switch to a different environment."""
-        
-        if name in self.environments:
-            self.current_env = name
-            return self.environments[name]["client"]
-        
-        raise ValueError(f"Unknown environment: {name}")
-    
-    def get_environment_info(self, name: str = None):
-        """Get information about an environment."""
-        
-        env_name = name or self.current_env
-        
-        if env_name in self.environments:
-            return self.environments[env_name]
-        
-        return None
-    
-    def compare_environments(self):
-        """Compare all environments."""
-        
-        comparison = {}
-        
-        for name, env in self.environments.items():
-            comparison[name] = {
-                "service_uri": env["service_uri"],
-                "version": env["version"],
-                "transport": env["transport"]
-            }
-        
-        return comparison
-
-# Example usage
-env_manager = EnvironmentManager()
-env_manager.add_environment("production", client)
-# env_manager.add_environment("staging", staging_client)
-
-# Compare environments
-comparison = env_manager.compare_environments()
-```
-
----
-
-## ⚡ Performance Tips
-
-1. **Cache system info** - Data system info rarely changes
-2. **Version check once** - Check compatibility at startup
-3. **Monitor changes** - Periodically check for updates
-4. **Store configuration** - Save service URIs for reuse
-5. **Handle timeouts** - System endpoint may be slow
-
----
-
-## 🚨 Important Notes
-
-- Data system information is primarily for API metadata
-- Version numbers follow RESO standards
-- Service URI should match the configured base URL
-- Transport version indicates OData protocol version
-- System information is read-only
+- [Main-client metadata methods](client.md) for service discovery and XML schema.
+- [Resource records](resource.md) for resource-level metadata.
+- [OData queries](../guides/odata-queries.md) for collection filtering and paging.

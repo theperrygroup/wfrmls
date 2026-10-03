@@ -1,131 +1,95 @@
-# Development
-
-Resources for working on the WFRMLS Python client and keeping docs, tests, and packaging in sync with the repository's current state.
-
+---
+title: "Develop and verify the WFRMLS client"
+description: "Set up a WFRMLS contributor environment, run offline tests and CI quality checks, build strict documentation, and verify package artifacts."
 ---
 
-## Quick Navigation
+# Develop and verify the WFRMLS client
 
-<div class="grid cards" markdown>
+Run contributor commands from the repository root. Use Python 3.11 for the
+current development and documentation toolchain; the library's compatibility
+matrix also tests Python 3.8–3.12.
 
--   :material-hammer-wrench:{ .lg .middle } **Local Setup**
-
-    ---
-
-    Create an environment and install development dependencies.
-
-    [:octicons-arrow-right-24: Local Setup](#local-setup)
-
--   :material-check-decagram:{ .lg .middle } **Quality Checks**
-
-    ---
-
-    Run the same commands maintainers use for tests and docs.
-
-    [:octicons-arrow-right-24: Quality Checks](#quality-checks)
-
--   :material-code-tags:{ .lg .middle } **Code Style Guide**
-
-    ---
-
-    Follow the canonical Python style guide for this repository.
-
-    [:octicons-arrow-right-24: Code Style Guide](style-guide.md)
-
--   :material-book-edit:{ .lg .middle } **Documentation Style Guide**
-
-    ---
-
-    Use the docs-specific writing and formatting guidance.
-
-    [:octicons-arrow-right-24: Documentation Style Guide](../STYLE_GUIDE.md)
-
--   :material-file-document-multiple:{ .lg .middle } **Consistency Runbooks**
-
-    ---
-
-    Review the documentation and repository consistency notes.
-
-    [:octicons-arrow-right-24: Consistency Runbooks](consistency/index.md)
-
-</div>
-
----
-
-## Local Setup
-
-Set up a local environment with the commands that are supported by the current repository:
+## Set up a local checkout
 
 ```bash
-# Clone the repository
 git clone https://github.com/theperrygroup/wfrmls.git
 cd wfrmls
-
-# Create and activate a virtual environment
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-
-# Install the package and development tooling
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 python -m pip install -r docs/requirements.txt
+python -m pip install build twine
 ```
 
-!!! note "Current tooling"
-    This repository does not currently provide a `Makefile` or a `.pre-commit-config.yaml` file. Run the individual commands below directly instead of relying on `make quality` or `pre-commit install`.
+On Windows, create the environment with `py -3.11 -m venv .venv` and activate
+`.venv\Scripts\Activate.ps1`. The `dev` extra and docs dependency file have
+different purposes. There is no `docs` extra, `Makefile`, or pre-commit
+configuration in this repository.
 
----
+## Run offline tests and quality checks
 
-## Quality Checks
-
-Use these commands before opening or updating a pull request:
+The normal CI test path excludes `tests/test_integration.py`. Follow the same
+path locally; do not use live provider credentials for the ordinary unit suite.
+The CI coverage floor is currently 15 percent. A broader coverage goal in
+the style guide is a development target, not a claim about the enforced floor.
 
 ```bash
-# Run the test suite
-pytest
-
-# Run coverage locally
-pytest --cov=wfrmls --cov-report=term-missing
-
-# Format and static analysis
-black wfrmls tests
-flake8 wfrmls tests
-mypy wfrmls
-
-# Verify the documentation site
-mkdocs build --strict
+python -m pytest tests/ --ignore=tests/test_integration.py --cov=wfrmls --cov-report=term-missing --cov-fail-under=15
+black --check --diff wfrmls/ tests/
+isort --check-only --diff wfrmls/ tests/
+flake8 wfrmls/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+mypy wfrmls/ --ignore-missing-imports --show-error-codes
 ```
 
-If you update library behavior, also update the relevant documentation pages and examples in `docs/`.
+The flake8 command checks the CI-blocking syntax/undefined-name categories.
+CI also prints a broader lint report with `--exit-zero`; that report does not
+enforce every style warning. The dedicated code-quality job enforces mypy,
+even though the test-matrix copy currently permits it to continue after failure.
+Consult the [workflow review runbook](consistency/phase-3-github-actions.md)
+when changing those gates.
 
----
+Tests that deliberately exercise the live API require separate, explicit
+authorization, licensed access, and isolated credentials. Keep token values
+and real MLS payloads out of test fixtures and published logs.
 
-## Documentation Expectations
+## Build and preview documentation
 
-When you change the package, keep the surrounding docs truthful:
+```bash
+mkdocs build --strict --clean
+mkdocs serve
+```
 
-- Update examples and guides that mention the affected behavior.
-- Keep navigation in `mkdocs.yml` aligned with files that actually exist.
-- Prefer removing stale links over inventing placeholder pages.
-- Keep package metadata in sync when a library release changes the public package version.
+The first command is the validation gate. The second starts a local preview;
+stop it when finished. Check examples against source signatures and verify
+network examples with mocked responses before documenting them as runnable.
 
----
+Keep [documentation style](../STYLE_GUIDE.md), [code style](style-guide.md),
+and the [consistency runbooks](consistency/index.md) aligned with actual behavior.
 
-## Release And Packaging Notes
+## Verify package artifacts
 
-The repository includes release-process guidance in project rules and consistency runbooks. At a minimum, maintainers should confirm the following before calling a release complete:
+```bash
+python -m build
+python -m twine check dist/*
+```
 
-- Tests pass.
-- Documentation is updated.
-- Version metadata is in sync.
-- The package build and documentation build both succeed.
+These commands create and validate artifacts; they do not publish them.
+Check that the wheel includes the typing marker and that package metadata
+matches the intended release.
 
----
+## Understand release and deployment boundaries
 
-## Additional Resources
+The [release workflow](https://github.com/theperrygroup/wfrmls/blob/master/.github/workflows/release.yml)
+runs on `v*` tags. It checks tag/version parity against `pyproject.toml` and
+`wfrmls/__init__.py`, runs tests, builds distributions, publishes through the
+protected release environment, and creates a GitHub release. A successful local
+build or a master commit alone does not prove a PyPI release.
 
-- **[Code Style Guide](style-guide.md)** - Canonical Python coding expectations for this project.
-- **[Documentation Style Guide](../STYLE_GUIDE.md)** - Writing and formatting rules for docs pages.
-- **[Consistency Runbooks](consistency/index.md)** - Repository cleanup notes and gap analysis.
-- **[GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)** - Report bugs or doc problems.
-- **[GitHub Discussions](https://github.com/theperrygroup/wfrmls/discussions)** - Ask project questions.
+The separate [documentation workflow](https://github.com/theperrygroup/wfrmls/blob/master/.github/workflows/docs.yml)
+builds changed docs and deploys on qualifying master pushes. Verify its actual
+deployment result before reporting the published site as updated.
+
+Report defects through [GitHub Issues](https://github.com/theperrygroup/wfrmls/issues)
+with a minimal synthetic reproduction, the installed version, and a sanitized
+status or traceback.

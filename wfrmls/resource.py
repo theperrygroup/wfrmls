@@ -7,21 +7,23 @@ from .base_client import BaseClient
 
 
 class ResourceClient(BaseClient):
-    """Client for resource metadata API endpoints.
+    """Client for HTTP queries on the Resource resource.
 
-    The Resource endpoint provides metadata about API resources, including
-    field definitions, data types, and relationships. This is essential for
-    understanding the structure and capabilities of each resource.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the resource client.
+        """Initialize the Resource resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -35,49 +37,34 @@ class ResourceClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get resource metadata with optional OData filtering.
-
-        This method retrieves resource metadata with full OData v4.0 query support.
-        Provides detailed information about API resources, fields, and capabilities.
+        """Request one page from the Resource collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing resource metadata with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of resource records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get all resource metadata
-            resources = client.resource.get_resources()
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get specific resource information
-            resources = client.resource.get_resources(
-                filter_query="ResourceName eq 'Property'",
-                select=["ResourceName", "StandardName", "Description"]
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get resources with field information
-            resources = client.resource.get_resources(
-                expand="Fields",
-                top=10
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.resource.get_resources(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -108,58 +95,39 @@ class ResourceClient(BaseClient):
         return self.get("Resource", params=params)
 
     def get_resource(self, resource_key: str) -> Dict[str, Any]:
-        """Get resource by resource key.
+        """Request one Resource record by key.
 
-        Retrieves a single resource record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific API resource and its metadata.
+        Requests Resource('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            resource_key: Resource key to retrieve (unique identifier)
+            resource_key: Record key string.
 
         Returns:
-            Dictionary containing resource data for the specified record
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the resource with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific resource by key
-            resource = client.resource.get_resource("Property")
-
-            print(f"Resource Name: {resource['ResourceName']}")
-            print(f"Standard Name: {resource.get('StandardName', 'Unknown')}")
-            print(f"Description: {resource.get('Description', 'No description')}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"Resource('{resource_key}')")
 
     def get_resource_by_name(self, resource_name: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get resource by resource name.
+        """Request resources filtered by ResourceName.
 
-        Convenience method to filter resources by name.
-        Useful for finding information about a specific resource type.
+        Returns the collection response rather than one record. An empty value
+        list is not converted into NotFoundError. An extra filter_query is appended
+        with and; escape apostrophes in names as doubled quotes.
 
         Args:
-            resource_name: Resource name to filter by (e.g., "Property", "Member")
-            **kwargs: Additional OData parameters
+            resource_name: ResourceName string to match.
+            **kwargs: get_resources collection options, including an extra filter.
 
         Returns:
-            Dictionary containing resources matching the specified name
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get Property resource information
-            property_resource = client.resource.get_resource_by_name(
-                resource_name="Property",
-                expand="Fields"
-            )
-
-            # Get Member resource information
-            member_resource = client.resource.get_resource_by_name("Member")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         resource_filter = f"ResourceName eq '{resource_name}'"
 
@@ -173,25 +141,19 @@ class ResourceClient(BaseClient):
         return self.get_resources(**kwargs)
 
     def get_standard_resources(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get standard RESO resources.
+        """Request resources where StandardName is not null.
 
-        Convenience method to filter for standard RESO-defined resources.
-        These are the core resources defined by the RESO standard.
+        An extra filter_query is appended with and. A non-null name does not
+        verify standards compliance, request permissions, or client accessor support.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: get_resources collection options, including an extra filter.
 
         Returns:
-            Dictionary containing standard RESO resources
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all standard resources
-            standard_resources = client.resource.get_standard_resources()
-
-            for resource in standard_resources.get('value', []):
-                print(f"Standard Resource: {resource['StandardName']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         # Filter for resources that have a StandardName (RESO standard resources)
         standard_filter = "StandardName ne null"
@@ -206,64 +168,44 @@ class ResourceClient(BaseClient):
         return self.get_resources(**kwargs)
 
     def get_resources_with_fields(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get resources with their field information expanded.
+        """Request resource records with expand set to Fields.
 
-        This is a convenience method that automatically expands field
-        relationships to include detailed field metadata in the response.
-        More efficient than making separate requests for resources and fields.
+        The service defines field metadata and relationship availability.
+        Do not pass expand in kwargs; duplicate keywords raise TypeError.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Other get_resources collection options.
 
         Returns:
-            Dictionary containing resource data with expanded field relationships
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all resources with field information
-            resources_with_fields = client.resource.get_resources_with_fields(top=10)
-
-            # Access field info for first resource
-            first_resource = resources_with_fields['value'][0]
-            if 'Fields' in first_resource:
-                fields = first_resource['Fields']
-                print(f"Resource {first_resource['ResourceName']} has {len(fields)} fields")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_resources(expand="Fields", **kwargs)
 
     def get_modified_resources(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get resources modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only resource records
-        that have been updated since the last sync. Useful for monitoring
-        schema changes and updates to resource definitions.
+        Builds ModificationTimestamp gt '<timestamp>'. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDT00:00:00Z; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string, date, or datetime.
+            **kwargs: Other get_resources collection options.
 
         Returns:
-            Dictionary containing resources modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get resources modified in last month
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=30)
-            updates = client.resource.get_modified_resources(
-                since=cutoff_time
-            )
-
-            # Get resources modified since a specific date
-            updates = client.resource.get_modified_resources(
-                since="2023-01-01T00:00:00Z",
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"

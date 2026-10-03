@@ -1,402 +1,171 @@
-# Members API
-
-Complete reference for the Members endpoint of the WFRMLS Python client.
-
+---
+description: Query MLS members by key, MLS ID, name, office, status, or modification timestamp with the WFRMLS MemberClient.
 ---
 
-## 👥 Overview
+# Member API reference
 
-The Members API provides access to real estate agent and broker information, including contact details, office affiliations, and licensing data.
+`MemberClient` requests the `Member` resource for MLS participant records. It
+provides list, key, MLS ID, name, office, and modification-time queries; it does
+not verify professional licenses or normalize provider fields.
 
-### Key Features
+## Configure access
 
-- **Agent profiles** - Access detailed agent information
-- **Office associations** - View agent office affiliations
-- **Contact information** - Get phone, email, and address details
-- **License verification** - Access state license information
-- **Status filtering** - Filter by active/inactive status
+Use `WFRMLSClient().member` after setting `WFRMLS_BEARER_TOKEN`, or pass a token
+to `WFRMLSClient(bearer_token=...)`. The main client creates resource clients
+lazily; missing credentials raise `AuthenticationError` when you first access
+`member`. Direct resource client construction validates credentials immediately.
 
----
+Both constructors accept `bearer_token: Optional[str] = None` and
+`base_url: Optional[str] = None`. The default resource URL is
+`https://resoapi.utahrealestate.com/reso/odata`.
 
-## 📚 Methods
+## Query member records
 
-### `get_members()`
-
-Retrieve multiple member (agent/broker) records with optional filtering and pagination.
-
-```python
-def get_members(
-    top: Optional[int] = None,
-    skip: Optional[int] = None,
-    filter_query: Optional[str] = None,
-    select: Optional[List[str]] = None,
-    orderby: Optional[str] = None,
-    count: bool = False
-) -> Dict[str, Any]
+```text
+get_members(top=None, skip=None, filter_query=None, select=None,
+             orderby=None, expand=None, count=None) -> Dict[str, Any]
 ```
 
-**Parameters:**
+| Parameter | Accepted value | Default | Request behavior |
+| --- | --- | --- | --- |
+| `top` | `int` | `None` | Sends `$top`, capped at 200 |
+| `skip` | `int` | `None` | Sends `$skip` |
+| `filter_query` | `str` | `None` | Sends the OData expression as `$filter` |
+| `select` | `list[str]` or `str` | `None` | Sends `$select`; lists become comma-separated strings |
+| `orderby` | `str` | `None` | Sends `$orderby` |
+| `expand` | `list[str]` or `str` | `None` | Sends `$expand`; lists become comma-separated strings |
+| `count` | `bool` | `None` | Sends `$count=true` or `$count=false` when provided |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
-| `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
-| `filter_query` | `Optional[str]` | `None` | OData filter expression |
-| `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
-| `orderby` | `Optional[str]` | `None` | Field(s) to sort by with optional direction |
-| `count` | `bool` | `False` | Include total count in response metadata |
+`None` omits a parameter. The client forwards filters and field names without
+checking them against the service schema. Check your service metadata for supported
+fields, relationships, and value types. The 200-record cap is applied locally;
+negative pagination values are not validated locally.
 
-**Returns:**
-- `Dict[str, Any]` - Response dictionary containing:
-  - `@odata.context`: OData context URL
-  - `value`: List of member dictionaries
-  - `@odata.count`: Total count (if requested)
-  - `@odata.nextLink`: URL for next page of results
+The method requests `Member` and returns the response dictionary unchanged.
+Collection responses normally contain a `value` list. `@odata.count`,
+`@odata.context`, and `@odata.nextLink` may be present. Empty collections return an
+empty `value` list rather than `None`.
 
-**Examples:**
+Each call retrieves one page. It does not follow `@odata.nextLink`, accumulate all
+records, or retry failed requests. See [pagination](../guides/odata-queries.md).
+
+
+## Retrieve one member
+
+| Method | Request and return value |
+| --- | --- |
+| `get_member(member_key: str) -> Dict[str, Any]` | Requests `Member('<key>')`; returns the record dictionary; HTTP 404 raises `NotFoundError` |
+| `get_member_by_mls_id(mls_id: str) -> Dict[str, Any]` | Requests a collection with `MemberMlsId eq '<id>'`, `expand="Office"`, and `top=1`; returns its first record |
+
+The MLS ID method raises `NotFoundError` when the response has no records. It does
+not test whether an MLS ID is unique. Expanded office fields depend on the service;
+the client does not flatten the `Office` relationship.
+
+## Use member helpers
+
+Each helper returns a collection response dictionary and forwards its `**kwargs`
+to `get_members()`.
+
+| Method | Filter or expansion |
+| --- | --- |
+| `get_active_members(**kwargs)` | Sets `MemberStatus eq 'Active'` |
+| `get_members_by_office(office_key: str, **kwargs)` | Sets `OfficeKey eq '<key>'`; appends an additional filter with `and` |
+| `search_members_by_name(first_name=None, last_name=None, **kwargs)` | Uses `contains(MemberFirstName, '<name>')` and/or `contains(MemberLastName, '<name>')`; combines both with `and` |
+| `get_members_with_office(**kwargs)` | Sets `expand="Office"` |
+| `get_modified_members(since: Union[str, date], **kwargs)` | Filters `ModificationTimestamp`; timestamp handling is described below |
+
+`first_name` and `last_name` accept strings or `None`. With neither name supplied,
+the search helper calls `get_members(**kwargs)` without adding a name filter.
+With a name supplied, do not pass a separate `filter_query`. Likewise, do not pass
+`filter_query` to the active helper or `expand` to the office-expansion helper.
+Those keywords would conflict with the helper's arguments and raise `TypeError`.
+
+Name, office, and MLS ID helpers interpolate strings directly. Escape apostrophes
+as doubled quotes when constructing an OData string literal. Parenthesize an
+additional filter containing `or` before combining it with an office condition.
+
+## Read an office's active members
+
+Set `WFRMLS_BEARER_TOKEN` before running this example. Replace `office-key` with
+an office key returned by your service. This retrieves one page.
 
 ```python
+import os
+
 from wfrmls import WFRMLSClient
 
-client = WFRMLSClient()
-
-# Get first 10 members
-response = client.member.get_members(top=10)
-members = response["value"]
-
-# Get active members only
-active_response = client.member.get_active_members(top=20)
-
-# Search by name
-smith_agents = client.member.get_members(
-    filter_query="contains(MemberLastName, 'Smith')",
-    select=["MemberKey", "MemberFullName", "MemberStatus", "OfficeName"],
-    orderby="MemberLastName asc"
-)
-
-# Get members with count
-result_with_count = client.member.get_members(
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+response = client.member.get_members_by_office(
+    "office-key",
     filter_query="MemberStatus eq 'Active'",
+    select=["MemberKey", "MemberFirstName", "MemberLastName"],
+    orderby="MemberLastName asc,MemberKey asc",
+    top=50,
     count=True,
-    top=1
 )
-total_active = result_with_count.get("@odata.count", 0)
+for member in response.get("value", []):
+    print(member.get("MemberKey"), member.get("MemberLastName"))
+print("Matching records:", response.get("@odata.count"))
 ```
 
-### `get_member()`
+## Look up a member by MLS ID
 
-Retrieve detailed information for a specific member by member key.
+Replace `member-mls-id` with an MLS ID. This example handles an empty lookup without
+assuming a collection response from the MLS ID helper.
 
 ```python
-def get_member(member_key: str) -> Optional[Dict[str, Any]]
+import os
+
+from wfrmls import WFRMLSClient
+from wfrmls.exceptions import NotFoundError
+
+client = WFRMLSClient(bearer_token=os.environ["WFRMLS_BEARER_TOKEN"])
+try:
+    member = client.member.get_member_by_mls_id("member-mls-id")
+except NotFoundError:
+    print("No matching member")
+else:
+    print(member.get("MemberKey"), member.get("MemberFirstName"))
 ```
 
-**Parameters:**
+## Query modified records
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `member_key` | `str` | Unique member identifier |
+`get_modified_members(since, **kwargs)` builds `ModificationTimestamp gt <timestamp>`. Pass an ISO 8601 UTC string such as
+`2026-01-01T00:00:00Z` to control the timestamp representation. Strings are not
+normalized or validated. Do not also supply `filter_query`: the helper supplies
+that keyword itself.
 
-**Returns:**
-- `Optional[Dict[str, Any]]` - Member dictionary or `None` if not found
+A `date` becomes `YYYY-MM-DDZ`. Datetime objects are serialized with `isoformat()` followed by `Z`;
+timezone-aware datetimes can therefore produce an offset followed by `Z`.
+Prefer an explicit UTC string. If the service requires different temporal literal
+syntax, construct the expression with the collection method's `filter_query`.
 
-**Examples:**
 
-```python
-# Get specific member
-member = client.member.get_member("40")
+## Interpret fields and enums
 
-if member:
-    print(f"Agent: {member['MemberFullName']}")
-    print(f"Office: {member['OfficeName']}")
-    print(f"Phone: {member['MemberPreferredPhone']}")
-```
+The client returns JSON fields without converting values. Common fields used by
+the implementation and tests include `MemberKey`, `MemberMlsId`,
+`MemberFirstName`, `MemberLastName`, `MemberFullName`, `MemberEmail`,
+`MemberPreferredPhone`, `MemberStatus`, `OfficeKey`, and `OfficeName`.
+An expanded `Office` may contain the related record. Fields may be absent or null;
+use metadata to establish the schema required by your application.
 
-### `get_member_by_mls_id()`
+`wfrmls.member.MemberStatus` defines `ACTIVE="Active"`, `INACTIVE="Inactive"`,
+and `SUSPENDED="Suspended"`. `MemberType` defines `AGENT="Agent"`,
+`BROKER="Broker"`, and `ASSISTANT="Assistant"`. These enums do not enforce
+service lookup values. Use `.value` when building a filter; passing an enum itself
+does not automatically serialize its string value.
 
-Retrieve detailed information for a specific member by MLS ID.
+## Handle errors
 
-```python
-def get_member_by_mls_id(mls_id: str) -> Dict[str, Any]
-```
+HTTP 400 raises `ValidationError`; HTTP 401 raises `AuthenticationError`; HTTP 404
+raises `NotFoundError`; HTTP 429 raises `RateLimitError`; HTTP 5xx raises
+`ServerError`. Request failures raise `NetworkError`. Other unsuccessful responses
+raise `WFRMLSError`. See the [exception reference](exceptions.md) for details.
 
-**Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `mls_id` | `str` | MLS ID of the member to retrieve |
+## Related references
 
-**Returns:**
-- `Dict[str, Any]` - Member dictionary with office information included
-
-**Raises:**
-- `NotFoundError` - If no member with the given MLS ID is found
-- `WFRMLSError` - If the API request fails
-
-**Examples:**
-
-```python
-# Get agent details by MLS ID
-agent = client.member.get_member_by_mls_id("4020986")
-
-print(f"Agent: {agent['MemberFullName']}")
-print(f"Email: {agent['MemberEmail']}")
-print(f"Office: {agent['OfficeName']}")
-```
-
----
-
-## 🏷️ Field Reference
-
-### Core Identification Fields
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberKeyNumeric** | `integer` | Numeric member key | `40` |
-| **MemberKey** | `string` | Unique member identifier | `"40"` |
-| **MemberMlsId** | `string` | MLS member ID | `"40"` |
-| **MemberNationalAssociationId** | `string` | National association ID | `"835504500"` |
-| **OriginatingSystemMemberKey** | `string` | Source system key | `"993c6306..."` |
-| **OriginatingSystemName** | `string` | Source system name | `"UtahRealEstate.com"` |
-
-### Personal Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberFirstName** | `string` | First name | `"Liz"` |
-| **MemberLastName** | `string` | Last name | `"Memmott"` |
-| **MemberMiddleName** | `string` | Middle name | `""` |
-| **MemberFullName** | `string` | Full name | `"Liz Memmott"` |
-
-### Contact Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberAddress1** | `string` | Primary address | `"3527 Summeroaks Circle"` |
-| **MemberAddress2** | `string` | Secondary address | `""` |
-| **MemberCity** | `string` | City | `"Salt Lake City"` |
-| **MemberStateOrProvince** | `string` | State | `"UT"` |
-| **MemberPostalCode** | `string` | ZIP code | `"84121"` |
-| **MemberCountry** | `string` | Country | `""` |
-| **MemberCountyOrParish** | `string` | County | `""` |
-
-### Phone & Communication
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberPreferredPhone** | `string` | Preferred phone | `"801-231-1705"` |
-| **MemberOfficePhone** | `string` | Office phone | `"801-567-4000"` |
-| **MemberMobilePhone** | `string` | Mobile phone | `"801-231-1705"` |
-| **MemberFax** | `string` | Fax number | `"801-567-4001"` |
-
-### Office Association
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **OfficeKeyNumeric** | `integer` | Office numeric key | `69433` |
-| **OfficeKey** | `string` | Office identifier | `"69433"` |
-| **OfficeMlsId** | `string` | Office MLS ID | `"69433"` |
-| **OfficeName** | `string` | Office name | `"Coldwell Banker Realty (Union Heights)"` |
-
-### Professional Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberStatus** | `string` | Member status | `"Active"`, `"Inactive"` |
-| **MemberType** | `string` | Member type | `"MLS Only Salesperson"`, `"MLS Only Broker"` |
-| **MemberAOR** | `string` | Association of Realtors | `"Salt Lake Board"` |
-| **MemberAORkey** | `string` | AOR key | `"M00000628"` |
-| **MemberStateLicense** | `string` | State license number | `"5452690"` |
-| **MemberStateLicenseState** | `string` | License state | `"UT"` |
-| **MemberDesignation** | `string` | Professional designations | `"Associate Broker (AB),Accredited Buyer's Representative / ABR"` |
-
-### System Information
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **MemberMlsAccessYN** | `boolean` | Has MLS access | `true` |
-| **ModificationTimestamp** | `datetime` | Last modified | `"2025-05-27T17:11:03Z"` |
-| **OriginalEntryTimestamp** | `datetime` | Original entry date | `null` |
-
----
-
-## 🔍 Common Query Patterns
-
-### Status Filtering
-
-```python
-# Active members only
-active_members = client.member.get_active_members(top=50)
-
-# Inactive members
-inactive = client.member.get_members(
-    filter_query="MemberStatus eq 'Inactive'",
-    select=["MemberKey", "MemberFullName", "MemberStatus"]
-)
-```
-
-### Name Searches
-
-```python
-# Search by last name
-smiths = client.member.search_members_by_name(last_name="Smith")
-
-# Search by first name
-johns = client.member.get_members(
-    filter_query="startswith(MemberFirstName, 'John')"
-)
-
-# Full name contains
-client.member.get_members(
-    filter_query="contains(MemberFullName, 'Williams')"
-)
-```
-
-### Office Queries
-
-```python
-# Members from specific office
-office_members = client.member.get_members(
-    filter_query="OfficeKey eq '69433'",
-    select=["MemberFullName", "MemberType", "MemberStatus"]
-)
-
-# Members by office name
-coldwell_agents = client.member.get_members(
-    filter_query="contains(OfficeName, 'Coldwell')"
-)
-```
-
-### Professional Filters
-
-```python
-# Brokers only
-brokers = client.member.get_members(
-    filter_query="MemberType eq 'MLS Only Broker'"
-)
-
-# Members with specific designations
-abr_agents = client.member.get_members(
-    filter_query="contains(MemberDesignation, 'ABR')"
-)
-
-# Members by AOR
-salt_lake_members = client.member.get_members(
-    filter_query="MemberAOR eq 'Salt Lake Board'"
-)
-```
-
-### Contact Information
-
-```python
-# Members with mobile phones
-with_mobile = client.member.get_members(
-    filter_query="MemberMobilePhone ne null",
-    select=["MemberFullName", "MemberMobilePhone"]
-)
-
-# Members in specific city
-salt_lake_agents = client.member.get_members(
-    filter_query="MemberCity eq 'Salt Lake City'"
-)
-```
-
----
-
-## 📊 Pagination Examples
-
-### Iterating Through All Members
-
-```python
-def get_all_active_members():
-    """Retrieve all active members using pagination."""
-    all_members = []
-    skip = 0
-    page_size = 200  # Maximum allowed
-    
-    while True:
-        response = client.member.get_members(
-            filter_query="MemberStatus eq 'Active'",
-            top=page_size,
-            skip=skip,
-            orderby="MemberKey asc"
-        )
-        
-        members = response.get("value", [])
-        if not members:
-            break
-            
-        all_members.extend(members)
-        
-        # Check for next page
-        if "@odata.nextLink" not in response:
-            break
-            
-        skip += page_size
-    
-    return all_members
-```
-
-### Member Directory
-
-```python
-def create_member_directory(letter: str):
-    """Create alphabetical directory for members."""
-    
-    members = client.member.get_members(
-        filter_query=f"startswith(MemberLastName, '{letter}')",
-        select=[
-            "MemberKey", "MemberFullName", "MemberPreferredPhone",
-            "OfficeName", "MemberStatus"
-        ],
-        orderby="MemberLastName asc, MemberFirstName asc"
-    )
-    
-    return members["value"]
-
-# Get all members with last names starting with 'A'
-a_members = create_member_directory('A')
-```
-
----
-
-## ⚡ Performance Tips
-
-### Optimize Field Selection
-
-```python
-# ❌ Inefficient - retrieves all fields
-all_fields = client.member.get_members(top=100)
-
-# ✅ Efficient - only needed fields
-contact_list = client.member.get_members(
-    select=["MemberKey", "MemberFullName", "MemberPreferredPhone"],
-    top=100
-)
-```
-
-### Efficient Filtering
-
-```python
-# Combine filters to reduce result set
-active_brokers_in_salt_lake = client.member.get_members(
-    filter_query=(
-        "MemberStatus eq 'Active' and "
-        "MemberType eq 'MLS Only Broker' and "
-        "MemberCity eq 'Salt Lake City'"
-    ),
-    select=["MemberKey", "MemberFullName", "OfficeName"]
-)
-```
-
-### Batch Operations
-
-```python
-# Get multiple members by keys efficiently
-member_keys = ["40", "75", "13", "34"]
-filter_parts = [f"MemberKey eq '{key}'" for key in member_keys]
-filter_query = " or ".join(filter_parts)
-
-members = client.member.get_members(
-    filter_query=f"({filter_query})"
-)
+- [Office records](offices.md) for office keys and brokerage queries.
+- [Lookup values](lookup.md) for service-defined categories.
+- [Authentication](../getting-started/authentication.md) for credential setup.

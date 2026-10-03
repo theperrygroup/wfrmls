@@ -1,72 +1,53 @@
-# Legal
-
-Legal information for this project, including the repository license and pointers to the external terms that govern WFRMLS API access.
-
+---
+title: "Software licensing and MLS data use"
+description: "Distinguish the WFRMLS client MIT license from UtahRealEstate data agreements, IDX display rules, media permissions, and credential handling."
 ---
 
-## Quick Navigation
+# Software licensing and MLS data use
 
-<div class="grid cards" markdown>
+The WFRMLS Python package and its documentation use the
+[MIT License](license.md). That software license does not grant access to MLS
+data, photographs, or vendor services. Your UtahRealEstate agreement and
+applicable provider rules govern those uses.
 
--   :material-file-document:{ .lg .middle } **Project License**
+## Review your data agreement
 
-    ---
+Confirm that your agreement permits the intended application, resource scope,
+storage, retention, redistribution, and display. Use the
+[UtahRealEstate vendor portal](https://vendor.utahrealestate.com) for your
+account's access and service documentation.
 
-    Review the MIT license used by this repository.
+For IDX uses, the provider's
+[Rules and Regulations, effective February 27, 2026](https://help.utahrealestate.com/wp-content/uploads/2026/03/URE-Rules-and-Regulations-Effective-02-27-26.pdf)
+include requirements for permitted fields and statuses, seller restrictions,
+brokerage/source identification, consumer-use notices, and refresh frequency.
+Apply the rules for your feed and intended use; an example query does not
+establish display eligibility or compliance.
 
-    [:octicons-arrow-right-24: Project License](license.md)
+## Check media permissions
 
--   :material-gavel:{ .lg .middle } **WFRMLS API Terms**
+An accessible `MediaURL` does not establish rights to permanently retain,
+redistribute, or modify an image. Check your agreement and any media permission
+fields. RESO discusses media permissions in its
+[data FAQ](https://www.reso.org/knowledge-base/data-topics-faq/).
 
-    ---
+The client's media expansion example is a retrieval pattern. It does not
+authorize image downloading, public display, or reuse in marketing.
 
-    Review vendor-managed terms and licensing requirements.
+## Protect credentials and restricted data
 
-    [:octicons-arrow-right-24: WFRMLS Vendor Portal](https://vendor.utahrealestate.com)
+Keep bearer tokens outside committed source and rotate them using the provider's
+process. Avoid putting tokens, full response bodies, restricted remarks, or
+personal data into logs and test fixtures. Access restrictions apply to local
+caches and diagnostic exports as well as public pages.
 
-</div>
+Use the [authentication guide](../getting-started/authentication.md) for token
+configuration and the [synchronization guide](../guides/data-sync.md) for
+checkpoint and reconciliation boundaries. Follow your agreement when a record
+is withdrawn or your access changes.
 
----
+## Read the software license
 
-## What This Section Covers
-
-This documentation separates two things that are easy to conflate:
-
-- The **project license** for the Python package in this repository.
-- The **API access terms** and licensing obligations that come from WFRMLS and the UtahRealEstate vendor platform.
-
----
-
-## Project License
-
-This repository is distributed under the **MIT License**. The full text is available on the **[License](license.md)** page and in the repository root `LICENSE` file.
-
----
-
-## WFRMLS API Terms
-
-Use of the underlying MLS data and API is governed by WFRMLS and vendor-issued agreements, not by this repository alone.
-
-Before using the client in production, review:
-
-- Your WFRMLS or UtahRealEstate vendor agreement.
-- Any data-display, attribution, and redistribution requirements tied to your account.
-- Operational limits such as authentication, rate limits, and permitted downstream use.
-
-See the **[WFRMLS vendor portal](https://vendor.utahrealestate.com)** for the current source of truth.
-
----
-
-## Practical Reminders
-
-- Do not hardcode bearer tokens in source control.
-- Validate your application's data-display requirements with your vendor agreement.
-- Treat this page as documentation guidance, not legal advice.
-
----
-
-## Related Documentation
-
-- **[Reference Guide](../reference/index.md)** - Shared data and response conventions.
-- **[Development Guide](../development/index.md)** - Local workflow and documentation expectations.
-- **[Authentication Guide](../getting-started/authentication.md)** - Credential setup for local use.
+The full [MIT license text](license.md) is copied from the repository's `LICENSE`
+file. Preserve its notice when redistributing the software or substantial
+portions of it. Data-use rights must be obtained separately from the provider.

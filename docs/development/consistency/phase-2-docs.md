@@ -1,55 +1,59 @@
-# Phase 2: Docs
+---
+title: "Phase 2: Verify documentation and examples"
+description: "Audit WFRMLS documentation against source and primary provider guidance, verify mocked examples, and validate navigation with a strict MkDocs build."
+---
 
-Set the shell variables from `index.md` first. Run every command from the
-repository root.
+# Phase 2: Verify documentation and examples
 
-## Objective
+Start from an identified repository commit and use the
+[Python 3.11 docs environment](../index.md). The objective is useful, accurate
+documentation with verifiable examples and working navigation.
 
-Make the published docs truthful, navigable, and consistent with the code and
-workflows.
-
-## 1. Audit The Docs Surface
+## Inventory pages and advertised behavior
 
 ```bash
 rg --files docs
-rg '^nav:' -A 200 mkdocs.yml
+rg '^nav:' -A 100 mkdocs.yml
 rg 'pre-commit|make |Python 3\.[0-9]|pytest|mypy|black|isort|flake8' README.md docs
 ```
 
-Use the output to find stale version claims, missing pages, and commands that
-no longer match the repo.
+Review every page in scope, including indexes and contributor runbooks. Verify
+method names, parameters, imports, response shapes, exception mapping, paging,
+timeouts, retries, and credential handling against source and tests.
 
-## 2. Normalize The Docs Structure
+Provider quotas, access, schema, deletion retention, and display rights require
+current provider evidence. Link primary sources near supported claims and
+identify unavailable evidence. Copied historical provider pages are not a
+verified current contract.
 
-- Keep `docs/index.md`, `getting-started/`, `api/`, `reference/`, and
-  `development/` aligned with the other libraries.
-- Add this `docs/development/consistency/` runbook set to the nav so it is a
-  first-class docs surface instead of an orphaned directory.
-- Keep examples and changelog pages current enough that release notes, docs,
-  and README do not contradict each other.
-- If the repo has both a root `STYLE_GUIDE.md` and a docs copy, define which
-  one owns content and cross-link the other.
+## Improve navigation and page metadata
 
-## 3. Normalize Contributor Guidance
+Keep each `mkdocs.yml` entry connected to a real file. Add unique, accurate
+frontmatter descriptions and descriptive headings. Check relative links,
+code examples, and rendered tables rather than adding text to meet a word count.
 
-- Ensure contributor docs use the real repo URL, the real Python version
-  floor, and the real install and test commands.
-- Remove references to `pre-commit`, `make`, helper scripts, or docs pages
-  that do not exist, or add the missing files as part of the same pass.
-- Make release docs match the actual workflow behavior and publish mechanism.
+Use [docs/STYLE_GUIDE.md](../../STYLE_GUIDE.md) for writing guidance and the
+[code style page](../style-guide.md) for the separate Python conventions.
 
-## 4. Validate Docs Locally
+## Verify examples and the rendered site
+
+Compile Python snippets, then execute network examples with mocked responses.
+Include empty collections, single-entity normalization, page failure, invalid
+continuation URLs, and checkpoint preservation where those behaviors matter.
+Never use real tokens or provider calls as a substitute for isolated example tests.
 
 ```bash
-python -m pip install --upgrade pip
 python -m pip install -e .
 python -m pip install -r docs/requirements.txt
-mkdocs build --strict
+mkdocs build --strict --clean
 ```
 
-## Done When
+Inspect representative rendered pages for readable code, headings, tables,
+descriptions, and links. A clean build is necessary but does not prove that
+an example performs the documented task.
 
-- Every nav item resolves.
-- README, docs, and contributing guidance say the same thing.
-- Docs build locally without ignored breakage.
-- The consistency runbooks are linked from `mkdocs.yml`.
+## Completion evidence
+
+Record pages reviewed, example checks, and the strict-build result. Verify any
+deployed documentation separately through the
+[workflow phase](phase-3-github-actions.md).

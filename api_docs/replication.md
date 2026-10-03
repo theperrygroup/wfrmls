@@ -1,30 +1,54 @@
 # Replication
 
-## Replication
+This page preserves historical provider reference material. See the
+[source and snapshot limitations](index.md#sources-and-snapshot-limits)
+and [official provider documentation](https://docs.utahrealestate.com/).
+Current account access and provider behavior have not been revalidated.
 
-### Pulling Data
+## Wrapper boundary
 
-To get started you will want to pull all records in the system. This can be done three different ways.
+The patterns below describe provider pagination. The Python wrapper does not
+persist checkpoints, schedule updates, reconcile a database, or automatically
+follow `@odata.nextLink`. Its `get_all_properties_paginated()` helper uses
+`$top`/`$skip`, collects results in memory, and catches page-fetch exceptions;
+a returned result can therefore be partial. Do not use that result alone as
+proof of a complete scan. See the [Python synchronization guide](../docs/guides/data-sync.md)
+and [property API reference](../docs/api/properties.md).
 
-The easiest way to repliate would be to follow the 'nextLink' at the bottom of each result set. This link can be followed to get the next page of results. Continue following the 'nextLink' until it no longer appears, or the API no longer returns a result set.
+## Pulling data
 
-For example, to replicate all Property records, make the initial request to the Property endoint.
+For an initial import, request records accessible to the vendor account. The
+retained provider guide describes continuation links, offset paging, and
+numeric-key paging. None establishes a transactionally consistent snapshot of
+a changing provider dataset.
+
+The retained guide recommends following the response's `@odata.nextLink` for
+subsequent pages. Persist each successfully fetched page and follow the supplied
+continuation until none is returned. A request error must fail the scan rather
+than be interpreted as an empty final page. The wrapper's `BaseClient.get()`
+expects a relative endpoint and does not accept an absolute continuation URL as
+a ready-to-follow URL; an application needs its own trusted provider continuation
+handling.
+
+For example, to replicate all Property records, make the initial request to the Property endpoint.
 
 `https://resoapi.utahrealestate.com/reso/odata/Property`
 
-Next, save the results to your database and look for the 'nextLink'
+Illustrative abbreviated response with a continuation link:
 
 ```json
 {
     "@odata.context": "$metadata#Property",
-    "value": [ .... ],
+    "value": [{"ListingKeyNumeric": 11031}],
     "@odata.nextLink": "https://resoapi.utahrealestate.com/reso/odata/Property?$skip=200"
 }
 ```
 
 Continue this pattern until all records have been pulled.
 
-Alternatively, replication can also be done by making requests to the endpoint using the query options **$top** and **$skip** The web API has a limit on how many records can be pulled at once. Currently, the default limit is set to 200 records per request. The **$top** and **$skip** query options can be used to offset the result set.
+Alternatively, use **$top** for a requested page size and **$skip** for an offset.
+The retained examples use 200-record pages; current provider page sizes may vary
+by vendor configuration. This is separate from a requests-per-second limit.
 
 For example, to get started replicating listings:
 
@@ -36,13 +60,17 @@ For example, to get started replicating listings:
 
 etc.
 
-Continue this pattern until the API no longer returns results, or until the number of replicated listings matches the count. See Query Options for how to get the count.
+Continue this pattern until the API no longer returns results, or until the number of replicated listings matches the count. See [query options](query-options.md#count) for counts. Counts can change during
+a scan and do not replace checking every page for request errors.
 
-Using the **$skip** option to paginate over large data sets can be time consuming. Especially when ordering by a non numeric, or non indexed field. As the **$skip** value gets larger, query response time may slow down. If paginating through a large data set, it is advised to order by the primary key, or an indexed field. For example, if replicating the entire Property resource, ordering by ListingKeyNumeric would be the fastest.
+Using the **$skip** option to paginate over large data sets can be time consuming. Especially when ordering by a non numeric, or non indexed field. As the **$skip** value gets larger, query response time may slow down. If paginating through a large data set, it is advised to order by the primary key, or an indexed field. For example, if replicating the entire Property resource, the historical guide recommends ordering by `ListingKeyNumeric`. Actual
+performance depends on the provider and query.
 
-### PHP example
+## PHP offset example
 
-The following is an example of full listing replication using PHP.
+The following PHP example demonstrates offset paging with fake credentials.
+The database operation is a placeholder; checkpoint persistence and consistent
+scan validation must be supplied by the application.
 
 ```php
 /* Get your Bearer token from the vendor details page */
@@ -59,8 +87,8 @@ $filters = array("StandardStatus eq Odata.Models.StandardStatus'Active'", "Prope
 
 $url .= '&$filter=' . implode(' and ', $filters);
 
-/* Apply the $top option. This is the number of listings that can be pulled in one request. 
-This value may vary depending on vendor configuration 
+/* Apply the $top option. This is the number of listings that can be pulled in one request.
+This value may vary depending on vendor configuration
 */
 
 $top = 200;
@@ -74,7 +102,7 @@ function getResponse($url, $token){
     $opts = [
         "http" => [
             "method" => "GET",
-            "header" => "Authorization: Bearer $token"
+            "header" => "Authorization: Bearer $token\r\nAccept: application/json"
         ]
     ];
 
@@ -83,11 +111,19 @@ function getResponse($url, $token){
     $url = str_replace(" ", "%20", $url);    //make sure white spaces are encoded
 
     $response = file_get_contents($url, false, $context);
+    if ($response === false) {
+        throw new RuntimeException('Provider request failed; scan is incomplete');
+    }
 
-    return $response;
+    $json = json_decode($response, true);
+    if (!is_array($json) || !isset($json['value']) || !is_array($json['value'])) {
+        throw new RuntimeException('Invalid provider page; scan is incomplete');
+    }
+
+    return $json;
 }
 
-/* Start the $skip option at 0. This is the offset and needs to be incremented by the value in $top with each request. */
+/* Start at offset 0 and advance by the number of records actually returned. */
 
 $skip = 0;
 
@@ -95,36 +131,40 @@ do{
 
     $request_url = $url . '&$skip=' . $skip;
 
-    $response = getResponse($request_url, $token);
-
-    $json = json_decode($response, true);
+    $json = getResponse($request_url, $token);
 
     $listings = $json['value'];
 
     foreach($listings as $listing){
 
-        //write or update $listing to db
+        // Persist $listing successfully before advancing this page checkpoint.
     }
 
-    $skip += $top;
+    $skip += count($listings);
 
 }while(count($listings) > 0);
 ```
 
-### Faster Replication
+## Numeric-key paging
 
-Using the **$skip** option to paginate over large data sets can be time consuming. As the **$skip** value gets larger, query response time may slow down. A faster alterative to using **$skip** would be to use the **$filter** option in combination with a numeric primary key.
+Using the **$skip** option to paginate over large data sets can be time consuming. As the **$skip** value gets larger, query response time may slow down. The historical guide offers **$filter** with a numeric primary key as an
+alternative to large offsets. Use a stable, unique key in ascending order and
+advance it only after successfully persisting the page.
 
 For example:
 
-1. Make the initial query. Make sure to order by the primary key:  
+1. Make the initial query. Make sure to order by the primary key:
    https://resoapi.utahrealestate.com/reso/odata/Property?$orderby=ListingKeyNumeric&$top=200
 2. After replicating each row, record the primary key of the last row. In this case, ListingKeyNumeric.
-3. Use the recorded key from the last query in a $filter to get the next 200 rows.  
+3. Use the recorded key from the last query in a $filter to get the next 200 rows.
    https://resoapi.utahrealestate.com/reso/odata/Property?$orderby=ListingKeyNumeric&$top=200&$filter=ListingKeyNumeric gt 11031
 4. Repeat step 2 and 3 until all rows have been replicated.
 
-The following is an example of full listing replication without $skip using PHP. It is on average 4 times faster than the methods listed above.
+The following PHP example demonstrates numeric-key paging without `$skip`.
+No current performance multiplier is established by this review. As in the
+offset example, database persistence is a placeholder. These are alternative
+standalone snippets; do not paste both `getResponse()` declarations into one
+PHP program.
 
 ```php
 /* Get your Bearer token from the vendor details page */
@@ -135,8 +175,8 @@ $token = 'YourBearerToken';
 
 $url = 'https://resoapi.utahrealestate.com/reso/odata/Property?$orderby=ListingKeyNumeric';
 
-/* Apply the $top option. This is the number of listings that can be pulled in one request. 
-This value may vary depending on vendor configuration 
+/* Apply the $top option. This is the number of listings that can be pulled in one request.
+This value may vary depending on vendor configuration
 */
 
 $top = 200;
@@ -150,7 +190,7 @@ function getResponse($url, $token){
     $opts = [
         "http" => [
             "method" => "GET",
-            "header" => "Authorization: Bearer $token"
+            "header" => "Authorization: Bearer $token\r\nAccept: application/json"
         ]
     ];
 
@@ -159,8 +199,16 @@ function getResponse($url, $token){
     $url = str_replace(" ", "%20", $url);    //make sure white spaces are encoded
 
     $response = file_get_contents($url, false, $context);
+    if ($response === false) {
+        throw new RuntimeException('Provider request failed; scan is incomplete');
+    }
 
-    return $response;
+    $json = json_decode($response, true);
+    if (!is_array($json) || !isset($json['value']) || !is_array($json['value'])) {
+        throw new RuntimeException('Invalid provider page; scan is incomplete');
+    }
+
+    return $json;
 }
 
 /* $last_key will record the primary key of the last row replicated, in this case ListingKeyNumeric */
@@ -176,65 +224,81 @@ do{
         $request_url .= '&$filter=ListingKeyNumeric%20gt%20' . $last_key;
     }
 
-    $response = getResponse($request_url, $token);
-
-    $json = json_decode($response, true);
+    $json = getResponse($request_url, $token);
 
     $listings = $json['value'];
 
     foreach($listings as $listing){
 
-        //write or update $listing to db
+        // Persist $listing successfully before advancing this page checkpoint.
     }
 
     $last_row = end($listings);
 
-    if(!empty($last_row)){
-
+    if (!empty($last_row)) {
+        if (!isset($last_row['ListingKeyNumeric']) ||
+            !is_numeric($last_row['ListingKeyNumeric']) ||
+            $last_row['ListingKeyNumeric'] <= $last_key) {
+            throw new RuntimeException('Invalid or non-advancing page key');
+        }
         $last_key = $last_row['ListingKeyNumeric'];
     }
 
 }while(count($listings) > 0);
 ```
 
-### Keeping up-to-date
+## Keeping data up to date
 
-To keep your records up-to-date you will need to make frequent requests to the API to get the latest changes. We recommend making an update request every 15 minutes.
+The retained provider material recommends 15-minute incremental pulls. Confirm
+the appropriate frequency and limits for the current vendor account. The Python
+wrapper supplies request helpers, not a scheduler or a persisted sync state.
 
-To get the latest changes use the **$filter** option to restrict records by their ModificationTimestamp.
+Use a durable UTC checkpoint, process every page successfully, and advance the
+checkpoint only after storing the full intended update window. Allow for records
+sharing a timestamp and changes arriving during a scan; an application may need
+a bounded window and overlap with idempotent updates.
 
-For example, if your last pull/update was on 9/01/2019 at 10am, you would want all records that have been updated since then.
+Use **$filter** on `ModificationTimestamp` to request changed records, and
+process all returned pages.
+
+For example, this historical query asks for records modified after September 1,
+2019 at 10:00 UTC:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$filter=ModificationTimestamp gt 2019-09-01T10:00:00Z`
 
 ```http
 GET /reso/odata/Property?$filter=ModificationTimestamp%20gt%202019-09-01T10:00:00Z HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-You could also use the $orderby query option to get the 200 most recent records.
+Sorting by `ModificationTimestamp desc` retrieves a recent page, but does not
+ensure that every change since the checkpoint has been fetched. It is unsuitable
+as the sole incremental replication strategy:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$orderby=ModificationTimestamp desc`
 
 ```http
 GET /reso/odata/Property?$orderby=ModificationTimestamp%20desc HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
-### Deleting old Data
+## Deleted records and access reconciliation
 
-If a record is removed from the system it may be necessary to purge old data from your database.
+The retained guide distinguishes provider deletions from records that become
+unavailable to a vendor. Reconcile records according to your licensing and
+retention requirements, with a validated complete scan where one is needed.
 
-You can use the 'Deleted' endpoint to query resources that have been deleted
+The historical `Deleted` endpoint reports records removed from the API. The
+wrapper exposes `client.deleted`; see the [Deleted API reference](../docs/api/deleted.md).
 
 `https://resoapi.utahrealestate.com/reso/odata/Deleted`
 
 ```http
 GET /reso/odata/Deleted HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 The query results will show the deleted resource, the primary key of the deleted row, and the date/time the record was removed.
@@ -269,9 +333,16 @@ Get all open houses deleted since a given date.
 
 The 'Deleted' resource only applies to records that have been removed from the API. It does not apply to a record that becomes unavailable to the vendor through a status change or other restriction.
 
-You can also use the **$select** query option to get just the primary keys for a resource and then delete any records in your database that are not in the list of keys.
+A full **$select** scan of keys can identify records no longer visible to the
+account. Treat absence as an access reconciliation signal, not proof of a
+provider deletion. Only act on missing keys after every page has succeeded and
+the scan has been validated; a partial response, changed filter, changed access,
+or request failure must not trigger bulk removal.
 
-For example, to remove all old properties the process would be similar to the "Pull" example above, but you would only be collecting the ListingKey, or ListingKeyNumeric. Once you have collected all ListingKeys you can delete the properties in your database that are not included in that list.
+For example, collect `ListingKeyNumeric` with the same account and scope as the
+local dataset, following every page. Compare the completed inventory with local
+keys and apply the application's authorized reconciliation policy. The requests
+below illustrate offset paging only; three pages are not a full inventory:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$top=200&$select=ListingKeyNumeric`
 
@@ -279,4 +350,7 @@ For example, to remove all old properties the process would be similar to the "P
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$top=200&$skip=400&$select=ListingKeyNumeric`
 
-etc. 
+etc.
+
+See [query options](query-options.md) for paging and field selection, and
+[OData endpoints](odata-endpoints.md#metadata) for key types in the schema snapshot.

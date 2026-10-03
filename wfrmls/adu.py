@@ -1,4 +1,4 @@
-"""Adu client for WFRMLS API."""
+"""Accessory dwelling unit query helpers for the WFRMLS client."""
 
 from datetime import date, datetime
 from enum import Enum
@@ -27,21 +27,25 @@ class AduStatus(Enum):
 
 
 class AduClient(BaseClient):
-    """Client for Accessory Dwelling Unit (ADU) API endpoints.
+    """Query the Adu resource with optional OData parameters.
 
-    The Adu resource contains information about accessory dwelling units
-    associated with properties. ADUs are secondary housing units on single-family
-    residential lots and are important for housing density and rental income potential.
+    The client returns provider JSON unchanged and does not define an exhaustive
+    field schema or verify the resource's current availability. It is available
+    through WFRMLSClient.adu, which constructs the service lazily.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the ADU client.
+        """Initialize a service client and require credentials immediately.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token, or None to read WFRMLS_BEARER_TOKEN.
+            base_url: API base URL. None uses
+                https://resoapi.utahrealestate.com/reso/odata.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -55,49 +59,41 @@ class AduClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get ADU data with optional OData filtering.
+        """Query one page of Adu records.
 
-        This method retrieves ADU information with full OData v4.0 query support.
-        Provides information about accessory dwelling units and their characteristics.
+        Query expressions, fields, and relationships are sent to the provider without
+        local schema validation. No default $count is sent.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Page size; the client sends min(top, 200) when provided.
+            skip: Number of records to skip, passed unchanged.
+            filter_query: OData filter string, passed unchanged.
+            select: Field list or comma-separated string; lists are joined with commas.
+            orderby: OData ordering string, passed unchanged.
+            expand: Relationship list or string; lists are joined with commas.
+            count: True or False sends the corresponding $count value. None omits it.
 
         Returns:
-            Dictionary containing ADU data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of ADU records
+            The server's JSON dictionary unchanged. Collection responses usually
+            contain value; OData metadata is included only when supplied by the server.
+            This method neither follows pagination links nor retries requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: For request failures through the shared HTTP client.
 
         Example:
             ```python
-            # Get all ADUs
-            adus = client.adu.get_adus()
+            from wfrmls import AduStatus, WFRMLSClient
 
-            # Get ADUs for existing units
-            adus = client.adu.get_adus(
-                filter_query="AduStatus eq 'Existing'",
-                orderby="CreatedDate desc"
-            )
-
-            # Get ADUs with property information
-            adus = client.adu.get_adus(
-                expand="Property",
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            response = client.adu.get_adus(
+                top=25,
+                filter_query=f"AduStatus eq '{AduStatus.EXISTING.value}'",
                 select=["AduKey", "ListingKey", "AduType", "AduStatus"],
-                top=50
+                count=True,
             )
+            for record in response.get("value", []):
+                print(record.get("AduKey"), record.get("AduType"))
             ```
         """
         params: Dict[str, Any] = {}
@@ -129,62 +125,31 @@ class AduClient(BaseClient):
         return self.get("Adu", params=params)
 
     def get_adu(self, adu_key: str) -> Dict[str, Any]:
-        """Get ADU by ADU key.
-
-        Retrieves a single ADU record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific accessory dwelling unit.
+        """Request a single record at Adu('<adu_key>').
 
         Args:
-            adu_key: ADU key to retrieve (unique identifier)
+            adu_key: Trusted key string, interpolated without escaping.
 
         Returns:
-            Dictionary containing ADU data for the specified record
+            The server's single-record JSON dictionary; no value wrapper is added.
 
         Raises:
-            NotFoundError: If the ADU with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific ADU by key
-            adu = client.adu.get_adu("ADU123456")
-
-            print(f"ADU Type: {adu['AduType']}")
-            print(f"Status: {adu['AduStatus']}")
-            print(f"Square Feet: {adu.get('SquareFeet', 'Unknown')}")
-            print(f"Bedrooms: {adu.get('Bedrooms', 'Unknown')}")
-            ```
+            NotFoundError: For a 404 response.
+            WFRMLSError: For other request failures.
         """
         return self.get(f"Adu('{adu_key}')")
 
     def get_adus_for_property(self, listing_key: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get ADUs for a specific property.
-
-        Convenience method to retrieve all ADUs associated with a property.
-        Useful for understanding accessory dwelling unit potential for a property.
+        """Query one page with the filter ListingKey eq '<listing_key>'.
 
         Args:
-            listing_key: Property listing key to filter by
-            **kwargs: Additional OData parameters
+            listing_key: Trusted listing key string, interpolated without escaping.
+            **kwargs: Query options for get_adus. A supplied filter_query
+                is appended with and without extra parentheses. Group expressions
+                containing or when they should apply together.
 
         Returns:
-            Dictionary containing ADUs for the specified property
-
-        Example:
-            ```python
-            # Get ADUs for a property
-            property_adus = client.adu.get_adus_for_property(
-                listing_key="1611952",
-                orderby="AduType asc"
-            )
-
-            # Get existing ADUs for a property
-            existing_adus = client.adu.get_adus_for_property(
-                listing_key="1611952",
-                filter_query="AduStatus eq 'Existing'"
-            )
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         property_filter = f"ListingKey eq '{listing_key}'"
 
@@ -198,29 +163,18 @@ class AduClient(BaseClient):
         return self.get_adus(**kwargs)
 
     def get_adus_by_type(self, adu_type: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get ADUs by type.
-
-        Convenience method to filter ADUs by type.
-        Useful for finding specific types of accessory dwelling units.
+        """Query one page with the filter AduType eq '<adu_type>'.
 
         Args:
-            adu_type: ADU type to filter by (e.g., "Detached", "Attached")
-            **kwargs: Additional OData parameters
+            adu_type: Trusted ADU type string, interpolated without escaping.
+            **kwargs: Query options for get_adus. A supplied filter_query
+                is appended with and without extra parentheses. Group expressions
+                containing or when they should apply together.
 
         Returns:
-            Dictionary containing ADUs of the specified type
+            The server response page unchanged, without automatic pagination.
 
-        Example:
-            ```python
-            # Get all detached ADUs
-            detached_adus = client.adu.get_adus_by_type(
-                adu_type="Detached",
-                expand="Property"
-            )
-
-            # Get garage conversion ADUs
-            garage_adus = client.adu.get_adus_by_type("Garage Conversion")
-            ```
+        Pass AduType members as .value; this helper does not unwrap enums.
         """
         type_filter = f"AduType eq '{adu_type}'"
 
@@ -234,29 +188,18 @@ class AduClient(BaseClient):
         return self.get_adus(**kwargs)
 
     def get_adus_by_status(self, adu_status: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get ADUs by status.
-
-        Convenience method to filter ADUs by status.
-        Useful for finding ADUs in specific development stages.
+        """Query one page with the filter AduStatus eq '<adu_status>'.
 
         Args:
-            adu_status: ADU status to filter by (e.g., "Existing", "Permitted")
-            **kwargs: Additional OData parameters
+            adu_status: Trusted ADU status string, interpolated without escaping.
+            **kwargs: Query options for get_adus. A supplied filter_query
+                is appended with and without extra parentheses. Group expressions
+                containing or when they should apply together.
 
         Returns:
-            Dictionary containing ADUs with the specified status
+            The server response page unchanged, without automatic pagination.
 
-        Example:
-            ```python
-            # Get existing ADUs
-            existing_adus = client.adu.get_adus_by_status(
-                adu_status="Existing",
-                orderby="CreatedDate desc"
-            )
-
-            # Get planned ADUs
-            planned_adus = client.adu.get_adus_by_status("Planned")
-            ```
+        Pass AduStatus members as .value; this helper does not unwrap enums.
         """
         status_filter = f"AduStatus eq '{adu_status}'"
 
@@ -270,108 +213,76 @@ class AduClient(BaseClient):
         return self.get_adus(**kwargs)
 
     def get_existing_adus(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get existing ADUs.
-
-        Convenience method to retrieve only existing/built ADUs.
-        Excludes planned, permitted, or under-construction units.
+        """Query one page using AduStatus eq 'Existing'.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_adus. An additional filter_query is
+                appended with and by get_adus_by_status.
 
         Returns:
-            Dictionary containing existing ADUs
-
-        Example:
-            ```python
-            # Get all existing ADUs
-            existing_adus = client.adu.get_existing_adus(
-                expand="Property",
-                orderby="CreatedDate desc"
-            )
-            ```
+            The server response page unchanged; provider status semantics are not
+            validated and subsequent pages are not fetched.
         """
         return self.get_adus_by_status("Existing", **kwargs)
 
     def get_permitted_adus(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get permitted ADUs.
-
-        Convenience method to retrieve ADUs that have permits but may not
-        be built yet. Useful for understanding development pipeline.
+        """Query one page using AduStatus eq 'Permitted'.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: Query options for get_adus. An additional filter_query is
+                appended with and by get_adus_by_status.
 
         Returns:
-            Dictionary containing permitted ADUs
-
-        Example:
-            ```python
-            # Get all permitted ADUs
-            permitted_adus = client.adu.get_permitted_adus()
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_adus_by_status("Permitted", **kwargs)
 
     def get_adus_with_property(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get ADUs with their property information expanded.
+        """Query one page with expand="Property".
 
-        This is a convenience method that automatically expands property
-        relationships to include property details in the response.
-        More efficient than making separate requests for ADUs and properties.
+        The provider determines whether the Property relationship is supported.
 
         Args:
-            **kwargs: OData parameters (top, filter_query, select, etc.)
+            **kwargs: Query options for get_adus, excluding expand. Passing expand
+                also raises TypeError because the helper supplies it explicitly.
 
         Returns:
-            Dictionary containing ADU data with expanded property relationships
-
-        Example:
-            ```python
-            # Get ADUs with property information
-            adus_with_props = client.adu.get_adus_with_property(
-                top=25
-            )
-
-            # Access property info for first ADU
-            first_adu = adus_with_props['value'][0]
-            if 'Property' in first_adu:
-                property_info = first_adu['Property']
-                print(f"ADU on property: {property_info['UnparsedAddress']}")
-            ```
+            The server response page unchanged, without automatic pagination.
         """
         return self.get_adus(expand="Property", **kwargs)
 
     def get_modified_adus(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get ADUs modified since a specific date/time.
+        """Query one page of records modified after a cutoff.
 
-        Used for incremental data synchronization to get only ADU records
-        that have been updated since the last sync. Useful for maintaining
-        up-to-date accessory dwelling unit information.
+        The generated filter is ModificationTimestamp gt '<timestamp>'. String
+        inputs are used unchanged. A date becomes YYYY-MM-DDT00:00:00Z; a datetime
+        becomes isoformat() + "Z" without time-zone conversion. An aware datetime
+        therefore produces an offset-plus-Z combination. Prefer a normalized UTC
+        string, as in the example.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: Cutoff string, date, or datetime.
+            **kwargs: Query options for get_adus. Do not pass filter_query:
+                the helper supplies it and a duplicate raises TypeError.
 
         Returns:
-            Dictionary containing ADUs modified since the specified time
+            One server response page unchanged, without automatic pagination.
 
         Example:
             ```python
             from datetime import datetime, timedelta, timezone
 
-            # Get ADUs modified in last week
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=7)
-            updates = client.adu.get_modified_adus(
-                since=cutoff_time
-            )
+            from wfrmls import WFRMLSClient
 
-            # Get ADUs modified since a specific date
-            updates = client.adu.get_modified_adus(
-                since="2023-01-01T00:00:00Z",
-                orderby="ModificationTimestamp desc"
+            client = WFRMLSClient()  # Requires WFRMLS_BEARER_TOKEN.
+            cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+            cutoff_utc = cutoff.isoformat().replace("+00:00", "Z")
+            response = client.adu.get_modified_adus(
+                since=cutoff_utc, top=200, orderby="ModificationTimestamp asc"
             )
+            print(len(response.get("value", [])))
             ```
         """
         if isinstance(since, datetime):

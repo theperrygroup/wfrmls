@@ -1,7 +1,6 @@
-"""Advanced analytics and utility functions for WFRMLS API.
+"""Sampled listing and member analytics built on the resource clients.
 
-This module provides higher-level analytics functions and utilities that work
-across multiple API endpoints to provide comprehensive real estate market insights.
+Reports use fixed-size response pages and do not represent a complete market.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -10,17 +9,19 @@ from typing import Any, Dict, Optional
 
 
 class WFRMLSAnalytics:
-    """Advanced analytics and market intelligence for WFRMLS data.
+    """Calculate report dictionaries from sampled property and member responses.
 
-    Provides comprehensive analysis capabilities that combine data from multiple
-    endpoints to generate market insights, trends, and reports.
+    The helpers do not paginate. They generally catch exceptions and return an
+    error dictionary rather than raising. Always check for error before reading
+    report-specific fields. These summaries are not completed-sales, commission,
+    or complete-market measurements.
     """
 
     def __init__(self, client: Any) -> None:
-        """Initialize analytics with a WFRMLS client.
+        """Store the client used to retrieve property/member samples.
 
         Args:
-            client: WFRMLSClient instance to use for data retrieval
+            client: WFRMLSClient or a compatible object exposing property and member clients.
         """
         self.client = client
 
@@ -30,38 +31,22 @@ class WFRMLSAnalytics:
         days_back: int = 30,
         property_type: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Generate comprehensive market summary for a specified area.
-
-        Combines property listings, recent sales, and market activity to provide
-        a complete market overview.
+        """Summarize up to 200 active and 200 recent-active property records.
 
         Args:
-            city: City name to analyze (None for all areas)
-            days_back: Number of days to include in analysis (default: 30)
-            property_type: Property type to focus on (default: all types)
+            city: Optional City filter, default None.
+            days_back: Contract-date cutoff for the second request, default 30.
+            property_type: Optional PropertyType filter, default None.
 
         Returns:
-            Dictionary containing comprehensive market analysis
+            Dictionary with inventory, pricing, activity, report labels, and timestamp;
+            or a dictionary containing error if a request or calculation fails.
 
-        Example:
-            ```python
-            from wfrmls import WFRMLSClient
-            from wfrmls.analytics import WFRMLSAnalytics
-
-            client = WFRMLSClient()
-            analytics = WFRMLSAnalytics(client)
-
-            # Get market summary for Salt Lake City
-            summary = analytics.get_market_summary(
-                city="Salt Lake City",
-                days_back=60,
-                property_type="Residential"
-            )
-
-            print(f"Active listings: {summary['inventory']['active_listings']}")
-            print(f"Average price: ${summary['pricing']['average_price']:,.0f}")
-            print(f"Days on market: {summary['activity']['avg_days_on_market']}")
-            ```
+        Note:
+            This uses active listings, not recent sales or a server-wide count. The
+            contract-date filter currently appends Z to an offset-bearing UTC string
+            such as ...+00:00Z, which a provider may reject. Prices/days on market
+            reflect only records returned in these unpaginated samples.
         """
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
@@ -165,33 +150,21 @@ class WFRMLSAnalytics:
         property_type: Optional[str] = None,
         price_segments: int = 5,
     ) -> Dict[str, Any]:
-        """Analyze price trends and market segmentation.
-
-        Provides detailed price analysis including price segments, trends,
-        and comparative market analysis.
+        """Segment positive prices from one Active-listing page of up to 200 records.
 
         Args:
-            city: City name to analyze
-            days_back: Number of days to include in analysis
-            property_type: Property type to focus on
-            price_segments: Number of price segments to create
+            city: Optional City filter, default None.
+            days_back: Report label only; it is not used in a date filter, default 90.
+            property_type: Optional PropertyType filter, default None.
+            price_segments: Positive segment count no larger than valid record count, default 5.
 
         Returns:
-            Dictionary containing price trend analysis
+            Dictionary with overall_pricing, price_segments, market_insights, and sample
+            labels/counts; or an error dictionary for missing prices or calculation errors.
 
-        Example:
-            ```python
-            # Analyze price trends for luxury market
-            trends = analytics.analyze_price_trends(
-                city="Park City",
-                property_type="Residential",
-                price_segments=3
-            )
-
-            for segment in trends['price_segments']:
-                print(f"{segment['name']}: {segment['count']} properties")
-                print(f"  Price range: ${segment['min_price']:,.0f} - ${segment['max_price']:,.0f}")
-            ```
+        Note:
+            This is a sampled price distribution, not historical appreciation or
+            period-over-period price change. Empty segments cause an error result.
         """
         # Build filters
         filters = ["StandardStatus eq 'Active'"]
@@ -317,30 +290,23 @@ class WFRMLSAnalytics:
     def generate_agent_performance_report(
         self, days_back: int = 90, min_listings: int = 5
     ) -> Dict[str, Any]:
-        """Generate agent performance analysis based on listing activity.
-
-        Analyzes member/agent activity and performance metrics based on
-        their property listings and market presence.
+        """Aggregate matched member listing activity from two unpaginated samples.
 
         Args:
-            days_back: Number of days to analyze
-            min_listings: Minimum listings required for inclusion in report
+            days_back: Contract-date lookback for properties, default 90.
+            min_listings: Minimum sampled listing count for an included agent, default 5.
 
         Returns:
-            Dictionary containing agent performance metrics
+            Dictionary with summary, top_agents, labels, timestamp, and sample counts;
+            or an error dictionary if requests or calculations fail.
 
-        Example:
-            ```python
-            # Generate quarterly agent performance report
-            report = analytics.generate_agent_performance_report(
-                days_back=90,
-                min_listings=10
-            )
-
-            print(f"Top agents by listing count:")
-            for agent in report['top_agents']['by_listings'][:5]:
-                print(f"  {agent['name']}: {agent['listing_count']} listings")
-            ```
+        Note:
+            Retrieves up to 200 properties with Member expansion and 200 active members.
+            Aggregates by MemberFullName after matching MemberKey and returns the top
+            ten by sampled listing count, total list value, and average list price.
+            Duplicate display names can combine agents. The cutoff has the current
+            ...+00:00Z formatting limitation. No commissions or full-market totals
+            are calculated.
         """
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
         cutoff_str = cutoff_date.isoformat() + "Z"
@@ -469,26 +435,17 @@ class WFRMLSAnalytics:
             }
 
     def get_data_quality_report(self) -> Dict[str, Any]:
-        """Generate a comprehensive data quality assessment.
-
-        Analyzes data completeness, consistency, and quality across
-        different resources to identify potential data issues.
+        """Score selected fields in samples of up to 50 properties and 30 members.
 
         Returns:
-            Dictionary containing data quality metrics and recommendations
+            Dictionary with property_quality, member_quality, overall_quality_score,
+            issues, recommendations, timestamp, and GOOD/FAIR/NEEDS_ATTENTION status;
+            or an error dictionary if retrieval or calculations fail.
 
-        Example:
-            ```python
-            # Check overall data quality
-            quality_report = analytics.get_data_quality_report()
-
-            print(f"Property data completeness: {quality_report['property_quality']['completeness_score']:.1%}")
-
-            if quality_report['recommendations']:
-                print("Data quality recommendations:")
-                for rec in quality_report['recommendations']:
-                    print(f"  - {rec}")
-            ```
+        Note:
+            Falsey price, city, bedroom, size, and email values count as missing. An
+            empty property sample causes a caught division-by-zero error. Office
+            records, source accuracy, and complete datasets are not evaluated.
         """
         try:
             issues = []

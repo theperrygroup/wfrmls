@@ -1,290 +1,155 @@
-# WFRMLS Python Client
+# WFRMLS Python client for Utah real estate data
 
-A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API, providing easy access to all RESO-certified endpoints.
+[![CI](https://github.com/theperrygroup/wfrmls/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/theperrygroup/wfrmls/actions/workflows/ci.yml)
+[![Documentation](https://github.com/theperrygroup/wfrmls/actions/workflows/docs.yml/badge.svg?branch=master)](https://theperrygroup.github.io/wfrmls/)
+[![PyPI](https://img.shields.io/pypi/v/wfrmls)](https://pypi.org/project/wfrmls/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/theperrygroup/wfrmls/blob/master/LICENSE)
 
-## Release Note
+`wfrmls` is a Python client for the **Wasatch Front Regional MLS (WFRMLS)**
+RESO Web API from **UtahRealEstate.com**. Query property listings, agents,
+brokerages, and open houses with OData filters, field selection, and sorting.
+Use the resource clients to build listing search and data synchronization tools.
 
-`property.get_property()` now returns one normalized response shape: a single property dictionary. If the upstream API responds with an OData wrapper such as `{"value": [...]}`, the library unwraps it internally so callers can always read fields like `ParcelNumber` directly from the returned property object.
+**[Documentation](https://theperrygroup.github.io/wfrmls/) ·
+[Quick start](https://theperrygroup.github.io/wfrmls/getting-started/quickstart/) ·
+[API reference](https://theperrygroup.github.io/wfrmls/api/) ·
+[PyPI package](https://pypi.org/project/wfrmls/)**
 
-## ⚠️ Important Notice
+This repository contains the Python library, not the MLS service. Access to
+listing data requires a valid provider-issued bearer token and permission to
+use the requested resources. See the
+[UtahRealEstate.com vendor dashboard](https://vendor.utahrealestate.com/) for
+API access. The software's MIT license does not grant rights to MLS data.
 
-**Media, History, and Green Verification endpoints are currently unavailable** due to server-side issues (504 Gateway Timeouts and missing entity types). These features have been temporarily disabled until the server issues are resolved.
+## Installation
 
-## 🚀 Quick Start
+The library supports Python 3.8 and later. Building the documentation uses
+Python 3.11, as configured in the documentation workflow.
+
+```bash
+python -m pip install wfrmls
+```
+
+Set `WFRMLS_BEARER_TOKEN` in your application's environment, or pass
+`bearer_token` when constructing the client. Keep credentials out of source
+control, logs, and public examples. The client also loads a local `.env` file
+through `python-dotenv`; exclude that file from Git.
+
+## Query active property listings
+
+After configuring your token, run:
 
 ```python
 from wfrmls import WFRMLSClient
 
-# Initialize client with bearer token
-client = WFRMLSClient(bearer_token="your_bearer_token")
-
-# Or use environment variable WFRMLS_BEARER_TOKEN
 client = WFRMLSClient()
-
-# Get active properties
-properties = client.property.get_properties(
+response = client.property.get_properties(
     top=10,
-    filter_query="StandardStatus eq 'Active'"
+    filter_query="StandardStatus eq 'Active'",
+    select=["ListingId", "ListPrice", "City"],
+    orderby="ListPrice desc",
 )
 
-# Get property details
-property_detail = client.property.get_property("12345678")
-print(property_detail["ParcelNumber"])
-
-# Get member information
-members = client.member.get_active_members(top=10)
-
-# Get office information
-offices = client.office.get_active_offices(top=10)
+for listing in response.get("value", []):
+    print(listing.get("ListingId"), listing.get("ListPrice"), listing.get("City"))
 ```
 
-## 📦 Installation
+Collection methods return a dictionary containing a `value` list, plus any
+OData metadata returned by the server. Count records with
+`len(response.get("value", []))`, rather than `len(response)`.
+
+`client.property.get_property(listing_id)` returns one property dictionary.
+An empty wrapped result raises `NotFoundError`. Other resources' detail methods
+return the server's response; check their reference pages before assuming the
+same normalization.
+
+## Resource clients
+
+| Client attribute | Use |
+| --- | --- |
+| `property` | Property listings, city and price filters, and paginated retrieval. |
+| `member` | Real estate agents and office affiliations. |
+| `office` | Brokerages and office information. |
+| `openhouse` / `open_house` | Open house schedules and listing associations. |
+| `lookup` | Enumeration names and values. |
+| `adu` | Accessory dwelling unit records. |
+| `property_unit_types` | Property unit type records. |
+| `deleted` | Deletion records for data synchronization. |
+| `resource` | Resource metadata. |
+| `data_system` | Data system information. |
+
+`WFRMLSClient.get_service_document()` lists the resources available to your
+token. `get_metadata()` returns the provider's XML schema. Resource and field
+availability depend on your access and the provider's current service.
+
+`WFRMLSAnalytics` is a separate utility initialized with a client:
+`WFRMLSAnalytics(client)`. Its reports operate on retrieved samples, so they
+should not be treated as complete market statistics.
+
+## Behavior to account for
+
+- **Geolocation:** radius and polygon helpers raise `ValidationError`.
+  The near-address helper falls back to a city query or returns an empty error
+  payload; it does not geocode or apply the requested radius. Use
+  [city and address filters](https://theperrygroup.github.io/wfrmls/guides/geolocation/).
+- **Media and history:** `MediaClient`, `HistoryTransactionalClient`, and
+  `GreenVerificationClient` are exported standalone classes. There are no
+  `client.media`, `client.history`, or `client.green_verification` attributes.
+  Confirm provider access before using those classes; historical outage notes
+  do not establish current availability.
+- **Pagination:** `get_all_properties_paginated()` combines pages using
+  `$top` and `$skip`. It does not follow `@odata.nextLink` and silently returns
+  collected records if a request fails. `pagination_info` has no completeness
+  flag. Use explicit request/error handling for a reliable synchronization.
+- **Retries and timeouts:** ordinary resource requests have no automatic
+  retry, rate limiter, or request timeout. Configure the underlying service
+  session or application policy as described in the
+  [error handling](https://theperrygroup.github.io/wfrmls/guides/error-handling/)
+  and [rate limits](https://theperrygroup.github.io/wfrmls/guides/rate-limits/)
+  guides. HTTP 429 responses raise `RateLimitError`.
+
+## Learn more
+
+- [OData queries](https://theperrygroup.github.io/wfrmls/guides/odata-queries/):
+  filters, sorting, selected fields, and response metadata.
+- [Property search](https://theperrygroup.github.io/wfrmls/guides/property-search/):
+  supported listing search patterns.
+- [Data synchronization](https://theperrygroup.github.io/wfrmls/guides/data-sync/):
+  pagination, update checkpoints, and deletion handling.
+- [Examples](https://theperrygroup.github.io/wfrmls/examples/):
+  complete application patterns using the public client.
+
+The documentation site tracks `master`. For release-specific behavior, inspect
+the matching [release](https://github.com/theperrygroup/wfrmls/releases) and
+installed package version.
+
+## Development and contributions
 
 ```bash
-pip install wfrmls
-```
-
-## 🔧 Setup
-
-### Environment Variables
-
-Create a `.env` file in your project root:
-
-```env
-WFRMLS_BEARER_TOKEN=your_bearer_token_here
-```
-
-### Getting Your Bearer Token
-
-1. Visit the [Vendor Dashboard](https://vendor.utahrealestate.com)
-2. Login to your account
-3. Navigate to Service Details to retrieve your bearer token
-
-## 📚 API Reference
-
-### Core Resources
-
-- **Property** - Real estate listings and property data
-- **Member** - Real estate agent information  
-- **Office** - Brokerage and office details
-- **OpenHouse** - Open house schedules and events
-
-### Service Clients
-
-```python
-# Property operations
-client.property.get_properties()
-client.property.get_property(listing_id)
-client.property.search_properties_by_radius(lat, lng, radius)
-
-# Member (agent) operations  
-client.member.get_members()
-client.member.get_member(member_id)
-
-# Office operations
-client.office.get_offices()
-client.office.get_office(office_id)
-
-# Open house operations
-client.openhouse.get_open_houses()
-client.openhouse.get_open_house(openhouse_id)
-```
-
-## 🔍 Advanced Features
-
-### OData Query Support
-
-```python
-# Field selection
-properties = client.property.get_properties(
-    select=["ListingId", "ListPrice", "StandardStatus"],
-    top=50
-)
-
-# Complex filtering
-properties = client.property.get_properties(
-    filter_query="ListPrice ge 200000 and ListPrice le 500000 and StandardStatus eq 'Active'",
-    orderby="ListPrice desc"
-)
-
-# Include related data
-properties = client.property.get_properties(
-    expand=["Media", "Member"],
-    top=25
-)
-```
-
-### Geolocation Search
-
-```python
-# Search within radius (miles)
-properties = client.property.search_properties_by_radius(
-    latitude=40.7608,  # Salt Lake City
-    longitude=-111.8910,
-    radius_miles=10,
-    additional_filters="StandardStatus eq 'Active'"
-)
-
-# Search within polygon area
-polygon = [
-    {"lat": 40.7608, "lng": -111.8910},
-    {"lat": 40.7708, "lng": -111.8810},
-    {"lat": 40.7508, "lng": -111.8710},
-    {"lat": 40.7608, "lng": -111.8910}  # Close polygon
-]
-
-properties = client.property.search_properties_by_polygon(
-    polygon_coordinates=polygon,
-    additional_filters="PropertyType eq 'Residential'"
-)
-```
-
-### Data Synchronization
-
-```python
-from datetime import datetime, timedelta
-
-# Get incremental updates (recommended every 15 minutes)
-cutoff_time = datetime.utcnow() - timedelta(minutes=15)
-updates = client.property.get_properties(
-    filter_query=f"ModificationTimestamp gt {cutoff_time.isoformat()}Z"
-)
-
-# Track deletions for data integrity
-deleted_records = client.deleted.get_deleted(
-    filter_query="ResourceName eq 'Property'"
-)
-```
-
-## 🏗️ Architecture
-
-The client follows a modular architecture with service separation:
-
-```
-WFRMLSClient
-├── property          # Property listings
-├── member           # Real estate agents  
-├── office           # Brokerages/offices
-├── openhouse        # Open house events
-├── lookup           # Lookup tables
-├── adu              # Accessory Dwelling Units
-├── deleted          # Deletion tracking
-└── data_system      # API metadata
-```
-
-**Note**: Media, History, and Green Verification clients are currently disabled due to server-side issues.
-
-## ⚠️ Error Handling
-
-```python
-from wfrmls.exceptions import (
-    WFRMLSError, 
-    AuthenticationError, 
-    NotFoundError, 
-    RateLimitError
-)
-
-try:
-    property_data = client.property.get_property("12345678")
-    print(property_data["ParcelNumber"])
-except NotFoundError:
-    print("Property not found")
-except RateLimitError:
-    print("Rate limit exceeded - wait before retrying")  
-except AuthenticationError:
-    print("Invalid bearer token")
-except WFRMLSError as e:
-    print(f"API error: {e}")
-```
-
-`client.property.get_property(listing_id)` returns a single property dictionary, not an OData wrapper. Fields such as `ParcelNumber`, `ListPrice`, and `UnparsedAddress` are top-level keys on the returned object. Missing listings raise `NotFoundError`.
-
-## 📊 Utah Grid Address System
-
-The API supports Utah's unique grid address system:
-
-```python
-# Standard address: "123 Main Street"
-# Grid address: "1300 E 9400 S"
-
-# Grid addresses are automatically detected and handled
-properties = client.property.get_properties(
-    filter_query="StreetName eq '9400 S'"
-)
-```
-
-## 🚦 Rate Limits
-
-- **200 records** per request maximum
-- **15-minute** recommended update frequency for data sync
-- Use NextLink pagination for large datasets (more efficient than $skip)
-
-## 🧪 Development
-
-### Setup Development Environment
-
-```bash
-# Clone repository
 git clone https://github.com/theperrygroup/wfrmls.git
 cd wfrmls
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-
-# Install development dependencies
-pip install -e .[dev]
+# Mocked tests; no provider credentials or live API calls are needed.
+PYTHON_DOTENV_DISABLED=1 WFRMLS_BEARER_TOKEN='' \
+    python -m pytest tests/ --ignore=tests/test_integration.py
 ```
 
-### Running Tests
+See the [development guide](https://theperrygroup.github.io/wfrmls/development/)
+for Windows setup, documentation builds, and the quality checks used in CI.
+Follow the [code style guide](https://github.com/theperrygroup/wfrmls/blob/master/STYLE_GUIDE.md) and
+[documentation style guide](https://theperrygroup.github.io/wfrmls/STYLE_GUIDE/). Changes should include
+appropriate tests and accurate examples; use the current CI results for
+coverage evidence.
 
-```bash
-# Run tests with coverage
-pytest --cov=wfrmls --cov-report=html
+Report library bugs and documentation errors in
+[GitHub Issues](https://github.com/theperrygroup/wfrmls/issues). Include the
+package version, a minimal reproduction, and redacted error details. Direct
+token, data-access, and provider service questions to UtahRealEstate.com.
 
-# Run specific test file
-pytest tests/test_property.py
+## License
 
-# Run with verbose output
-pytest -v
-```
-
-### Code Quality
-
-```bash
-# Format code
-black wfrmls tests
-isort wfrmls tests
-
-# Lint code
-flake8 wfrmls tests
-pylint wfrmls
-
-# Type checking
-mypy wfrmls
-```
-
-## 📝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow the style guide in `STYLE_GUIDE.md`
-4. Ensure 100% test coverage
-5. Commit changes (`git commit -m 'Add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- [API Documentation](https://docs.utahrealestate.com)
-- [Vendor Dashboard](https://vendor.utahrealestate.com)
-- [RESO Standards](https://www.reso.org/)
-
-## 🆘 Support
-
-For API access issues, contact UtahRealEstate.com support.
-For library issues, open an issue in this repository. 
+The Python client is maintained in The Perry Group's repository and distributed
+under the [MIT License](https://github.com/theperrygroup/wfrmls/blob/master/LICENSE).

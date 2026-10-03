@@ -7,21 +7,23 @@ from .base_client import BaseClient
 
 
 class LookupClient(BaseClient):
-    """Client for lookup table data API endpoints.
+    """Client for HTTP queries on the Lookup resource.
 
-    The Lookup resource contains enumeration values and reference data used
-    throughout the MLS system. This includes property types, status values,
-    and other standardized lookup values.
+    Returns service JSON without schema normalization. Metadata, fields,
+    relationships, and permissions are determined by the configured service.
     """
 
     def __init__(
         self, bearer_token: Optional[str] = None, base_url: Optional[str] = None
     ) -> None:
-        """Initialize the lookup client.
+        """Initialize the Lookup resource client and validate credentials.
 
         Args:
-            bearer_token: Bearer token for authentication
-            base_url: Base URL for the API
+            bearer_token: Token string, or WFRMLS_BEARER_TOKEN when omitted.
+            base_url: Service URL; defaults to the UtahRealEstate.com OData URL.
+
+        Raises:
+            AuthenticationError: If no token is supplied or found in the environment.
         """
         super().__init__(bearer_token=bearer_token, base_url=base_url)
 
@@ -35,49 +37,34 @@ class LookupClient(BaseClient):
         expand: Optional[Union[List[str], str]] = None,
         count: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Get lookup data with optional OData filtering.
-
-        This method retrieves lookup table data with full OData v4.0 query support.
-        Provides access to enumeration values and reference data used in the system.
+        """Request one page from the Lookup collection.
 
         Args:
-            top: Number of results to return (OData $top, max 200 per API limit)
-            skip: Number of results to skip (OData $skip) - use with caution for large datasets
-            filter_query: OData filter query string for complex filtering
-            select: Fields to select (OData $select) - can be list or comma-separated string
-            orderby: Order by clause (OData $orderby) for result sorting
-            expand: Related resources to include (OData $expand) - can be list or comma-separated string
-            count: Include total count in results (OData $count)
+            top: Optional record limit; values above 200 are capped at 200.
+            skip: Optional number of records to skip.
+            filter_query: OData filter expression, forwarded without schema validation.
+            select: Field names as a list or comma-separated string.
+            orderby: OData ordering expression.
+            expand: Relationship names as a list or comma-separated string.
+            count: Send $count=true or $count=false; None omits the option.
 
         Returns:
-            Dictionary containing lookup data with structure:
-                - @odata.context: Metadata URL
-                - @odata.count: Total count (if requested)
-                - @odata.nextLink: Next page URL (if more results available)
-                - value: List of lookup records
+            Response dictionary unchanged. Collection responses normally contain
+            a value list and may contain OData context, count, and continuation data.
+            This method does not follow continuation links or retry requests.
 
         Raises:
-            WFRMLSError: If the API request fails
-            ValidationError: If OData query parameters are invalid
-            RateLimitError: If the rate limit is exceeded
+            WFRMLSError: HTTP or network errors, through the BaseClient subclasses.
 
         Example:
-            ```python
-            # Get all lookup data
-            lookups = client.lookup.get_lookups()
+            Set WFRMLS_BEARER_TOKEN before constructing the resource client::
 
-            # Get lookups for a specific resource
-            lookups = client.lookup.get_lookups(
-                filter_query="LookupName eq 'PropertyType'",
-                orderby="DisplayOrder asc"
-            )
+                from wfrmls import WFRMLSClient
 
-            # Get lookup values with specific fields
-            lookups = client.lookup.get_lookups(
-                select=["LookupKey", "LookupName", "LookupValue", "StandardLookupValue"],
-                top=100
-            )
-            ```
+                client = WFRMLSClient()
+                response = client.lookup.get_lookups(top=10)
+                for record in response.get("value", []):
+                    print(record)
         """
         params: Dict[str, Any] = {}
 
@@ -108,59 +95,38 @@ class LookupClient(BaseClient):
         return self.get("Lookup", params=params)
 
     def get_lookup(self, lookup_key: str) -> Dict[str, Any]:
-        """Get lookup by lookup key.
+        """Request one Lookup record by key.
 
-        Retrieves a single lookup record by its unique key.
-        This is the most efficient way to get detailed information about
-        a specific lookup value.
+        Requests Lookup('<key>') without collection query options. Keys are
+        interpolated directly; escape apostrophes as doubled quotes when needed.
 
         Args:
-            lookup_key: Lookup key to retrieve (unique identifier)
+            lookup_key: Record key string.
 
         Returns:
-            Dictionary containing lookup data for the specified record
+            The record's response dictionary unchanged, not a collection or None.
 
         Raises:
-            NotFoundError: If the lookup with the given key is not found
-            WFRMLSError: If the API request fails
-
-        Example:
-            ```python
-            # Get specific lookup by key
-            lookup = client.lookup.get_lookup("PROP_TYPE_RESIDENTIAL")
-
-            print(f"Lookup Name: {lookup['LookupName']}")
-            print(f"Value: {lookup['LookupValue']}")
-            print(f"Standard Value: {lookup.get('StandardLookupValue', 'N/A')}")
-            ```
+            NotFoundError: If the service reports HTTP 404.
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get(f"Lookup('{lookup_key}')")
 
     def get_lookups_by_name(self, lookup_name: str, **kwargs: Any) -> Dict[str, Any]:
-        """Get lookups by lookup name.
+        """Request lookups filtered by LookupName.
 
-        Convenience method to retrieve all lookup values for a specific lookup name.
-        Useful for getting all values for enumeration types like PropertyType,
-        PropertyStatus, etc.
+        An extra filter_query is appended with and without grouping. Parenthesize
+        expressions containing or; escape apostrophes in lookup names as doubled quotes.
 
         Args:
-            lookup_name: Lookup name to filter by (e.g., "PropertyType", "PropertyStatus")
-            **kwargs: Additional OData parameters
+            lookup_name: Service lookup category string.
+            **kwargs: get_lookups collection options, including an extra filter.
 
         Returns:
-            Dictionary containing lookups for the specified name
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all property type lookups
-            property_types = client.lookup.get_lookups_by_name(
-                lookup_name="PropertyType",
-                orderby="DisplayOrder asc"
-            )
-
-            # Get all property status lookups
-            statuses = client.lookup.get_lookups_by_name("PropertyStatus")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         name_filter = f"LookupName eq '{lookup_name}'"
 
@@ -174,73 +140,53 @@ class LookupClient(BaseClient):
         return self.get_lookups(**kwargs)
 
     def get_property_type_lookups(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get property type lookup values.
+        """Request lookups with LookupName equal to PropertyType.
 
-        Convenience method to retrieve all property type enumeration values.
-        Useful for understanding available property types in the system.
+        Calls get_lookups_by_name with the literal PropertyType category.
+        The service determines whether the category and its values are available.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: get_lookups collection options, including an extra filter.
 
         Returns:
-            Dictionary containing property type lookup values
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all property types
-            property_types = client.lookup.get_property_type_lookups(
-                orderby="DisplayOrder asc"
-            )
-
-            for prop_type in property_types.get('value', []):
-                print(f"Property Type: {prop_type['LookupValue']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_lookups_by_name("PropertyType", **kwargs)
 
     def get_property_status_lookups(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get property status lookup values.
+        """Request lookups with LookupName equal to PropertyStatus.
 
-        Convenience method to retrieve all property status enumeration values.
-        Useful for understanding available property statuses in the system.
+        The literal category is PropertyStatus, not StandardStatus or MlsStatus.
+        Use get_lookups_by_name for another service-defined status category.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: get_lookups collection options, including an extra filter.
 
         Returns:
-            Dictionary containing property status lookup values
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all property statuses
-            statuses = client.lookup.get_property_status_lookups()
-
-            for status in statuses.get('value', []):
-                print(f"Status: {status['LookupValue']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_lookups_by_name("PropertyStatus", **kwargs)
 
     def get_standard_lookups(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get standard RESO lookup values.
+        """Request lookups where StandardLookupValue is not null.
 
-        Convenience method to filter for standard RESO-defined lookup values.
-        These are the core lookup values defined by the RESO standard.
+        An extra filter_query is appended with and. This filter does not verify
+        standards compliance or completeness of the returned category values.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: get_lookups collection options, including an extra filter.
 
         Returns:
-            Dictionary containing standard RESO lookup values
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all standard lookups
-            standard_lookups = client.lookup.get_standard_lookups()
-
-            for lookup in standard_lookups.get('value', []):
-                print(f"Standard Lookup: {lookup['StandardLookupValue']}")
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         # Filter for lookups that have a StandardLookupValue (RESO standard lookups)
         standard_filter = "StandardLookupValue ne null"
@@ -255,24 +201,19 @@ class LookupClient(BaseClient):
         return self.get_lookups(**kwargs)
 
     def get_active_lookups(self, **kwargs: Any) -> Dict[str, Any]:
-        """Get active lookup values.
+        """Request lookups where IsActive is true.
 
-        Convenience method to filter for active/enabled lookup values.
-        Excludes deprecated or disabled lookup entries.
+        An extra filter_query is appended with and. The service must expose the
+        IsActive field for this filter to be accepted.
 
         Args:
-            **kwargs: Additional OData parameters
+            **kwargs: get_lookups collection options, including an extra filter.
 
         Returns:
-            Dictionary containing active lookup values
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all active lookups
-            active_lookups = client.lookup.get_active_lookups(
-                orderby="LookupName asc, DisplayOrder asc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         # Filter for active lookups (assuming IsActive field exists)
         active_filter = "IsActive eq true"
@@ -287,61 +228,41 @@ class LookupClient(BaseClient):
         return self.get_lookups(**kwargs)
 
     def get_lookup_names(self) -> Dict[str, Any]:
-        """Get lookup data for extracting unique lookup names.
+        """Request one collection page of lookup names.
 
-        Convenience method to get lookup data that can be used to discover
-        what lookup types are available. Returns the full response for
-        compatibility with test expectations.
+        Calls get_lookups(select=["LookupName"], orderby="LookupName asc"). It does not
+        deduplicate names, fetch all pages, or accept pagination arguments.
 
         Returns:
-            Dictionary containing lookup data with all available lookups
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            # Get all available lookups
-            lookups_response = client.lookup.get_lookup_names()
-
-            # Extract unique names from the response
-            names = set()
-            for item in lookups_response.get("value", []):
-                if "LookupName" in item:
-                    names.add(item["LookupName"])
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         return self.get_lookups(select=["LookupName"], orderby="LookupName asc")
 
     def get_modified_lookups(
         self, since: Union[str, date, datetime], **kwargs: Any
     ) -> Dict[str, Any]:
-        """Get lookups modified since a specific date/time.
+        """Request records with a ModificationTimestamp after the cutoff.
 
-        Used for incremental data synchronization to get only lookup records
-        that have been updated since the last sync. Useful for maintaining
-        up-to-date lookup values and enumeration data.
+        Builds ModificationTimestamp gt '<timestamp>'. Strings pass through unchanged.
+        A date becomes YYYY-MM-DDT00:00:00Z; datetime serialization appends Z to
+        isoformat(), so aware datetimes can include both an offset and Z. Prefer
+        an explicit UTC string such as 2026-01-01T00:00:00Z. The service determines
+        accepted temporal literal syntax; use the collection method's filter_query
+        for a different expression. Do not also pass filter_query here; duplicate
+        keywords raise TypeError.
 
         Args:
-            since: ISO format datetime string, date object, or datetime object for cutoff time
-            **kwargs: Additional OData parameters
+            since: ISO UTC string, date, or datetime.
+            **kwargs: Other get_lookups collection options.
 
         Returns:
-            Dictionary containing lookups modified since the specified time
+            Collection response dictionary unchanged, normally containing a value list.
 
-        Example:
-            ```python
-            from datetime import datetime, timedelta, timezone
-
-            # Get lookups modified in last month
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=30)
-            updates = client.lookup.get_modified_lookups(
-                since=cutoff_time
-            )
-
-            # Get lookups modified since a specific date
-            updates = client.lookup.get_modified_lookups(
-                since="2023-01-01T00:00:00Z",
-                orderby="ModificationTimestamp desc"
-            )
-            ```
+        Raises:
+            WFRMLSError: If the HTTP request or network operation fails.
         """
         if isinstance(since, datetime):
             since_str = since.isoformat() + "Z"

@@ -1,457 +1,208 @@
-# Deleted API
-
-Complete reference for the Deleted endpoint of the WFRMLS Python client.
-
+---
+description: Query Deleted records with exact resource and timestamp filters, legacy method aliases, and limits of aggregation, summaries, and monitoring helpers.
 ---
 
-## 🗑️ Overview
+# Deleted records API
 
-The Deleted API provides access to records that have been deleted from the MLS system. This endpoint is crucial for maintaining data synchronization and tracking removed listings, members, offices, and other resources.
+`DeletedClient` reads deletion records from the `Deleted` resource.
+It can help identify removed records, but it does not delete local data, restore records, or implement a complete synchronization workflow.
 
-### Key Features
+## Configure the client
 
-- **Deletion tracking** - Monitor removed records across all resources
-- **Timestamp filtering** - Find deletions within specific time ranges
-- **Resource identification** - Identify what type of record was deleted
-- **Synchronization support** - Keep local databases in sync
-- **Audit trail** - Track when records were removed
-
----
-
-## 📚 Methods
-
-### `get_deleted()`
-
-Retrieve deleted record information with optional filtering and pagination.
-
-```python
-def get_deleted(
-    top: Optional[int] = None,
-    skip: Optional[int] = None,
-    filter_query: Optional[str] = None,
-    select: Optional[List[str]] = None,
-    orderby: Optional[str] = None,
-    count: bool = False
-) -> Dict[str, Any]
+```text
+DeletedClient(bearer_token=None, base_url=None)
 ```
 
-**Parameters:**
+The service constructor accepts a bearer token or reads `WFRMLS_BEARER_TOKEN`.
+The default base URL is `https://resoapi.utahrealestate.com/reso/odata`.
+Direct construction requires credentials immediately. `WFRMLSClient` initializes it lazily and checks credentials when `.deleted` is first accessed.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `top` | `Optional[int]` | `None` | Maximum number of results to return (max 200) |
-| `skip` | `Optional[int]` | `None` | Number of results to skip (for pagination) |
-| `filter_query` | `Optional[str]` | `None` | OData filter expression |
-| `select` | `Optional[List[str]]` | `None` | List of fields to include in response |
-| `orderby` | `Optional[str]` | `None` | Field(s) to sort by (use 'ts' for timestamp) |
-| `count` | `bool` | `False` | Include total count in response metadata |
+Examples require a configured `WFRMLS_BEARER_TOKEN`.
+Check [service discovery](client.md) for the schema available to your account.
+The helpers and mocked tests use `ResourceName`, `ResourceRecordKey`, and `DeletedDateTime`.
+The library does not rename server fields such as `resource`, `primary_key`, or `ts`; those names cannot be substituted in helper results automatically.
 
-**Returns:**
-- `Dict[str, Any]` - Response dictionary with deleted record data
+## Query one page of deletion records
 
-**Examples:**
+```text
+get_deleted(top=None, skip=None, filter_query=None, select=None,
+            orderby=None, expand=None, count=None) -> Dict[str, Any]
+```
+
+| Parameter | Accepted type | Request behavior |
+| --- | --- | --- |
+| `top` | `int` or `None` | Sends `$top=min(top, 200)` when provided. |
+| `skip` | `int` or `None` | Sends `$skip` unchanged. |
+| `filter_query` | `str` or `None` | Sends the expression as `$filter`. |
+| `select` | `list[str]`, `str`, or `None` | Joins lists with commas for `$select`. |
+| `orderby` | `str` or `None` | Sends `$orderby` unchanged. |
+| `expand` | `list[str]`, `str`, or `None` | Joins lists with commas for `$expand`. |
+| `count` | `bool` or `None` | Sends `$count=true` or `$count=false`; `None` omits it. |
+
+Query expressions are not validated locally. The server determines supported fields, relationships, and operators.
+The method returns the server's JSON dictionary unchanged, usually with a `value` list.
+OData metadata such as `@odata.count` or `@odata.nextLink` is present only when the server supplies it.
+No method on this page follows pagination links automatically.
+
+## Filter by timestamp and resource
+
+```text
+get_deleted_by_resource(resource_name: Union[ResourceName, str], **kwargs) -> Dict[str, Any]
+get_deleted_since(since: Union[str, date], resource_name=None, **kwargs) -> Dict[str, Any]
+```
+
+`get_deleted_by_resource()` adds `ResourceName eq '<resource_name>'`.
+It accepts a `ResourceName` enum member or a string and unwraps enum values.
+
+`get_deleted_since()` adds `DeletedDateTime gt <since>` without quotes around the timestamp.
+An optional `resource_name` adds the same resource filter.
+Both helpers append a supplied `filter_query` with `and` and forward the remaining query keywords to `get_deleted()`.
+Parenthesize a custom expression containing `or` if it should apply as a group.
+Resource strings are interpolated without escaping; use trusted values.
 
 ```python
-from wfrmls import WFRMLSClient
+from datetime import datetime, timedelta, timezone
+
+from wfrmls import ResourceName, WFRMLSClient
 
 client = WFRMLSClient()
-
-# Get recent deletions
-deletions = client.deleted.get_deleted(top=10)
-
-# Get deletions for specific resource type
-property_deletions = client.deleted.get_deleted(
-    filter_query="resource eq 'Property'"
+cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+cutoff_utc = cutoff.isoformat().replace("+00:00", "Z")
+response = client.deleted.get_deleted_since(
+    since=cutoff_utc,
+    resource_name=ResourceName.PROPERTY,
+    top=200,
+    select=["ResourceName", "ResourceRecordKey", "DeletedDateTime"],
+    orderby="DeletedDateTime asc",
 )
 
-# Get deletions after a specific date
-from datetime import datetime, timedelta
+for record in response.get("value", []):
+    print(record.get("ResourceName"), record.get("ResourceRecordKey"))
+if response.get("@odata.nextLink"):
+    print("Additional pages remain; this response is not a complete sync.")
+```
 
-yesterday = datetime.now() - timedelta(days=1)
-recent_deletions = client.deleted.get_deleted(
-    filter_query=f"ts gt {yesterday.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+A string timestamp is used unchanged. A `date` becomes `YYYY-MM-DDZ`, without a midnight time component.
+Although `datetime` is a subclass of `date`, it is not a declared input type for these deletion helpers.
+It would become `isoformat() + "Z"`, without time-zone conversion.
+Use a full normalized UTC timestamp string, as above, to avoid ambiguous dates or offset-plus-`Z` combinations.
+
+### Resource constants and aliases
+
+`ResourceName` provides these filter constants:
+
+| Member | Value |
+| --- | --- |
+| `PROPERTY` | `Property` |
+| `MEMBER` | `Member` |
+| `OFFICE` | `Office` |
+| `OPENHOUSE` | `OpenHouse` |
+| `MEDIA` | `Media` |
+| `HISTORY_TRANSACTIONAL` | `HistoryTransactional` |
+| `PROPERTY_GREEN_VERIFICATION` | `PropertyGreenVerification` |
+| `PROPERTY_UNIT_TYPES` | `PropertyUnitTypes` |
+| `ADU` | `Adu` |
+
+Constants describe filter strings, not proof that a corresponding resource is available.
+The main client has no media, history, or green verification accessors. Standalone classes exist, but their presence does not verify provider availability.
+Filtering deletion records does not establish access to those resources.
+
+Each convenience method below accepts `**kwargs` for `get_deleted()` and returns one deletion page:
+
+| Method | Resource filter | Legacy alias |
+| --- | --- | --- |
+| `get_deleted_property_records(**kwargs)` | `Property` | `get_deleted_properties(**kwargs)` |
+| `get_deleted_member_records(**kwargs)` | `Member` | `get_deleted_members(**kwargs)` |
+| `get_deleted_office_records(**kwargs)` | `Office` | `get_deleted_offices(**kwargs)` |
+| `get_deleted_media_records(**kwargs)` | `Media` | None |
+| `get_deleted_open_houses(**kwargs)` | `OpenHouse` | This is the implemented method name. |
+
+There are no `get_recent_deletions()` or `get_deletions_by_resource()` methods.
+Use `get_deleted_since()` and `get_deleted_by_resource()` respectively.
+
+## Aggregate pages across resource types
+
+```text
+get_all_deleted_for_sync(since: Union[str, date], resource_types=None,
+                         **kwargs) -> Dict[str, Any]
+```
+
+`resource_types` accepts a list of enum members or strings.
+When omitted, the helper queries `Property`, `Member`, `Office`, `Media`, and `OpenHouse` in that order.
+It calls `get_deleted_since()` once per resource and concatenates only those returned pages.
+An empty list makes no requests. Pass query options such as `top` or `select`; do not pass `resource_name`, which the helper supplies itself.
+
+| Return key | Contents |
+| --- | --- |
+| `@odata.context` | Literal string `Comprehensive deletion sync`. |
+| `value` | Concatenated records from successful pages. |
+| `by_resource` | Resource name mapped to records from its page. |
+| `sync_info.total_deleted_records` | Number of concatenated records, not a provider total. |
+| `sync_info.resource_types_checked` | Length of the requested resource list. |
+| `sync_info.since_timestamp` | Supplied or converted timestamp string. |
+| `sync_info.resources_with_deletions` | Number of nonempty entries in `by_resource`. |
+
+!!! warning "Aggregation does not establish sync completion"
+    This helper catches every per-resource exception and records an empty list without an error indicator.
+    It discards pagination and count metadata. An empty result may mean a request failed, and successful results may have more pages.
+    For a sync that must detect failures, call `get_deleted_since()` for each resource, handle exceptions, and account for all pages before advancing your checkpoint.
+
+## Summarize one deletion page
+
+```text
+get_deletion_summary(since: Union[str, date], **kwargs) -> Dict[str, Any]
+```
+
+This calls `get_deleted_since()` once and builds a dictionary with `@odata.context="Deletion summary"`, the page's `value`, and a `summary` dictionary:
+
+- `total_deletions`: Number of records in that page.
+- `resource_types_affected`: Number of resource names represented.
+- `by_resource_count`: Counts grouped by `ResourceName`, defaulting to `Unknown` when missing.
+- `by_resource_latest`: Greatest `DeletedDateTime` string per resource; timestamps are compared as strings without parsing.
+- `analysis_period`: The cutoff and `analysis_timestamp`, generated as the local calendar date followed by `Z`.
+
+The summary does not include pagination metadata or a full timestamp for `analysis_timestamp`.
+It is not a total across the provider's result set.
+
+```python
+from wfrmls import ResourceName, WFRMLSClient
+
+client = WFRMLSClient()
+result = client.deleted.get_deletion_summary(
+    since="2024-01-01T00:00:00Z",
+    resource_name=ResourceName.PROPERTY,
+    top=200,
+    select=["ResourceName", "ResourceRecordKey", "DeletedDateTime"],
 )
+
+print("Records in this page:", result["summary"]["total_deletions"])
+for resource, count in result["summary"]["by_resource_count"].items():
+    print(resource, count)
 ```
 
-### `get_recent_deletions()`
+## Understand the monitoring helper
 
-Get deletions from the last N days.
-
-```python
-def get_recent_deletions(
-    days: int = 7,
-    resource_type: Optional[str] = None
-) -> Dict[str, Any]
+```text
+monitor_deletion_activity(hours_back: int = 24, alert_threshold: int = 100,
+                          **kwargs) -> Dict[str, Any]
 ```
 
-**Parameters:**
+This synchronous method computes a cutoff and summarizes one page. It does not schedule monitoring or send notifications.
+The return keys are `@odata.context`, `monitoring_period`, `summary`, `alerts`, `recommendations`, `status`, and `monitoring_timestamp`.
+`status` is `ALERT` when any alert string exists, otherwise `NORMAL`.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `days` | `int` | `7` | Number of days to look back |
-| `resource_type` | `Optional[str]` | `None` | Filter by resource type |
+A total greater than `alert_threshold` generates an alert.
+Each resource count is also compared with `alert_threshold // number_of_resource_types`; equality alone does not trigger that comparison.
+Recommendations are strings for the caller to interpret and do not execute cleanup.
 
-**Returns:**
-- `Dict[str, Any]` - Recent deletion records
+The current implementation appends `Z` to timezone-aware ISO timestamps, producing an offset-plus-`Z` cutoff and `monitoring_timestamp`.
+The provider may reject the generated cutoff. For an explicit valid cutoff, use `get_deletion_summary()` with a normalized UTC string instead.
 
-**Examples:**
+## Handle request failures
 
-```python
-# Get deletions from last 7 days
-recent = client.deleted.get_recent_deletions()
+Except for the aggregation helper's suppressed exceptions, failures propagate through the shared HTTP client.
+HTTP 400, 401, 404, 429, and 5xx responses raise `ValidationError`, `AuthenticationError`, `NotFoundError`, `RateLimitError`, and `ServerError` respectively.
+Request exceptions raise `NetworkError`; other unsuccessful statuses raise `WFRMLSError`.
+The client provides no automatic retries, deletion-retention guarantee, or record-recovery method.
 
-# Get property deletions from last 30 days
-property_deletions = client.deleted.get_recent_deletions(
-    days=30,
-    resource_type="Property"
-)
-```
-
-### `get_deletions_by_resource()`
-
-Get all deletions for a specific resource type.
-
-```python
-def get_deletions_by_resource(
-    resource_type: str,
-    top: Optional[int] = None
-) -> Dict[str, Any]
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|----------|------|-------------|
-| `resource_type` | `str` | Resource type (e.g., "Property", "Member") |
-| `top` | `Optional[int]` | Maximum number of results |
-
-**Returns:**
-- `Dict[str, Any]` - Deletions for the specified resource
-
----
-
-## 🏷️ Field Reference
-
-Each deleted record contains:
-
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| **resource** | `string` | Type of deleted resource | `"OpenHouse"` |
-| **primary_key** | `string` | ID of deleted record | `"337211"` |
-| **ts** | `datetime` | Deletion timestamp | `"2020-07-30T08:55:07Z"` |
-
-**Important Note:** The timestamp field is named `ts`, not `ModificationTimestamp` or `DeletedTimestamp`.
-
----
-
-## 🔍 Common Usage Patterns
-
-### Synchronization Process
-
-```python
-from datetime import datetime, timedelta
-
-def sync_deletions(last_sync_time: datetime):
-    """Synchronize deletions since last sync."""
-    
-    # Format timestamp for filter
-    sync_time_str = last_sync_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    
-    # Get all deletions since last sync
-    deletions = client.deleted.get_deleted(
-        filter_query=f"ts gt {sync_time_str}",
-        orderby="ts asc"
-    )
-    
-    # Group by resource type
-    deleted_by_type = {}
-    
-    for deletion in deletions["value"]:
-        resource_type = deletion["resource"]
-        if resource_type not in deleted_by_type:
-            deleted_by_type[resource_type] = []
-        
-        deleted_by_type[resource_type].append({
-            "id": deletion["primary_key"],
-            "deleted_at": deletion["ts"]
-        })
-    
-    # Process deletions
-    sync_results = {
-        "sync_time": datetime.now(),
-        "total_deletions": len(deletions["value"]),
-        "by_resource": {}
-    }
-    
-    for resource_type, records in deleted_by_type.items():
-        sync_results["by_resource"][resource_type] = {
-            "count": len(records),
-            "ids": [r["id"] for r in records]
-        }
-        
-        # Here you would actually delete from your database
-        # delete_from_database(resource_type, records)
-    
-    return sync_results
-
-# Sync deletions from last hour
-last_sync = datetime.now() - timedelta(hours=1)
-sync_result = sync_deletions(last_sync)
-```
-
-### Audit Trail Creation
-
-```python
-def create_deletion_audit_trail(days_back: int = 30):
-    """Create an audit trail of deletions."""
-    
-    # Calculate start date
-    start_date = datetime.now() - timedelta(days=days_back)
-    
-    # Get all deletions
-    deletions = client.deleted.get_deleted(
-        filter_query=f"ts gt {start_date.strftime('%Y-%m-%dT%H:%M:%SZ')}",
-        orderby="ts desc"
-    )
-    
-    # Create audit entries
-    audit_trail = []
-    
-    for deletion in deletions["value"]:
-        # Parse timestamp
-        deleted_at = datetime.fromisoformat(deletion["ts"].replace("Z", "+00:00"))
-        
-        audit_entry = {
-            "timestamp": deleted_at.isoformat(),
-            "action": "DELETE",
-            "resource_type": deletion["resource"],
-            "resource_id": deletion["primary_key"],
-            "date": deleted_at.date().isoformat(),
-            "time": deleted_at.time().isoformat()
-        }
-        
-        audit_trail.append(audit_entry)
-    
-    # Group by date for summary
-    deletions_by_date = {}
-    for entry in audit_trail:
-        date = entry["date"]
-        if date not in deletions_by_date:
-            deletions_by_date[date] = {
-                "total": 0,
-                "by_resource": {}
-            }
-        
-        deletions_by_date[date]["total"] += 1
-        
-        resource = entry["resource_type"]
-        if resource not in deletions_by_date[date]["by_resource"]:
-            deletions_by_date[date]["by_resource"][resource] = 0
-        deletions_by_date[date]["by_resource"][resource] += 1
-    
-    return {
-        "audit_trail": audit_trail,
-        "summary_by_date": deletions_by_date
-    }
-
-# Create audit trail
-audit = create_deletion_audit_trail(days_back=7)
-```
-
-### Monitoring Deletions
-
-```python
-def monitor_deletion_activity():
-    """Monitor deletion patterns and anomalies."""
-    
-    # Get recent deletions
-    recent = client.deleted.get_deleted(top=100, orderby="ts desc")
-    
-    if not recent["value"]:
-        return {"status": "No recent deletions"}
-    
-    # Analyze patterns
-    analysis = {
-        "total_recent": len(recent["value"]),
-        "by_resource": {},
-        "time_range": {
-            "oldest": None,
-            "newest": None
-        },
-        "deletion_rate": {}
-    }
-    
-    # Parse timestamps
-    timestamps = []
-    for deletion in recent["value"]:
-        resource = deletion["resource"]
-        timestamp = datetime.fromisoformat(deletion["ts"].replace("Z", "+00:00"))
-        timestamps.append(timestamp)
-        
-        if resource not in analysis["by_resource"]:
-            analysis["by_resource"][resource] = {
-                "count": 0,
-                "recent_ids": []
-            }
-        
-        analysis["by_resource"][resource]["count"] += 1
-        if len(analysis["by_resource"][resource]["recent_ids"]) < 5:
-            analysis["by_resource"][resource]["recent_ids"].append(
-                deletion["primary_key"]
-            )
-    
-    # Time range
-    if timestamps:
-        analysis["time_range"]["oldest"] = min(timestamps).isoformat()
-        analysis["time_range"]["newest"] = max(timestamps).isoformat()
-        
-        # Calculate deletion rate
-        time_span = max(timestamps) - min(timestamps)
-        if time_span.total_seconds() > 0:
-            hours = time_span.total_seconds() / 3600
-            analysis["deletion_rate"]["per_hour"] = round(
-                len(timestamps) / hours, 2
-            )
-    
-    # Flag anomalies
-    analysis["anomalies"] = []
-    
-    # Check for mass deletions
-    for resource, data in analysis["by_resource"].items():
-        if data["count"] > 50:
-            analysis["anomalies"].append({
-                "type": "mass_deletion",
-                "resource": resource,
-                "count": data["count"]
-            })
-    
-    return analysis
-
-# Monitor deletions
-monitoring_report = monitor_deletion_activity()
-```
-
-### Recovery Information
-
-```python
-def get_deletion_recovery_info(resource_type: str, record_id: str):
-    """Get information about a specific deletion for recovery purposes."""
-    
-    # Search for the deletion
-    result = client.deleted.get_deleted(
-        filter_query=f"resource eq '{resource_type}' and primary_key eq '{record_id}'"
-    )
-    
-    if result["value"]:
-        deletion = result["value"][0]
-        
-        # Parse deletion time
-        deleted_at = datetime.fromisoformat(
-            deletion["ts"].replace("Z", "+00:00")
-        )
-        
-        recovery_info = {
-            "found": True,
-            "resource_type": deletion["resource"],
-            "record_id": deletion["primary_key"],
-            "deleted_at": deleted_at.isoformat(),
-            "deleted_ago": str(datetime.now(deleted_at.tzinfo) - deleted_at),
-            "recovery_notes": []
-        }
-        
-        # Add recovery suggestions based on age
-        days_ago = (datetime.now(deleted_at.tzinfo) - deleted_at).days
-        
-        if days_ago < 7:
-            recovery_info["recovery_notes"].append(
-                "Recent deletion - may be recoverable through support"
-            )
-        elif days_ago < 30:
-            recovery_info["recovery_notes"].append(
-                "Deletion within 30 days - contact support for options"
-            )
-        else:
-            recovery_info["recovery_notes"].append(
-                "Deletion over 30 days old - recovery unlikely"
-            )
-        
-        return recovery_info
-    
-    return {
-        "found": False,
-        "resource_type": resource_type,
-        "record_id": record_id,
-        "message": "No deletion record found"
-    }
-
-# Check deletion info
-recovery = get_deletion_recovery_info("Property", "12345")
-```
-
-### Batch Cleanup
-
-```python
-def process_deletion_batch(batch_size: int = 100):
-    """Process deletions in batches for cleanup."""
-    
-    processed = 0
-    has_more = True
-    
-    while has_more:
-        # Get next batch
-        batch = client.deleted.get_deleted(
-            top=batch_size,
-            skip=processed,
-            orderby="ts asc"
-        )
-        
-        if not batch["value"]:
-            has_more = False
-            break
-        
-        # Process batch
-        for deletion in batch["value"]:
-            # Your cleanup logic here
-            print(f"Processing deletion: {deletion['resource']} - {deletion['primary_key']}")
-            
-            # Example: Remove from cache, update indexes, etc.
-            # cleanup_record(deletion['resource'], deletion['primary_key'])
-        
-        processed += len(batch["value"])
-        
-        # Check if we have more
-        if len(batch["value"]) < batch_size:
-            has_more = False
-        
-        # Add delay to avoid overwhelming the system
-        time.sleep(0.1)
-    
-    return {
-        "total_processed": processed,
-        "status": "completed"
-    }
-
-# Process deletions
-cleanup_result = process_deletion_batch()
-```
-
----
-
-## ⚡ Performance Tips
-
-1. **Use timestamp filtering** - Always filter by `ts` to limit results
-2. **Implement pagination** - Process large deletion sets in batches
-3. **Cache deletion data** - Store processed deletions to avoid reprocessing
-4. **Index by resource type** - Organize deletions by resource for efficiency
-5. **Regular cleanup** - Process deletions regularly to avoid large backlogs
-
----
-
-## 🚨 Important Notes
-
-- The timestamp field is `ts`, not `ModificationTimestamp`
-- Deletion records are typically retained for a limited time (varies by MLS)
-- Primary keys may be reused after deletion
-- Not all resource types may appear in deletion records
-- Always handle pagination for large deletion sets
-- Consider implementing retry logic for synchronization
+See [error handling](../guides/error-handling.md) and the [main client reference](client.md).

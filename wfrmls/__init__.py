@@ -1,26 +1,19 @@
-"""WFRMLS Python Client.
+"""WFRMLS Python API wrapper.
 
-A comprehensive Python wrapper for the Wasatch Front Regional MLS (WFRMLS) API,
-providing easy access to all RESO-certified endpoints.
+Set WFRMLS_BEARER_TOKEN before making requests. The main client exposes
+implemented listing, directory, metadata, and deletion service clients.
+MediaClient, HistoryTransactionalClient, and GreenVerificationClient remain
+standalone exports; WFRMLSClient has no media, history, or green attributes.
+Provider availability for those compatibility resources is not verified here.
 
 Example:
     ```python
     from wfrmls import WFRMLSClient
 
-    # Initialize client
-    client = WFRMLSClient(bearer_token="your_token")
-
-    # Get properties
-    properties = client.property.get_properties(top=10)
-
-    # Get open houses
-    open_houses = client.openhouse.get_upcoming_open_houses(days_ahead=7)
-
-    # Get property photos
-    photos = client.media.get_photos_for_property("1611952")
-
-    # Get transaction history
-    sales = client.history.get_recent_sales(days_back=30)
+    client = WFRMLSClient()
+    response = client.property.get_properties(top=10)
+    for listing in response.get("value", []):
+        print(listing.get("ListingId"), listing.get("ListPrice"))
     ```
 """
 

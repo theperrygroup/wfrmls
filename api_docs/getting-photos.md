@@ -1,19 +1,36 @@
 # Getting Photos
 
-## Photos
+This page preserves historical provider reference material. See the
+[source and snapshot limitations](index.md#sources-and-snapshot-limits)
+and [official provider documentation](https://docs.utahrealestate.com/).
+Current account access and provider behavior have not been revalidated.
+
+## Wrapper access and provider availability
+
+`client.property.get_properties_with_media()` implements a request with
+`$expand=Media`, but expanded media depends on provider access and behavior.
+The current `WFRMLSClient` has no `client.media` accessor. A standalone
+`MediaClient` remains exported; its existence does not establish current direct
+Media endpoint availability. See the [property API reference](../docs/api/properties.md)
+and [wrapper boundaries](index.md#protocol-and-wrapper-boundaries).
+
+## Historical provider patterns
 
 ### Getting photos with $expand
 
-The easiest way to get the photos for each listing is to use the **$expand** query option to append all Media resources that match with each property.
+The retained provider material uses **$expand=Media** to include related media
+with each property. Inspect the actual response for available media and any
+provider-imposed omissions; expansion is not a guarantee that all photos are
+returned or permitted for redistribution.
 
-For example, to get all images for each returned property.
+For example, to request related Media for each returned property:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property?$expand=Media`
 
 ```http
 GET /reso/odata/Property?$expand=Media HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Response:
@@ -33,7 +50,7 @@ Response:
                     "ResourceRecordID": "1723791",
                     "ResourceRecordKey": "1723791",
                     "LongDescription": "",
-                    "MediaURL": "https://.....jpg"
+                    "MediaURL": "https://example.com/property-photo.jpg"
                 }
             ]
         }
@@ -43,16 +60,21 @@ Response:
 
 ### Getting photos directly
 
-The Media resource can be queried directly. Each Media resource record is relataed to a Property resource through the ResourceRecordKeyNumeric field. Note that as of DD 1.7 ResourceRecordID and ResourceRecordKey are Strings and need to be surrounded with single quotes in the query string.
+The retained material also queries Media directly and joins it to Property
+through `ResourceRecordKeyNumeric`. The retained DD 1.7-era material and schema snapshot describe `ResourceRecordID`
+and `ResourceRecordKey` as strings, which are quoted in filter literals. The
+`ResourceRecordKeyNumeric` example below uses an unquoted numeric value. Confirm
+these field types against current metadata before using a direct provider query.
 
-For example, to get all images for a listing with a ListingKey of 1611952:
+For example, the historical query for `ListingKeyNumeric` 1611952 selects photo
+URLs with their order and sorts by that order:
 
-`https://resoapi.utahrealestate.com/reso/odata/Media?$filter=ResourceRecordKeyNumeric eq 1611952&$select=MediaURL`
+`https://resoapi.utahrealestate.com/reso/odata/Media?$filter=ResourceRecordKeyNumeric eq 1611952&$select=Order,MediaURL&$orderby=Order`
 
 ```http
-GET /reso/odata/Media?$filter=ResourceRecordKeyNumeric%20eq%201611952&$select=MediaURL HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
+GET /reso/odata/Media?$filter=ResourceRecordKeyNumeric%20eq%201611952&$select=Order,MediaURL&$orderby=Order HTTP/1.1
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
 ```
 
 Response:
@@ -80,12 +102,18 @@ Response:
 }
 ```
 
-You can also get the photos for a single listing by adding the Media resource to the end of a single lookup query.
+The retained material also shows navigation from a numeric Property entity key
+to Media. This is a raw provider path; there is no main-client Media navigation
+method implied by the example. Confirm the entity key and relationship in
+current metadata:
 
 `https://resoapi.utahrealestate.com/reso/odata/Property(1655273)/Media`
 
 ```http
 GET /reso/odata/Property(1655273)/Media HTTP/1.1
-Host: https://resoapi.utahrealestate.com
-Authorization: YourBearerToken
-``` 
+Host: resoapi.utahrealestate.com
+Authorization: Bearer YourBearerToken
+```
+
+See [query options](query-options.md) for field selection and relationship expansion.
+Photo URLs and records above are historical examples, not current media evidence.

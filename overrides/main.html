@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block htmltitle %}
+  {% if page and page.is_homepage %}
+    <title>{{ page.meta.get("title", config.site_name) | e }}</title>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if page and page.canonical_url %}
+    {% set title = page.meta.get("title", page.title) or config.site_name %}
+    {% set description = page.meta.get("description", config.site_description) %}
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ title | striptags | e }}">
+    <meta property="og:description" content="{{ description | e }}">
+    <meta property="og:url" content="{{ page.canonical_url | e }}">
+    <meta property="og:site_name" content="{{ config.site_name | e }}">
+    <meta property="og:locale" content="en_US">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ title | striptags | e }}">
+    <meta name="twitter:description" content="{{ description | e }}">
+    <script type="application/ld+json">
+      {{ {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "url": page.canonical_url,
+        "name": title | striptags,
+        "description": description,
+        "inLanguage": "en",
+        "isPartOf": {
+          "@type": "WebSite",
+          "name": config.site_name,
+          "url": config.site_url
+        }
+      } | tojson }}
+    </script>
+    {% if page.is_homepage %}
+      <script type="application/ld+json">
+        {{ {
+          "@context": "https://schema.org",
+          "@type": "SoftwareSourceCode",
+          "name": "wfrmls",
+          "description": config.site_description,
+          "url": config.site_url,
+          "codeRepository": config.repo_url,
+          "programmingLanguage": "Python",
+          "license": "https://github.com/theperrygroup/wfrmls/blob/master/LICENSE"
+        } | tojson }}
+      </script>
+    {% endif %}
+  {% endif %}
+{% endblock %}
