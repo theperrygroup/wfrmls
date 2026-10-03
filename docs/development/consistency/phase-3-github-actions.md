@@ -43,6 +43,10 @@ workflow has a clear purpose.
 ## 4. Normalize Security And Dependency Automation
 
 - Keep scheduled dependency audits and static analysis.
+- The code-quality and security jobs run `python -m pip_audit --format json`
+  against their installed environments and fail on known vulnerabilities.
+  Both upgrade `setuptools` to at least 83.0.0 before scanning; the security
+  job installs the library and its development dependencies as audit targets.
 - Use one dependency automation tool across the repo set. The recommended
   default is `Dependabot`. If this repo keeps Renovate, record that as an
   intentional exception.
