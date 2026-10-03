@@ -53,6 +53,35 @@ Tests that deliberately exercise the live API require separate, explicit
 authorization, licensed access, and isolated credentials. Keep token values
 and real MLS payloads out of test fixtures and published logs.
 
+## Check for embedded credentials
+
+Install the pinned [Gitleaks 8.30.1 release](https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1)
+for your platform, then check staged changes before committing:
+
+```bash
+gitleaks version
+python scripts/check_secret_rules.py
+gitleaks git . --pre-commit --staged --config .gitleaks.toml --redact=100 --ignore-gitleaks-allow
+```
+
+The dedicated Secrets Check workflow verifies the downloaded executable's
+checksum, tests detection with generated synthetic input, and scans all fetched
+Git history, including root scripts such as `get_property.py`, the package,
+tests, and documentation. It preserves Gitleaks' default rules and adds detection for
+32-character hexadecimal WFRMLS bearer-token literals, including environment
+assignments, constructor keywords, and authorization headers. It does not use
+live credentials or contact the MLS API.
+
+Use environment lookups or short mock sentinels such as `test_token` in examples
+and tests. Never copy real credentials into fixtures. CI ignores inline
+`gitleaks:allow` comments and repository fingerprint-ignore files. A confirmed
+false positive needs a reviewed rule-specific exception constrained to its
+exact harmless value and file path; never exempt entire test or docs directories.
+
+If a credential is detected, remove it before publishing and arrange its
+revocation or rotation with the credential owner. A clean scanner result does
+not prove that an exposed credential is inactive.
+
 ## Build and preview documentation
 
 ```bash
