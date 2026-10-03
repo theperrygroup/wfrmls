@@ -171,12 +171,12 @@ class TestDataSystemClient:
         expected_filter = "ModificationTimestamp gt '2024-01-01T12:00:00Z'"
         mock_get_data_systems.assert_called_once_with(filter_query=expected_filter)
 
+    @patch.dict("os.environ", {"WFRMLS_BEARER_TOKEN": "test_token"})
     def test_init_default_params(self) -> None:
         """Test DataSystemClient initialization with default parameters."""
         client = DataSystemClient()
-        # Test that it doesn't raise an exception and creates properly
-        assert hasattr(client, "bearer_token")
-        assert hasattr(client, "base_url")
+        assert client.bearer_token == "test_token"
+        assert client.base_url == "https://resoapi.utahrealestate.com/reso/odata"
 
     def test_init_with_params(self) -> None:
         """Test DataSystemClient initialization with custom parameters."""
