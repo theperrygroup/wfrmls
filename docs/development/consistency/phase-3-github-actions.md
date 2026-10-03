@@ -25,6 +25,12 @@ workflow has a clear purpose.
   issues.
 - Prefer one source of truth for quality commands between local docs and
   workflows.
+- Keep coverage reporting consistent across supported Python versions.
+  `pyproject.toml` adds a narrowly anchored exclusion for `if TYPE_CHECKING:`
+  and its type-only imports. Coverage.py 7.10 added this default, while the
+  older version available on Python 3.8 still counts those lines. The additive
+  rule preserves coverage.py's other defaults and the CI coverage threshold.
+  See [coverage.py's exclusion documentation](https://coverage.readthedocs.io/en/latest/excluding.html).
 - If docs are part of the published surface, build them with
   `mkdocs build --strict` before deploy.
 - If a job runs with `--exit-zero`, `continue-on-error`, or shell fallbacks

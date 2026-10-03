@@ -118,6 +118,9 @@ jobs:
     name: Test Suite
     runs-on: ${{ matrix.os }}
     needs: [code-quality]  # Depend on code quality job completion
+    permissions:
+      contents: read
+      id-token: write  # Authenticate Codecov uploads without a stored token
     strategy:
       fail-fast: false
       matrix:
@@ -219,11 +222,12 @@ jobs:
         python -m pytest tests/ --ignore=tests/test_integration.py --cov=wfrmls --cov-report=xml --cov-report=term-missing --cov-report=html --cov-fail-under=15 --tb=short -x -v
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v6
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
+        use_oidc: true
 
   security:
     runs-on: ubuntu-latest
