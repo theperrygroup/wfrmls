@@ -20,4 +20,4 @@ Use the root style guide as the source of truth for:
 
 - **[Documentation Style Guide](../STYLE_GUIDE.md)** - Writing guidance for docs pages.
 - **[Development Overview](index.md)** - Local setup, quality checks, and docs build commands.
-- **[Repository Root Style Guide](https://github.com/theperrygroup/wfrmls/blob/main/STYLE_GUIDE.md)** - Canonical source document.
+- **[Repository Root Style Guide](https://github.com/theperrygroup/wfrmls/blob/master/STYLE_GUIDE.md)** - Canonical source document.

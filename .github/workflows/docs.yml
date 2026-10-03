@@ -3,7 +3,6 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - main
       - master
     paths:
       - 'docs/**'
@@ -12,7 +11,6 @@ on:
       - 'wfrmls/**'  # Rebuild docs when code changes (for auto-generated content)
   pull_request:
     branches:
-      - main
       - master
     paths:
       - 'docs/**'
@@ -80,9 +78,9 @@ jobs:
         with:
           path: ./site
 
-  # Deployment job (only on main/master branch pushes)
+  # Deployment job (only on master branch pushes)
   deploy:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -139,7 +137,7 @@ jobs:
             
             ✅ Documentation builds successfully!
             
-            The documentation will be automatically deployed when this PR is merged to main.
+            The documentation will be automatically deployed when this PR is merged to master.
             
             **Changed files:**
             - Documentation files: \`docs/\`

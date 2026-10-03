@@ -3,7 +3,7 @@ site_description: A comprehensive Python wrapper for the Wasatch Front Regional 
 site_url: https://theperrygroup.github.io/wfrmls/
 repo_url: https://github.com/theperrygroup/wfrmls
 repo_name: theperrygroup/wfrmls
-edit_uri: edit/main/docs/
+edit_uri: edit/master/docs/
 
 copyright: "&copy; 2024 WFRMLS API Team. Licensed under the MIT License."
 
