@@ -39,15 +39,15 @@ exclude = ["tests*", "api_docs*", "docs*", "tasks*"]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-    "responses>=0.23.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "isort>=5.12.0",
-    "pylint>=2.17.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.16.0",
+    "responses>=0.26.3",
+    "black>=26.5.1",
+    "flake8>=7.4.1",
+    "mypy>=2.4.0",
+    "isort>=9.0.2",
+    "pylint>=4.1.1",
     "types-requests>=2.25.0"
 ]
 
