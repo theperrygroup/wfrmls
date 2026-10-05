@@ -10,7 +10,7 @@ pymdown-extensions>=11.0.1
 mike>=2.2.0
 
 # Git-based plugins for enhanced documentation
-mkdocs-git-revision-date-localized-plugin>=1.5.3
+mkdocs-git-revision-date-localized-plugin>=1.6.0
 mkdocs-git-committers-plugin-2>=2.5.0
 
 # UI and visual enhancements
