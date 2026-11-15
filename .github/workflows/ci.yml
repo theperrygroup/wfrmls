@@ -116,7 +116,11 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: ${{ matrix.os }}
+    # Use Ubuntu 22.04 assets for Python 3.8/3.9.
+    runs-on: >-
+      ${{ matrix.os == 'ubuntu-latest' &&
+          (matrix.python-version == '3.8' || matrix.python-version == '3.9') &&
+          'ubuntu-22.04' || matrix.os }}
     needs: [code-quality]  # Depend on code quality job completion
     permissions:
       contents: read
