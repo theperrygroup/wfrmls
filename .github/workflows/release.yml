@@ -11,7 +11,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Keep the same older-Python runner mapping as CI.
+    runs-on: >-
+      ${{ (matrix.python-version == '3.8' || matrix.python-version == '3.9') &&
+          'ubuntu-22.04' || 'ubuntu-latest' }}
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]

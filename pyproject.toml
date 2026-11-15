@@ -28,8 +28,10 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "requests>=2.25.0",
-    "python-dotenv>=0.19.0"
+    "requests>=2.25.0; python_version < '3.10'",
+    "requests>=2.34.2; python_version >= '3.10'",
+    "python-dotenv>=0.19.0; python_version < '3.10'",
+    "python-dotenv>=1.2.4; python_version >= '3.10'"
 ]
 
 [tool.setuptools.packages.find]
@@ -39,15 +41,23 @@ exclude = ["tests*", "api_docs*", "docs*", "tasks*"]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-    "responses>=0.23.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "isort>=5.12.0",
-    "pylint>=2.17.0",
+    "pytest>=7.0.0; python_version < '3.10'",
+    "pytest>=9.1.1; python_version >= '3.10'",
+    "pytest-cov>=4.0.0; python_version < '3.9'",
+    "pytest-cov>=7.1.0; python_version >= '3.9'",
+    "pytest-mock>=3.10.0; python_version < '3.10'",
+    "pytest-mock>=3.16.0; python_version >= '3.10'",
+    "responses>=0.26.3",
+    "black>=23.0.0; python_version < '3.10'",
+    "black>=26.5.1; python_version >= '3.10'",
+    "flake8>=6.0.0; python_version < '3.10'",
+    "flake8>=7.4.1; python_version >= '3.10'",
+    # mypy 1.17+ cannot check the configured Python 3.8 target.
+    "mypy>=1.0.0,<1.17",
+    "isort>=5.12.0; python_version < '3.10'",
+    "isort>=9.0.2; python_version >= '3.10'",
+    "pylint>=2.17.0; python_version < '3.10'",
+    "pylint>=4.1.1; python_version >= '3.10'",
     "types-requests>=2.25.0"
 ]
 
